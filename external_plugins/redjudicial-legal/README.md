@@ -1,12 +1,15 @@
 # Red Judicial — Chile
 
-Red Judicial brings the Chilean legal corpus into Claude. It exposes a single MCP tool, `redjudicial_search`, that performs semantic + lexical retrieval across three cross-linked sources:
+Red Judicial brings the Chilean legal corpus into Claude. It exposes a single MCP tool, `redjudicial_search`, that performs semantic + lexical retrieval across cross-linked sources:
 
-- **Jurisprudence** — over 283,000 Chilean Supreme Court decisions, from January 2005 to the present, ingested with full text and indexed daily.
+- **Court jurisprudence** — over 1 million decisions: 285,000+ Supreme Court (Corte Suprema, 2005–present) and 750,000+ Courts of Appeals (Cortes de Apelaciones), ingested with full text and indexed daily.
+- **Constitutional Tribunal** — Tribunal Constitucional rulings (11,800+).
+- **Administrative & specialized case law** — Comptroller General opinions (Contraloría, 90,000+), tax authority and Tax & Customs Courts (SII, TTA), labor authority (Dirección del Trabajo), financial-market regulator (CMF), social-security (SUSESO), competition court (TDLC), consumer protection (SERNAC), environmental courts, the industrial-property court (TDPI) and the national human-rights institute (INDH).
 - **Statutes** — roughly 19,000 in-force norms from BCN / LeyChile (the official Chilean legislative repository), with article-level granularity.
 - **Doctrine** — academic articles from open-access sources (SciELO, university repositories).
+- **First-instance rulings** (civil, labor, criminal, family) — in active incorporation.
 
-Each result returns a verifiable citation with a link back to the official source (Poder Judicial, BCN). The tool is read-only and does not write to user systems.
+Each result returns a verifiable citation with a link back to the official source (Poder Judicial, BCN, and the issuing authority). The tool is read-only and does not write to user systems.
 
 For Spanish-speaking practitioners and firms in Chile and Latin America. See [README.es.md](./README.es.md) for the Spanish version.
 
@@ -27,9 +30,7 @@ For Spanish-speaking practitioners and firms in Chile and Latin America. See [RE
 ## When Not to Use
 
 - U.S. or other non-Chilean primary law — out of corpus today. See `cocounsel-legal` for U.S. caselaw and Practical Law.
-- Court of Appeals or first-instance decisions — ingestion in progress, not yet in the default index.
-- Constitutional Tribunal jurisprudence — ingestion planned (Phase 2).
-- Administrative decisions (Contraloría, SII, CMF) — planned, not yet available.
+- First-instance rulings — in active incorporation; coverage is partial while the historical backfill runs.
 - Real-time docket monitoring of specific cases — not supported.
 - Drafting Chilean pleadings or contracts — Red Judicial provides primary-source research; drafting is left to the attorney.
 - Outcome predictions for a specific case — the corpus supports research, not prediction.
@@ -44,12 +45,17 @@ End users sign in with their Red Judicial account and grant the connector consen
 
 | Jurisdiction | Source | Status |
 |---|---|---|
-| Chile — Supreme Court (Corte Suprema) | Poder Judicial | ✅ live (283,000+ decisions, 2005-present) |
+| Chile — Supreme Court (Corte Suprema) | Poder Judicial | ✅ live (285,000+ decisions, 2005-present) |
+| Chile — Courts of Appeals (Cortes de Apelaciones) | Poder Judicial | ✅ live (750,000+, historical backfill in progress) |
+| Chile — Constitutional Tribunal (TC) | Tribunal Constitucional | ✅ live (11,800+) |
+| Chile — Comptroller General (Contraloría) | CGR | ✅ live (90,000+ opinions) |
+| Chile — tax (SII, Tax & Customs Courts) | SII / TTA | ✅ live |
+| Chile — labor (Dirección del Trabajo) | DT | ✅ live |
+| Chile — financial markets, social security, competition, consumer | CMF / SUSESO / TDLC / SERNAC | ✅ live |
+| Chile — environmental courts, IP court, human-rights institute | TA / TDPI / INDH | ✅ live |
 | Chile — statutes and decrees | BCN / LeyChile | ✅ live (~19,000 in-force norms) |
 | Chile — open-access doctrine | SciELO, university repositories | ✅ partial (~2,500 articles) |
-| Chile — Courts of Appeals (Cortes de Apelaciones) | Poder Judicial | 🚧 ingestion in progress |
-| Chile — Constitutional Tribunal (TC) | Tribunal Constitucional | 📋 planned (Phase 2) |
-| Chile — administrative decisions (Contraloría, SII, CMF) | Multiple | 📋 planned (Phase 2) |
+| Chile — first-instance (civil, labor, criminal, family) | Poder Judicial | 🚧 in active incorporation |
 | LATAM hispanophone expansion (Colombia, Mexico, Argentina) | Multiple | 🔭 exploratory |
 
 ## Compliance and privacy
@@ -71,7 +77,7 @@ This plugin satisfies the five criteria documented in [`CONNECTORS.md`](../../CO
 
 1. **HTTPS + OAuth 2.0** with Dynamic Client Registration and PKCE on the streamable HTTP transport at `/mcp/v1`.
 2. **Read-heavy tools only.** `redjudicial_search` performs retrieval only; no writes to user systems.
-3. **Provenance on every result.** Each hit returns `citation`, `url` (link to the official source), and `source` (`jurisprudencia` / `ley` / `doctrina`).
+3. **Provenance on every result.** Each hit returns `citation`, `url` (link to the official source), `source` (`jurisprudencia` / `ley` / `doctrina`), and the issuing court or authority with the decision/publication date.
 4. **No instructional content in tool results.** Tool responses are data plus structured metadata (`result_quality`, `suggested_followups`, `display_hints`); no embedded directives to the calling model.
 5. **Graceful error degradation.** 401 (unauthenticated), 402 (out of credits), 5xx (upstream) are returned with clean JSON-RPC error codes and human-readable messages, plus `suggested_followups` where applicable.
 

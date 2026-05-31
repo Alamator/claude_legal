@@ -2,14 +2,14 @@
 name: redjudicial-legal:investigar-jurisprudencia
 version: 0.1.0
 description: >
-  Use this skill whenever a user asks about Chilean jurisprudence, Chilean Supreme Court rulings, or legal research in Chilean law in Spanish. Covers Chilean Supreme Court decisions from 2005 to the present, with verifiable citations to the official Poder Judicial source.
+  Use this skill whenever a user asks about Chilean jurisprudence, court rulings, administrative case law, or legal research in Chilean law in Spanish. Covers over 1 million Supreme Court and Courts of Appeals decisions, the Constitutional Tribunal, and administrative case law (Contraloría, tax, labor, financial-market, social-security, competition, consumer and environmental authorities), with verifiable citations to the official source.
 allowed-tools:
   - mcp
 ---
 
 # Investigar jurisprudencia chilena
 
-This skill uses Red Judicial's `redjudicial_search` MCP tool to retrieve relevant Chilean Supreme Court decisions for a research question posed in Spanish. The corpus covers from January 2005 to the present and is updated daily.
+This skill uses Red Judicial's `redjudicial_search` MCP tool to retrieve relevant Chilean court and administrative decisions for a research question posed in Spanish. The corpus covers the Supreme Court (2005–present) and Courts of Appeals, the Constitutional Tribunal, and administrative case law from the main Chilean authorities, updated daily. First-instance rulings are in active incorporation.
 
 ## Prerequisites
 
@@ -17,15 +17,14 @@ The `redjudicial-legal` MCP server must be connected. Verify it is available bef
 
 ## When to Use
 
-- Any question that can be answered from Chilean Supreme Court caselaw.
+- Any question that can be answered from Chilean court caselaw (Supreme Court, Courts of Appeals, Constitutional Tribunal) or administrative case law (Contraloría, tax, labor, financial-market, social-security, competition, consumer, environmental).
 - Locating leading or recent decisions on a Chilean legal doctrine, principle, or statutory interpretation.
 - Cross-referencing a Chilean statute with the most recent jurisprudence interpreting it.
 - Building a memo on how Chilean jurisprudence has evolved on a specific topic.
 
 ## When Not to Use
 
-- Court of Appeals or first-instance decisions — not yet in the default index. Inform the user the corpus is currently limited to the Chilean Supreme Court and suggest narrowing the question accordingly.
-- Constitutional Tribunal jurisprudence — not yet available; planned for Phase 2.
+- First-instance decisions (civil, labor, criminal, family) — in active incorporation; coverage is partial. If the user needs exhaustive first-instance coverage, note the backfill is in progress.
 - Predicting the outcome of a specific case — the corpus supports research, not prediction.
 - Information about specific judges, attorneys, or parties beyond what appears in the rulings themselves.
 - Foreign or non-Chilean law — out of corpus. If the user asks about U.S. caselaw, suggest `cocounsel-legal` instead.
