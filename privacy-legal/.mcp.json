@@ -11,6 +11,15 @@
       "url": "https://drivemcp.googleapis.com/mcp/v1",
       "title": "Google Drive",
       "description": "Search, read, and fetch documents from Google Drive."
+    },
+    "Velvoite": {
+      "type": "http",
+      "url": "https://mcp.velvoite.eu/mcp",
+      "title": "Velvoite",
+      "description": "EU financial regulation corpus \u2014 obligations, deadlines, enforcement decisions, and regulatory changes across DORA, MiCA, GDPR, AI Act, AML, MiFID II, and more. Covers EUR-Lex, EBA, ESMA, EIOPA, FIN-FSA, and BaFin. Requires VELVOITE_API_KEY (free 30-day trial at velvoite.eu).",
+      "headers": {
+        "X-API-Key": "${VELVOITE_API_KEY}"
+      }
     }
   },
   "recommendedCategories": [
