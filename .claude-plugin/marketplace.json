@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-for-legal",
-  "description": "Reference agents, skills, and data connectors for the legal workflows we see most — in-house commercial, privacy, product, corporate, employment, litigation, regulatory, AI governance, IP, and the learning side of the practice (law school clinics and students).",
+  "description": "Reference agents, skills, and data connectors for the legal workflows we see most \u2014 in-house commercial, privacy, product, corporate, employment, litigation, regulatory, AI governance, IP, and the learning side of the practice (law school clinics and students).",
   "owner": {
     "name": "Anthropic"
   },
@@ -73,7 +73,7 @@
       "name": "litigation-legal",
       "displayName": "Litigation Legal",
       "source": "./litigation-legal",
-      "description": "Manages the litigation portfolio — matters, deadlines, holds, demands, outside counsel — and does the work: claim charts (patent and civil), chronologies, depo prep, privilege logs, brief drafting. Adapts to how you work litigation: in-house, firm, or solo.",
+      "description": "Manages the litigation portfolio \u2014 matters, deadlines, holds, demands, outside counsel \u2014 and does the work: claim charts (patent and civil), chronologies, depo prep, privilege logs, brief drafting. Adapts to how you work litigation: in-house, firm, or solo.",
       "author": {
         "name": "Anthropic"
       }
@@ -82,7 +82,7 @@
       "name": "law-student",
       "displayName": "Law Student",
       "source": "./law-student",
-      "description": "Drills Socratically, briefs cases, builds outlines, runs bar prep sessions tuned to your jurisdiction, grades IRAC practice, and plans the study schedule — without ever writing it for you.",
+      "description": "Drills Socratically, briefs cases, builds outlines, runs bar prep sessions tuned to your jurisdiction, grades IRAC practice, and plans the study schedule \u2014 without ever writing it for you.",
       "author": {
         "name": "Anthropic"
       }
@@ -91,7 +91,7 @@
       "name": "legal-clinic",
       "displayName": "Legal Clinic",
       "source": "./legal-clinic",
-      "description": "Sets up the clinic, onboards students, runs structured intake, tracks deadlines with malpractice-aware caution, and hands off cases at semester end — built within ABA Formal Op. 512.",
+      "description": "Sets up the clinic, onboards students, runs structured intake, tracks deadlines with malpractice-aware caution, and hands off cases at semester end \u2014 built within ABA Formal Op. 512.",
       "author": {
         "name": "Anthropic"
       }
@@ -100,7 +100,7 @@
       "name": "legal-builder-hub",
       "displayName": "Legal Builder Hub",
       "source": "./legal-builder-hub",
-      "description": "Finds, evaluates, and installs community legal skills — with a security review gate before anything lands in your environment.",
+      "description": "Finds, evaluates, and installs community legal skills \u2014 with a security review gate before anything lands in your environment.",
       "author": {
         "name": "Anthropic"
       }
@@ -122,6 +122,15 @@
       "author": {
         "name": "Thomson Reuters"
       }
+    },
+    {
+      "name": "fi-startup-legal",
+      "description": "Finnish startup legal toolkit for Claude Code \u2014 OY incorporation, co-founder agreements, ESOP design (TVL \u00a766/\u00a766a), SHA review against seriesseed.fi standard, Business Finland grant IP compliance, first hire contracts, and NDA generation. Backed by live Finlex statute data and PRH company register via Velvoite MCP.",
+      "author": {
+        "name": "Silly Pilot Oy",
+        "url": "https://velvoite.eu"
+      },
+      "source": "./external_plugins/fi-startup-legal"
     }
   ]
 }
