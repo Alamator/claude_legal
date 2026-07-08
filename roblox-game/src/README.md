@@ -1,28 +1,64 @@
-# Kod gry — jak używać tych plików w Roblox Studio
+# Kod gry — montaż prototypu w Roblox Studio (~15 minut)
 
-Ten katalog będzie stopniowo zapełniał się skryptami gry. Każdy plik ma
-w nagłówku komentarz mówiący, **gdzie w Studio go wkleić** i jaką ma mieć
-nazwę.
+Komplet skryptów **grywalnego prototypu** (faza 4 planu): mapa buduje się
+sama, więc niczego nie modelujesz ręcznie. Wklejasz 5 plików i grasz.
 
-## Stan obecny
+## Pliki i ich miejsca w Studio
 
-| Plik | Gdzie w Studio | Co robi |
-|------|----------------|---------|
-| `GameConfig.luau` | ModuleScript w `ReplicatedStorage`, nazwa `GameConfig` | Cały balans gry w jednym miejscu: statystyki, rzadkości, mutacje, światy, ceny, eventy, monetyzacja |
+| Plik | Typ skryptu | Gdzie w Studio | Nazwa w Studio |
+|------|-------------|----------------|----------------|
+| `GameConfig.luau` | **ModuleScript** | `ReplicatedStorage` | `GameConfig` |
+| `DataService.luau` | **ModuleScript** | `ServerScriptService` | `DataService` |
+| `MapBuilder.server.luau` | **Script** | `ServerScriptService` | `MapBuilder` |
+| `GameServer.server.luau` | **Script** | `ServerScriptService` | `GameServer` |
+| `ClientMain.client.luau` | **LocalScript** | `StarterPlayer → StarterPlayerScripts` | `ClientMain` |
 
-## Jak wkleić skrypt do Studio (dla przypomnienia)
+(Końcówki `.server`/`.client` w nazwach plików mówią tylko, jakiego TYPU
+skrypt utworzyć — w Studio nazwa jest bez nich.)
 
-1. Otwórz projekt w Roblox Studio.
-2. W oknie **Explorer** znajdź wskazany kontener (np. `ReplicatedStorage`).
-3. Kliknij „+" → wybierz typ (np. **ModuleScript**) → zmień nazwę na podaną.
-4. Otwórz skrypt (2×klik), usuń domyślną zawartość, wklej treść pliku.
+## Montaż krok po kroku
 
-## Zasady (te same co w GDD §8)
+1. Otwórz Roblox Studio → **New** → szablon **Baseplate**.
+2. Dla każdego pliku z tabeli: w oknie **Explorer** najedź na wskazany
+   kontener → kliknij „+" → wybierz właściwy typ (ModuleScript / Script /
+   LocalScript) → zmień nazwę → otwórz (2×klik) → usuń domyślną zawartość →
+   wklej treść pliku.
+3. **File → Publish to Roblox** (nadaj dowolną roboczą nazwę; gra może być
+   prywatna).
+4. **Game Settings → Security → włącz „Enable Studio Access to API
+   Services"** — bez tego zapis postępu (DataStore) nie działa w Studio.
+5. Wciśnij **Play** (F5).
 
-- **Wszystkie liczby balansu żyją w `GameConfig.luau`** — jeśli jakiś skrypt
-  potrzebuje ceny, szansy czy mnożnika, ma go `require`'ować z configu,
-  nigdy nie wpisywać na sztywno.
-- Pola `id = 0` w sekcji monetyzacji uzupełnimy prawdziwymi ID po utworzeniu
-  Game Passów i Developer Products w Creator Hub (faza 8 planu).
-- Pule gatunków dla światów 2–5 są puste (`species = {}`) — uzupełnimy je
-  w fazie produkcji MVP; do prototypu wystarczy Świat 1.
+## Jak sprawdzić, że wszystko działa (kryteria fazy 4)
+
+- [ ] W konsoli Output: `[MapBuilder] Mapa gotowa…` i `[GameServer] …wystartował 🍄`.
+- [ ] Widzisz HUD: kasa u góry, pasek kondycji na dole, kosz po prawej,
+      3 przyciski ulepszeń po lewej.
+- [ ] **Shift** = sprint; pasek spada; po wyzerowaniu wleczesz się chwilę.
+- [ ] W lesie stoją grzybki — przytrzymaj **E** przy grzybku, trafia do kosza,
+      jego świeżość tyka w dół.
+- [ ] Wróć na drewniany **BasePad** w bazie → przytrzymaj **E** → grzyby idą
+      na półki i kasa rośnie co sekundę.
+- [ ] Kupujesz ulepszenia; po **Stop i ponownym Play** kasa/poziomy wracają
+      (zapis działa).
+- [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na
+      ekranie, prompty działają dotykiem.
+
+## Zasady
+
+- **Wszystkie liczby balansu żyją w `GameConfig.luau`** — skrypty logiki
+  `require`'ują config, nigdy nie mają liczb wpisanych na sztywno.
+- Serwer nie ufa klientowi: klient tylko wyświetla HUD i wysyła prośby
+  (sprint, zakup); losowania, kasa i zapis są wyłącznie po stronie serwera.
+- Pola `id = 0` w monetyzacji uzupełnimy po utworzeniu passów w Creator Hub
+  (faza 8). Światy 2–5 mają puste pule gatunków — uzupełnimy w fazie MVP.
+
+## Świadome skróty prototypu (do zrobienia porządnie w fazie MVP)
+
+1. Grzyby innych graczy są *widoczne* dla wszystkich (ściąć może tylko
+   właściciel). Docelowo: rendering per-gracz po stronie klienta (GDD §4).
+2. Mapa ma skalę 0,5 (`MAP_SCALE` w MapBuilder) — testy bez zdzierania nóg.
+3. Brak eventów serwerowych, skrótów powrotnych, dziennika i sprzedaży
+   z półek — wchodzą w fazie 5 (produkcja MVP).
+4. Zapis przez `SetAsync` co 120 s — przed premierą przejdziemy na
+   `UpdateAsync` + kolejkę (ochrona przed utratą danych przy awarii).

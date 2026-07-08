@@ -24,7 +24,7 @@
 | 1 | Analiza rynku i wybór formatu | 2–3 dni | ✅ wykonane |
 | 2 | Nauka podstaw Studio i Luau | 3–4 tygodnie | ⬜ |
 | 3 | Koncepcja i mini-GDD | 2–3 dni | ✅ szkic gotowy (do przeglądu po fazie 2) |
-| 4 | Prototyp pętli rozgrywki | 2–3 tygodnie | ⬜ |
+| 4 | Prototyp pętli rozgrywki | 2–3 tygodnie | 🔶 kod gotowy — montaż wg `src/README.md` |
 | 5 | Produkcja MVP | 6–10 tygodni | ⬜ |
 | 6 | Oprawa: grafika, dźwięk, UI | 2–3 tygodnie (równolegle z 5) | ⬜ |
 | 7 | Testy i poprawki | 2 tygodnie | ⬜ |

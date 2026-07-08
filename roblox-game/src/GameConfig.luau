@@ -35,6 +35,14 @@ Config.Stats = {
 	},
 }
 
+-- Prędkości poruszania (używane przez serwer — klient ich nie ustawia!)
+Config.Movement = {
+	walkSpeed = 16,
+	sprintSpeed = 26,
+	exhaustedSpeed = 9,      -- „wleczenie się" po wyczerpaniu kondycji
+	exhaustedRecoverAt = 20, -- tyle punktów paska musi się odnowić, by wstać
+}
+
 -- ===========================================================================
 -- ŚWIEŻOŚĆ (GDD §4)
 -- ===========================================================================
