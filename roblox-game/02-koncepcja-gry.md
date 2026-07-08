@@ -1,19 +1,20 @@
-# GDD: „Pick a Shroom" (robocza nazwa) — pełny koncept gry v1.0
+# GDD: „Pick a Shroom" (robocza nazwa) — pełny koncept gry v1.1
 
-> Wersja 2 koncepcji (2026-07-08) — oparta na pomyśle właściciela projektu:
-> grzyby jako pasywne źródło dochodu (także offline), aktywne wyprawy w głąb
-> lasu po coraz lepsze okazy, powrót do bazy ze zdobyczą, dwa narzędzia do
-> ulepszania, światy, warianty/mutacje (gold, diamond, candy, glitch…).
-> Zastępuje wcześniejszy szkic „Night Forager".
+> Wersja 3 koncepcji (2026-07-08). Zmiana względem v2 (decyzja właściciela
+> projektu, inspiracja grami typu lucky block): **statystyki Nożyk i Kosz
+> zastąpione przez Kondycję (jak daleko zajdziesz) i Termos (jak wolno
+> grzyby tracą świeżość w drodze powrotnej)**. Reszta konceptu bez zmian:
+> grzyby zarabiają pasywnie (też offline), wyprawy w głąb lasu, per-gracz
+> losowania, światy, mutacje.
 
 ## 1. Elevator pitch
 
-Wbiegasz w las tak głęboko, jak starczy ci odwagi i pojemności kosza. Im
-dalej — tym rzadsze grzyby losujesz. Ale znaleźć to dopiero połowa roboty:
-musisz jeszcze donieść zdobycz do bazy, zanim straci świeżość. W bazie każdy
-grzyb **pracuje dla ciebie** — zarabia kasę co sekundę, nawet gdy śpisz.
-Kasa → lepszy nożyk i kosz → głębsze pierścienie lasu → nowe światy, aż po
-grzybobranie w kosmosie.
+Wbiegasz w las tak głęboko, jak pozwoli ci kondycja. Im dalej — tym rzadsze
+grzyby losujesz. Ale znaleźć to dopiero połowa roboty: musisz jeszcze wrócić,
+a każda sekunda drogi odbiera grzybom świeżość i wartość. W bazie każdy grzyb
+**pracuje dla ciebie** — zarabia kasę co sekundę, nawet gdy śpisz. Kasa →
+lepsza kondycja i termos → głębiej → nowe światy, aż po grzybobranie
+w kosmosie.
 
 **Formuła:** pętla symulatora idle (Grow a Garden, Pet Sim) × dreszczyk
 wyprawy i powrotu (trend 99 Nights / gier ekstrakcyjnych) × mutacje
@@ -24,11 +25,13 @@ kolekcjonerskie (Steal a Brainrot).
 ### Pętla główna — „wyprawa" (60–150 sekund, celowo krótka)
 
 ```
-BAZA → sprint w głąb lasu (pierścienie 1→5, coraz głębiej = lepsza pula)
-     → ścinasz grzyby nożykiem (każde ścięcie = LOSOWANIE rzadkości + mutacji)
-     → kosz się zapełnia (waga!), świeżość grzybów zaczyna spadać
+BAZA → sprint w głąb lasu (pasek kondycji topnieje; głębiej = lepsza pula)
+     → ścinasz grzyby (każde ścięcie = LOSOWANIE rzadkości + mutacji)
+     → świeżość ściętych grzybów zaczyna spadać co sekundę
      → DECYZJA: wracam z tym, co mam, czy pcham się głębiej po lepszy los?
-     → powrót do bazy (im cięższy kosz, tym wolniej biegniesz)
+       (uwaga: na powrót TEŻ trzeba kondycji — pusty pasek = wleczesz się,
+        a świeżość leci w dół!)
+     → powrót do bazy (skróty ratują życie)
      → grzyby lądują na półkach i ZARABIAJĄ kasę co sekundę
      → kasa → ulepszenia → głębiej/nowy świat → powtórz
 ```
@@ -39,61 +42,66 @@ Półki w bazie generują dochód pasywnie. Offline też (z limitem — patrz §
 Gracz wraca, odbiera kupkę kasy z popupem „Zarobiłeś 12 450 💰 kiedy cię nie
 było!", kupuje ulepszenie, robi 2–3 wyprawy, wychodzi. Sesja: 10–20 minut.
 
-### Dlaczego to działa (i moje uwagi do pierwotnego pomysłu)
+### Trzy zabezpieczenia projektowe pętli
 
-Pomysł bazowy jest mocny, ale w surowej wersji ma trzy dziury, które GDD łata:
-
-1. **Droga powrotna nie może być zwykłym spacerem** — bez presji to martwy
-   czas. Rozwiązanie bez AI wrogów (tanie w budowie!): **świeżość** (timer
-   od ścięcia; jak spadnie, wartość grzyba maleje do ×0,5) + **waga**
-   (lepsze grzyby są cięższe → wolniejszy powrót). Głębiej = lepszy łup,
-   ale dłuższa i wolniejsza droga = realny hazard bez jednej linijki AI.
-2. **Losowość musi mieć „pity"** — sama ruletka frustruje. Gwarancja:
-   co 15 ścięć minimum Rare+, licznik widoczny na ekranie (pasek „szczęścia"
-   który rośnie — to też „dużo się dzieje" na UI).
-3. **Offline-dochód bez limitu zabija powroty** — musi być cap (2 h), żeby
-   istniał powód logowania; podniesienie capu to zarazem naturalny Game Pass.
+1. **Powrót ma stawkę bez AI wrogów**: świeżość spada co sekundę, a pusty
+   pasek kondycji oznacza powolny marsz. Za głęboka wyprawa = patrzenie,
+   jak legendarny grzyb więdnie w rękach. Tanie w budowie, emocjonujące.
+2. **Losowość ma „pity"**: co 15 ścięć gwarantowany Rzadki+; rosnący pasek
+   szczęścia widoczny na ekranie.
+3. **Offline z limitem** (2 h), żeby istniał powód logowania; wyższy limit
+   to naturalny Game Pass zamiast psucia retencji.
 
 ## 3. Statystyki i ulepszenia — dokładnie 2 + 2
 
-Zgodnie z założeniem: **dwa narzędzia ulepszane wielokrotnie** (stat X —
-krzywa kosztów) i **zakupy jednorazowe** (stat Y — bramki progresji).
+**Dwie statystyki ulepszane wielokrotnie** (krzywa kosztów) i **zakupy
+jednorazowe** (bramki progresji). Obie statystyki grają na tej samej osi
+napięcia — głębia kontra świeżość — więc każda nawzajem podbija wartość
+drugiej: im głębiej sięgasz Kondycją, tym dłuższy powrót, tym bardziej
+opłaca się Termos.
 
-### Narzędzia (ulepszane poziomami, koszt ~×1,35 na poziom)
+### Statystyki (ulepszane poziomami, koszt ~×1,35 na poziom)
 
-| Narzędzie | Co daje | Efekt na pętlę |
-|-----------|---------|----------------|
-| 🔪 **Nożyk** | (a) jaki *tier* grzyba umiesz ściąć (twarde bramki co 10 poziomów), (b) szybkość ścinania | otwiera dostęp do lepszych okazów w głębi; szybsze ścinanie = krótsza wyprawa |
-| 🧺 **Kosz** | (a) liczba udźwigniętych grzybów, (b) redukcja kary do szybkości od wagi | dłuższe wyprawy, mniej boleśnie ciężki powrót |
+| Statystyka | Co daje | Liczby startowe (do strojenia w becie) |
+|------------|---------|----------------------------------------|
+| 🏃 **Kondycja** | dłuższy pasek sprintu = dalej w głąb lasu (i sprawny powrót) | pasek 100 pkt, sprint zużywa 10 pkt/s; +8 pkt paska za poziom; pierścień 5 wymaga ~90 s sprintu w jedną stronę |
+| ❄️ **Termos** | grzyby wolniej tracą świeżość | spadek świeżości ×0,975 za poziom (poz. 10 ≈ −22%, poz. 30 ≈ −53%); twarde dno: nigdy mniej niż 30% bazowego tempa świata |
 
-Celowo tylko dwa — każdy poziom ma odczuwalny efekt, a gracz zawsze wie,
-na co zbiera. (Osobnej statystyki „szybkość biegu" NIE robimy — szybkość
-wynika z kosza; trzeci suwak rozmyłby decyzje.)
+**Dwa warunki balansu, żeby ten duet nie zepsuł gry** (wpisane celowo,
+z doświadczeń tego formatu):
+
+1. **Termos nie może wyzerować spadku świeżości** — przy zerze znika całe
+   napięcie powrotu i gra robi się płaska. Stąd twarde dno 30% oraz rosnące
+   bazowe tempo psucia w kolejnych światach (patrz tabela w §4): stat jest
+   zawsze opłacalny, ale nigdy nie „wyłącza" mechaniki.
+2. **Kondycja zastępuje bramy pierścieni** — głębia jest gated statystyką,
+   nie zakupem jednorazowym (usunięte względem v2). Dzięki temu każdy
+   poziom Kondycji jest odczuwalny: dosłownie widzisz, że dobiegasz dalej.
 
 ### Zakupy jednorazowe (bramki)
 
 | Zakup | Cena rosnąca | Efekt |
 |-------|--------------|-------|
 | 🪵 **Półka w bazie** (start: 4, max 16) | ×2,2 za każdą | +1 slot na pracującego grzyba = wyższy dochód pasywny |
-| 🚪 **Brama pierścienia** (2→5 w każdym świecie) | wysokie progi | wpuszcza głębiej — do lepszej puli losowań |
-| ⚡ **Skróty powrotne** (zjeżdżalnia, trampolina, tyrolka — po 1 na pierścień) | średnie | powrót z głębi w 10 s zamiast 40 s; kupione = widoczne na mapie, satysfakcja „zagospodarowałem las" |
+| ⚡ **Skróty powrotne** (zjeżdżalnia, trampolina, tyrolka — po 1 na pierścień) | średnie | powrót z głębi w 10 s zamiast 40+ s i BEZ zużywania kondycji; kupione = widoczne na mapie |
 | 🌍 **Portal do świata** | bardzo wysokie progi | nowy świat (patrz §5) |
+
+Skróty robią się ważniejsze niż w v2: skoro powrót zużywa kondycję, kupiony
+skrót to de facto „więcej kondycji na drogę w głąb". Dobra decyzja zakupowa
+do rozważania przez gracza (poziom Kondycji vs skrót).
 
 ## 4. Grzyby: losowanie, rzadkości, mutacje, świeżość
 
 ### Czy każdy widzi te same grzyby? → **Każdy gracz ma własne spawny.**
-
-Decyzja projektowa (odpowiedź na kluczowe pytanie):
 
 - **Miejscówki grzybowe są per-gracz** (renderowane tylko dla ciebie,
   losowanie po stronie serwera). Zero podbierania sprzed nosa, zero
   wyścigów z lagiem, działa tak samo dobrze przy 2 i przy 12 graczach
   na serwerze. Tak robi to nr 1 rankingu (Grow a Garden — każdy ma swój
   ogród).
-- **Świat i inni gracze są wspólni**: widzisz innych biegających z koszami,
-  widzisz ICH grzyby na ich półkach w bazach (flex!), a rzadkie trafienia
-  ogłasza serwer: *„🌈 Kamil znalazł GLITCH Borowika w Borze!"* — to buduje
-  FOMO i społeczność bez kosztów technicznych współdzielonych spawnów.
+- **Świat i inni gracze są wspólni**: widzisz innych biegających, widzisz
+  ICH grzyby na ich półkach w bazach (flex!), a rzadkie trafienia ogłasza
+  serwer: *„🌈 Kamil znalazł GLITCH Borowika w Borze!"*.
 
 ### Rzadkości (pula per świat, głębszy pierścień = lepsze wagi losowania)
 
@@ -118,21 +126,34 @@ Sekretne istnieją głównie po to, żeby lądowały na TikToku.
 | 💎 Diamond | 1/100 | ×8 | krystaliczny, refleksy |
 | 🍬 Candy | 1/250 | ×15 | pasiasty, cukierkowy |
 | 🌟 Neon | 1/500 | ×25 | świeci w nocy |
-| 👾 Glitch | 1/2000 | ×75 | „rozjeżdżająca się" tekstura, dżumpscare-cute |
+| 👾 Glitch | 1/2000 | ×75 | „rozjeżdżająca się" tekstura |
 | 🌈 Rainbow | 1/10000 | ×150 | tęczowy, animowany |
 
 Mnożniki rzadkości × mutacji się MNOŻĄ (Legendarny Glitch = ×120×75).
 Eventy pogodowe podbijają szanse mutacji (patrz §7). W v1 jedna mutacja na
 grzyba; „podwójne mutacje" zostawiamy na update (gotowy content na LiveOps).
 
-### Świeżość (mechanika powrotu)
+### Świeżość (mechanika powrotu — serce gry)
 
-- Każdy ścięty grzyb ma pasek świeżości: 100% → spada ~1,5%/s.
-- Wartość na półce = wartość × świeżość przy dostarczeniu (min. 50%).
-- Rzadsze grzyby psują się SZYBCIEJ (dramaturgia: z Mitycznym w koszu
-  sprint po tyrolce to czysta adrenalina).
-- Konsekwencja projektowa: głębia × świeżość × waga = jedna spójna oś
-  napięcia, zero AI, zero walki.
+- Każdy ścięty grzyb ma pasek świeżości 100% → spada co sekundę wg tempa
+  bazowego świata, modyfikowanego Termosem:
+
+| Świat | Bazowe tempo psucia |
+|-------|--------------------:|
+| Las Liściasty | 1,2%/s |
+| Bór Iglasty | 1,6%/s |
+| Mokradła | 2,2%/s |
+| Kryształowa Grota | 3,0%/s |
+| Grzyboksiężyc | 4,0%/s |
+
+- **Wartość na półce = wartość × świeżość przy dostarczeniu.**
+- Poniżej 20% świeżości grzyb jest „zwiędnięty": wartość ×0,2, ale nigdy
+  nie przepada całkiem (w v1; „gnicie do zera" przetestujemy w prototypie —
+  większe emocje, ale może być zbyt brutalne dla młodszych graczy).
+- Rzadsze grzyby psują się szybciej (mnożnik ×1,1 za każdy stopień
+  rzadkości) — z Mitycznym w rękach sprint po tyrolce to czysta adrenalina.
+- Rosnące tempo psucia w kolejnych światach sprawia, że Termos nigdy nie
+  przestaje być potrzebny — to główna dźwignia długości progresji.
 
 ## 5. Światy (v1: 5 światów)
 
@@ -146,11 +167,12 @@ i mechaniki są identyczne (jeden zestaw kodu, różne dane — tanie w produkcj
 | 2 | **Bór Iglasty** | mgła, chłód | ×8 | Rydz, Maślak, Muchomor Królewski… |
 | 3 | **Mokradła** | bagno, bioluminescencja | ×50 | Błotnik, Zgniłek, Świetlik Bagienny… |
 | 4 | **Kryształowa Grota** | podziemia, kryształy | ×300 | Kryształak, Ametystówka… |
-| 5 | **Grzyboksiężyc** 🚀 | kosmos, niska grawitacja | ×2000 | Lunark, Nebulon, Czarna Dziura (sekretny) | 
+| 5 | **Grzyboksiężyc** 🚀 | kosmos, niska grawitacja | ×2000 | Lunark, Nebulon, Czarna Dziura (sekretny) |
 
 Portal do świata n+1 kupuje się za kasę (jednorazowo). Na Grzyboksiężycu
-niska grawitacja = dłuższe skoki — darmowy „wow" bez nowych mechanik.
-Światy 6+ (Cukierkowy? Głębiny?) to gotowy plan aktualizacji po premierze.
+niska grawitacja = dłuższe skoki (kondycja „starcza na więcej") — darmowy
+„wow" bez nowych mechanik. Światy 6+ (Cukierkowy? Głębiny?) to gotowy plan
+aktualizacji po premierze.
 
 ## 6. Baza gracza
 
@@ -159,10 +181,9 @@ niska grawitacja = dłuższe skoki — darmowy „wow" bez nowych mechanik.
 - Grzyb na półce = animowany, z etykietą dochodu („+320/s"); najlepszy okaz
   na podświetlonym piedestale.
 - **Dziennik Grzybiarza**: kolekcja wszystkich gatunków × rzadkości ×
-  mutacji z nagrodami za skompletowanie stron (retencja długoterminowa,
-  klasyka Fish It).
+  mutacji z nagrodami za skompletowanie stron (retencja długoterminowa).
 - Sprzedaż grzyba z półki możliwa zawsze (jednorazowa kasa zamiast dochodu) —
-  decyzja ekonomiczna dla gracza: renta czy gotówka na upgrade.
+  decyzja ekonomiczna: renta czy gotówka na upgrade.
 
 ## 7. „Musi się dużo dziać" — projekt pod krótkie skupienie
 
@@ -173,14 +194,15 @@ rosnące liczby.
   - 🌧️ *Złoty Deszcz* — 90 s, szansa mutacji ×3;
   - 🍄 *Wysyp* — 60 s, spawny ×3 (las gęsty od grzybów);
   - 🌈 *Tęcza nad lasem* — 120 s, jedyna okazja na Rainbow poza 1/10000;
+  - ❄️ *Przymrozek* — 120 s, świeżość spada 2× WOLNIEJ (okno na rajd
+    w głąb ponad stan kondycji — „teraz albo nigdy!");
   - ☄️ *Deszcz meteorów* (tylko Grzyboksiężyc) — spada „grzyb-meteor",
     kto pierwszy dobiegnie, ten ścina (JEDYNY współdzielony spawn w grze —
     kontrolowany wyjątek dla emocji społecznych).
 - **Feedback co sekundę**: popupy kasy z półek, pasek pity rosnący przy
-  każdym ścięciu, licznik świeżości, serwerowe ogłoszenia rzadkich trafień.
+  każdym ścięciu, tykający pasek świeżości, ogłoszenia rzadkich trafień.
 - **Krótkie cele zawsze widoczne**: 3 dzienne zadania („Zetnij 5 Rzadkich",
-  „Dobiegnij do pierścienia 4"), skrzynka co 20 min online, seria dzienna
-  (dzień 1–7, rosnące nagrody).
+  „Dobiegnij do pierścienia 4"), skrzynka co 20 min online, seria dzienna.
 - **Wyprawa trwa maks. 2,5 min** — pełna pętla nagrody mieści się w oknie
   uwagi; nigdy nie ma stanu „nic się nie dzieje, nic nie rośnie".
 
@@ -188,15 +210,14 @@ rosnące liczby.
 
 - **Dochód grzyba/s** = wartość gatunku × mnożnik rzadkości × mnożnik
   mutacji × świeżość dostawy × mnożnik świata.
-- **Koszt poziomu narzędzia** = koszt bazowy × 1,35^poziom (nożyk i kosz
-  osobno). Bramki tierów nożyka co 10 poziomów wymuszają rytm „zbieram na
-  próg".
+- **Koszt poziomu statystyki** = koszt bazowy × 1,35^poziom (Kondycja
+  i Termos osobno).
 - **Offline**: półki zarabiają 50% stawki, cap 2 h (Game Pass: 100% i 8 h).
 - **Cel balansu**: pierwszy portal (Bór) po ~2–3 h gry; Grzyboksiężyc po
-  ~30–40 h — wystarczająco daleko, by żyć z tego miesiąc, wystarczająco
-  blisko, by nie odstraszać.
-- Wszystkie liczby w JEDNYM ModuleScripcie konfiguracyjnym — strojenie bez
-  grzebania w logice.
+  ~30–40 h.
+- Wszystkie liczby w JEDNYM ModuleScripcie konfiguracyjnym
+  ([`src/GameConfig.luau`](src/GameConfig.luau)) — strojenie bez grzebania
+  w logice.
 
 ## 9. Komercjalizacja
 
@@ -206,10 +227,10 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 | Pass | Cena (Robux) | Efekt |
 |------|-------------:|-------|
 | 💰 Podwójna Kasa | 399 | dochód ×2 |
-| 🧺 Złoty Kosz | 299 | +50% udźwigu, skin |
+| 🧊 Lodówka Turystyczna | 299 | świeżość spada dodatkowe 20% wolniej (mnoży się z Termosem, dno 30% dalej obowiązuje) |
 | 🪵 Druga Ściana Półek | 349 | +6 slotów w każdej bazie |
 | 🌙 Nocny Marek | 249 | offline: 100% stawki i cap 8 h |
-| ⚡ Teleport do Pierścieni | 249 | menu szybkiej podróży do odblokowanych pierścieni |
+| ⚡ Teleport do Pierścieni | 249 | szybka podróż do pierścieni, do których już dobiegłeś o własnych siłach |
 | 👑 VIP | 449 | +10% szczęścia, złoty nick, aura, tytuł w bazie |
 
 ### Developer Products (wielokrotne — główny przychód w tym formacie)
@@ -217,12 +238,12 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 - 🍀 **Eliksir Szczęścia** (20 min, szansa rzadkości ×2) — bestseller formatu;
 - 🌀 **Totem Powrotu** ×5 (natychmiastowy teleport do bazy Z PEŁNĄ świeżością
   — monetyzuje dokładnie ten moment paniki, który tworzy mechanika świeżości);
+- ⚡ **Energetyk** ×5 (natychmiastowe pełne odnowienie kondycji w terenie);
 - 🎲 **Kostka Mutacji** (przerzut mutacji jednego grzyba na półce).
 
 ### Pasywnie
-- **Premium Payouts** (Robux za czas gry subskrybentów Premium — za darmo,
-  wymaga tylko retencji);
-- kosmetyki nożyka/kosza/śladu biegu w update'ach (czysty flex, zero mocy).
+- **Premium Payouts** (Robux za czas gry subskrybentów Premium);
+- kosmetyki termosu/butów/śladu biegu w update'ach (czysty flex, zero mocy).
 
 ## 10. Zakres v1.0 — twarda lista „NIE"
 
@@ -231,7 +252,7 @@ z cudzych baz, prestiżu/rebirth (v1.1 jako „Nowy Sezon Grzybowy"), podwójnyc
 mutacji, craftingu, PvP, AI przeciwników, pogody wpływającej na ruch.
 Każda z tych rzeczy to gotowy nagłówek przyszłej aktualizacji — nie zaległość.
 
-## 11. Miary sukcesu (bez zmian względem planu)
+## 11. Miary sukcesu
 
 Prototyp: obcy gracz gra 10 min bez pytań i robi drugą wyprawę z własnej
 woli. Premiera: D1 > 20%, sesja > 12 min, 👍 > 75%. Miesiąc 1: 2–4 update'y,
@@ -239,9 +260,10 @@ pierwszy event weekendowy (×2 kasa).
 
 ## 12. Otwarte pytania (do rozstrzygnięcia prototypem, nie dyskusją)
 
-1. Czy świeżość spadająca do 50% wystarczy jako presja, czy powrót ma być
-   groźniejszy (np. „złodziejska wiewiórka" wytrącająca 1 grzyb przy
-   otarciu)? → test na prototypie.
-2. Długość pierścieni: 20 s czy 40 s biegu między bramami? → test.
-3. Nazwa: „Pick a Shroom" vs „Mushroom Rush" vs „Shroom It" → test CTR
+1. Czy „zwiędnięcie" (×0,2) wystarczy jako kara, czy testujemy „gnicie do
+   zera" (grzyb przepada) dla większych emocji? → test na prototypie.
+2. Czy powrót zużywa kondycję 1:1 jak wejście, czy taniej (np. 50%)? Start:
+   50% — hojniej dla nowych, dokręcimy w becie.
+3. Długość pierścieni: 20 s czy 40 s sprintu między pierścieniami? → test.
+4. Nazwa: „Pick a Shroom" vs „Mushroom Rush" vs „Shroom It" → test CTR
    miniatur przed premierą.
