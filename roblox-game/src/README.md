@@ -7,8 +7,12 @@ Wklejasz 6 plików i grasz.
 Poza pętlą podstawową działa już: **eventy serwerowe** co 4–6 min (Złoty
 Deszcz, Wysyp, Tęcza nad lasem, Przymrozek — baner z odliczaniem w lewym
 górnym rogu), **skróty powrotne** (świecące portale na pierścieniach 2–5:
-pierwsze użycie kupuje, kolejne teleportują do bazy) i **sprzedaż
-najsłabszego grzyba z półki** (przycisk pod ulepszeniami — zwalnia slot).
+pierwsze użycie kupuje, kolejne teleportują do bazy), **sprzedaż
+najsłabszego grzyba z półki** (przycisk pod ulepszeniami — zwalnia slot),
+**dziennik grzybiarza** (przycisk 📖 w prawym górnym rogu; nagrody za 10/25/
+50/70 wpisów), **3 dzienne zadania + skrzynka co 20 minut** (panel w lewym
+dolnym rogu) oraz **samouczek 3 kroków** prowadzący nowego gracza strzałką
+(zetnij → odłóż → ulepsz, +150 💰 na koniec).
 
 ## Pliki i ich miejsca w Studio
 
@@ -53,6 +57,11 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] Świecący portal na pierścieniu 2: pierwsze **E** kupuje skrót
       (2000 💰), kolejne teleportuje do bazy.
 - [ ] Przycisk „💸 Sprzedaj najsłabszy" zdejmuje grzyb z półki i dodaje kasę.
+- [ ] Na świeżym koncie widać samouczek (KROK 1/3 + znacznik ⬇️ nad
+      najbliższym grzybkiem); po 3 krokach nagroda 150 💰.
+- [ ] W lewym dolnym rogu: 3 zadania dzienne z postępem i odliczanie do 🎁.
+- [ ] Przycisk „📖 Dziennik" otwiera kolekcję; nowy wpis po każdym nowym
+      gatunku×rzadkości.
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na
       ekranie, prompty działają dotykiem.
 
@@ -94,7 +103,7 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 1. Grzyby innych graczy są *widoczne* dla wszystkich (ściąć może tylko
    właściciel). Docelowo: rendering per-gracz po stronie klienta (GDD §4).
 2. Mapa ma skalę 0,5 (`MAP_SCALE` w MapBuilder) — testy bez zdzierania nóg.
-3. Brak dziennika grzybiarza, dziennych zadań i skrzynek czasowych —
-   wchodzą w dalszej części fazy 5 (produkcja MVP).
+3. Brak jeszcze: światów 2–5, serii dziennej (login streak), petów i całej
+   monetyzacji — wchodzą w dalszej części fazy 5 i w fazie 8.
 4. Zapis przez `SetAsync` co 120 s — przed premierą przejdziemy na
    `UpdateAsync` + kolejkę (ochrona przed utratą danych przy awarii).

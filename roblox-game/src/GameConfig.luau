@@ -180,6 +180,49 @@ Config.Shortcuts = {
 }
 
 -- ===========================================================================
+-- DZIENNIK GRZYBIARZA (GDD §6) — nagrody za liczbę odkrytych wpisów
+-- (wpis = gatunek × rzadkość; mutacje liczone osobno jako odznaki)
+-- ===========================================================================
+
+Config.Journal = {
+	milestones = {
+		{ count = 10, reward = 500 },
+		{ count = 25, reward = 2_500 },
+		{ count = 50, reward = 15_000 },
+		{ count = 70, reward = 50_000 }, -- komplet dla Świata 1
+	},
+}
+
+-- ===========================================================================
+-- DZIENNE ZADANIA + SKRZYNKA CZASOWA (GDD §7)
+-- ===========================================================================
+
+Config.Daily = {
+	questCount = 3, -- tyle zadań losujemy każdego dnia (UTC)
+	templates = {
+		{ id = "Cut20",     text = "Zetnij 20 grzybów",             target = 20, reward = 400, stat = "cuts" },
+		{ id = "Rare5",     text = "Zetnij 5 Rzadkich lub lepszych", target = 5,  reward = 600, stat = "rareCuts" },
+		{ id = "Deliver15", text = "Dostarcz 15 grzybów do bazy",    target = 15, reward = 500, stat = "delivered" },
+		{ id = "Deep3",     text = "Zetnij grzyba w pierścieniu 3+", target = 1,  reward = 300, stat = "deepCut" },
+		{ id = "Shelf8",    text = "Miej 8 grzybów na półkach",      target = 8,  reward = 500, stat = "shelfCount" },
+	},
+}
+
+Config.Chest = {
+	intervalSeconds = 20 * 60, -- skrzynka za czas online
+	minReward = 100,
+	incomeSeconds = 120,       -- nagroda = max(minReward, dochód/s × tyle sekund)
+}
+
+-- ===========================================================================
+-- SAMOUCZEK (onboarding pierwszych 60 sekund — GDD §5 planu MVP)
+-- ===========================================================================
+
+Config.Tutorial = {
+	reward = 150, -- kasa za ukończenie 3 kroków
+}
+
+-- ===========================================================================
 -- OFFLINE (GDD §8)
 -- ===========================================================================
 

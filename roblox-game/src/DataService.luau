@@ -26,6 +26,12 @@ function DataService.defaultData()
 		shelf = {},
 		-- kupione skróty powrotne: { ["2"] = true, ... } (klucze-stringi dla DataStore)
 		shortcuts = {},
+		-- dziennik: { ["gatunekIdx:rzadkoscIdx"] = true }, mutacje osobno
+		journal = {},
+		mutationsSeen = {},
+		-- dzienne zadania: { date = "RRRR-MM-DD", quests = {{id, progress, done}} }
+		daily = { date = "", quests = {} },
+		tutorialDone = false,
 		pity = 0,
 		lastSeen = 0, -- os.time() ostatniego zapisu (do liczenia zarobku offline)
 	}

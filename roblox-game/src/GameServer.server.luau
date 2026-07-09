@@ -57,6 +57,8 @@ local sessions: { [Player]: {
 	sprinting: boolean,
 	exhausted: boolean,
 	carried: { Carried },
+	tutorialStep: number, -- 1..3 = aktywny krok, 0 = ukończony
+	nextChestAt: number,  -- os.time() następnej skrzynki czasowej
 } } = {}
 
 local function staminaMax(data): number
@@ -89,6 +91,76 @@ local function itemLabel(item: Carried): string
 	return ("%s (%s)%s %d%%"):format(species.name, rarity.name, mutation, math.floor(item.freshness))
 end
 
+-- ============================================================================
+-- Dziennik grzybiarza, dzienne zadania, skrzynka (GDD §6-7)
+-- ============================================================================
+
+local templateById = {}
+for _, template in Config.Daily.templates do
+	templateById[template.id] = template
+end
+
+local function journalCount(data): number
+	local count = 0
+	for _ in data.journal do
+		count += 1
+	end
+	return count
+end
+
+local function journalText(data): string
+	local lines = {}
+	for speciesIdx, species in WORLD.species do
+		local found = 0
+		for rarityIdx = 1, #Config.Rarities do
+			if data.journal[speciesIdx .. ":" .. rarityIdx] then
+				found += 1
+			end
+		end
+		table.insert(lines, ("%s — %d/%d"):format(species.name, found, #Config.Rarities))
+	end
+	local mutationNames = {}
+	for _, mutation in Config.Mutations do
+		if data.mutationsSeen[mutation.id] then
+			table.insert(mutationNames, mutation.name)
+		end
+	end
+	table.insert(lines, "")
+	table.insert(lines, ("Mutacje %d/%d: %s"):format(
+		#mutationNames, #Config.Mutations,
+		#mutationNames > 0 and table.concat(mutationNames, ", ") or "—"))
+	return table.concat(lines, "\n")
+end
+
+local function questsText(data): string
+	local lines = {}
+	for _, quest in data.daily.quests do
+		local template = templateById[quest.id]
+		if template then
+			local mark = quest.done and "✅" or "▫️"
+			table.insert(lines, ("%s %s — %d/%d"):format(
+				mark, template.text, math.min(quest.progress, template.target), template.target))
+		end
+	end
+	return table.concat(lines, "\n")
+end
+
+-- losuje 3 zadania na nowy dzień (UTC)
+local function ensureDaily(data)
+	local today = os.date("!%Y-%m-%d")
+	if data.daily and data.daily.date == today then
+		return
+	end
+	local pool = table.clone(Config.Daily.templates)
+	local quests = {}
+	for _ = 1, math.min(Config.Daily.questCount, #pool) do
+		local index = math.random(#pool)
+		table.insert(quests, { id = pool[index].id, progress = 0, done = false })
+		table.remove(pool, index)
+	end
+	data.daily = { date = today, quests = quests }
+end
+
 -- Wypycha stan do klienta przez atrybuty (HUD tylko je czyta)
 local function syncAttributes(player: Player)
 	local s = sessions[player]
@@ -109,6 +181,67 @@ local function syncAttributes(player: Player)
 		table.insert(lines, itemLabel(item))
 	end
 	player:SetAttribute("CarriedSummary", table.concat(lines, "\n"))
+
+	player:SetAttribute("TutorialStep", s.tutorialStep)
+	player:SetAttribute("ChestIn", math.max(0, s.nextChestAt - os.time()))
+	player:SetAttribute("JournalCount", journalCount(data))
+	player:SetAttribute("JournalTotal", #WORLD.species * #Config.Rarities)
+	player:SetAttribute("JournalText", journalText(data))
+	player:SetAttribute("QuestsText", questsText(data))
+end
+
+-- Dopisuje znalezisko do dziennika; wypłaca nagrody za kamienie milowe.
+local function journalAdd(player: Player, item: Carried)
+	local s = sessions[player]
+	if not s then return end
+	local data = s.data
+
+	local newEntry = false
+	local key = item.speciesIdx .. ":" .. item.rarityIdx
+	if not data.journal[key] then
+		data.journal[key] = true
+		newEntry = true
+	end
+	if item.mutationIdx > 0 then
+		local mutationId = Config.Mutations[item.mutationIdx].id
+		if not data.mutationsSeen[mutationId] then
+			data.mutationsSeen[mutationId] = true
+			notifyRemote:FireClient(player, ("📖 Nowa mutacja w Dzienniku: %s!"):format(mutationId))
+		end
+	end
+	if newEntry then
+		local count = journalCount(data)
+		for _, milestone in Config.Journal.milestones do
+			if milestone.count == count then
+				data.cash += milestone.reward
+				notifyRemote:FireAllClients(("📖 %s ma już %d wpisów w Dzienniku Grzybiarza! (+%d 💰)")
+					:format(player.DisplayName, count, milestone.reward))
+			end
+		end
+	end
+end
+
+-- Aktualizuje postęp dziennych zadań o danym typie statystyki.
+-- absolute=true ustawia postęp na wartość (np. liczba grzybów na półkach).
+local function questProgress(player: Player, stat: string, amount: number, absolute: boolean)
+	local s = sessions[player]
+	if not s then return end
+	for _, quest in s.data.daily.quests do
+		local template = templateById[quest.id]
+		if template and template.stat == stat and not quest.done then
+			if absolute then
+				quest.progress = math.max(quest.progress, amount)
+			else
+				quest.progress += amount
+			end
+			if quest.progress >= template.target then
+				quest.done = true
+				s.data.cash += template.reward
+				notifyRemote:FireClient(player, ("✅ Zadanie wykonane: %s! Nagroda %d 💰")
+					:format(template.text, template.reward))
+			end
+		end
+	end
 end
 
 -- ============================================================================
@@ -207,6 +340,19 @@ local function cutNode(player: Player, node: Model, ringIndex: number)
 		notifyRemote:FireClient(player, "🍄 " .. itemLabel(item))
 	end
 
+	journalAdd(player, item)
+	questProgress(player, "cuts", 1, false)
+	if item.rarityIdx >= 3 then
+		questProgress(player, "rareCuts", 1, false)
+	end
+	if ringIndex >= 3 then
+		questProgress(player, "deepCut", 1, false)
+	end
+	if s.tutorialStep == 1 then
+		s.tutorialStep = 2
+		notifyRemote:FireClient(player, "🎯 Super! Teraz wróć do bazy i odłóż grzyby (E na drewnianym polu).")
+	end
+
 	syncAttributes(player)
 	-- event „Wysyp": grzyby odrastają szybciej
 	task.delay(NODE_RESPAWN_DELAY / EventService.spawnRateMult(), function()
@@ -292,6 +438,13 @@ local function deliver(player: Player)
 		message ..= (", sprzedano %d za %d 💰 (brak półek!)"):format(sold, math.floor(soldValue))
 	end
 	notifyRemote:FireClient(player, message)
+
+	questProgress(player, "delivered", shelved + sold, false)
+	questProgress(player, "shelfCount", #s.data.shelf, true)
+	if s.tutorialStep == 2 then
+		s.tutorialStep = 3
+		notifyRemote:FireClient(player, "🎯 Świetnie! Kup teraz pierwsze ulepszenie (panel po lewej).")
+	end
 	syncAttributes(player)
 end
 
@@ -367,6 +520,8 @@ buyRemote.OnServerEvent:Connect(function(player, upgradeName)
 	if not s then return end
 	local data = s.data
 
+	local totalBefore = data.staminaLevel + data.thermosLevel + data.shelvesOwned
+
 	local cost: number? = nil
 	if upgradeName == "Stamina" and data.staminaLevel < Config.Stats.Stamina.maxLevel then
 		cost = Config.statCost(Config.Stats.Stamina, data.staminaLevel)
@@ -386,6 +541,15 @@ buyRemote.OnServerEvent:Connect(function(player, upgradeName)
 			data.cash -= cost
 			data.shelvesOwned += 1
 		end
+	end
+
+	-- ostatni krok samouczka: pierwszy udany zakup
+	if s.tutorialStep == 3 and data.staminaLevel + data.thermosLevel + data.shelvesOwned > totalBefore then
+		s.tutorialStep = 0
+		data.tutorialDone = true
+		data.cash += Config.Tutorial.reward
+		notifyRemote:FireClient(player, ("🎓 Samouczek ukończony! +%d 💰 — powodzenia, grzybiarzu!")
+			:format(Config.Tutorial.reward))
 	end
 	syncAttributes(player)
 end)
@@ -453,6 +617,20 @@ task.spawn(function()
 			-- dochód z półek
 			data.cash += shelfIncomePerSec(data)
 
+			-- skrzynka czasowa (co 20 min online — GDD §7)
+			if os.time() >= s.nextChestAt then
+				s.nextChestAt = os.time() + Config.Chest.intervalSeconds
+				local reward = math.max(
+					Config.Chest.minReward,
+					math.floor(shelfIncomePerSec(data) * Config.Chest.incomeSeconds)
+				)
+				data.cash += reward
+				notifyRemote:FireClient(player, ("🎁 Skrzynka czasowa: +%d 💰!"):format(reward))
+			end
+
+			-- nowy dzień = nowe zadania (dla siedzących w grze przez północ UTC)
+			ensureDaily(data)
+
 			syncAttributes(player)
 		end
 	end
@@ -476,6 +654,8 @@ Players.PlayerAdded:Connect(function(player)
 		end
 	end
 
+	ensureDaily(data)
+
 	sessions[player] = {
 		data = data,
 		loadedOk = loadedOk,
@@ -483,6 +663,8 @@ Players.PlayerAdded:Connect(function(player)
 		sprinting = false,
 		exhausted = false,
 		carried = {},
+		tutorialStep = data.tutorialDone and 0 or 1,
+		nextChestAt = os.time() + Config.Chest.intervalSeconds,
 	}
 
 	-- leaderboard Roblox (lista graczy po prawej)

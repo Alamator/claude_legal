@@ -25,6 +25,12 @@ local function fmt(n: number): string
 	return tostring(math.floor(n))
 end
 
+-- sekundy → „12:34"
+local function fmtTime(seconds: number): string
+	seconds = math.max(0, math.floor(seconds))
+	return string.format("%d:%02d", seconds // 60, seconds % 60)
+end
+
 -- ============================================================================
 -- Sprint: LeftShift na PC + automatyczny przycisk dotykowy na telefonie
 -- ============================================================================
@@ -171,6 +177,109 @@ sellButton.Activated:Connect(function()
 	sellRemote:FireServer()
 end)
 
+-- Panel dziennych zadań + licznik skrzynki (lewy dolny róg)
+local questsPanel = makeLabel(gui, UDim2.new(0, 260, 0, 110), UDim2.new(0, 10, 1, -122), 13)
+questsPanel.TextXAlignment = Enum.TextXAlignment.Left
+questsPanel.TextYAlignment = Enum.TextYAlignment.Top
+questsPanel.TextWrapped = true
+local questsPadding = Instance.new("UIPadding")
+questsPadding.PaddingLeft = UDim.new(0, 10)
+questsPadding.PaddingTop = UDim.new(0, 8)
+questsPadding.Parent = questsPanel
+
+-- Dziennik grzybiarza: przycisk (prawy górny róg) + zwijany panel
+local journalButton = Instance.new("TextButton")
+journalButton.Size = UDim2.new(0, 150, 0, 36)
+journalButton.Position = UDim2.new(1, -160, 0, 8)
+journalButton.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
+journalButton.BackgroundTransparency = 0.2
+journalButton.TextColor3 = Color3.new(1, 1, 1)
+journalButton.Font = Enum.Font.GothamBold
+journalButton.TextSize = 15
+journalButton.Text = "📖 Dziennik"
+journalButton.Parent = gui
+local journalButtonCorner = Instance.new("UICorner")
+journalButtonCorner.CornerRadius = UDim.new(0, 8)
+journalButtonCorner.Parent = journalButton
+
+local journalPanel = makeLabel(gui, UDim2.new(0, 340, 0, 340), UDim2.new(0.5, -170, 0.5, -170), 14)
+journalPanel.TextXAlignment = Enum.TextXAlignment.Left
+journalPanel.TextYAlignment = Enum.TextYAlignment.Top
+journalPanel.TextWrapped = true
+journalPanel.Visible = false
+local journalPadding = Instance.new("UIPadding")
+journalPadding.PaddingLeft = UDim.new(0, 12)
+journalPadding.PaddingTop = UDim.new(0, 10)
+journalPadding.Parent = journalPanel
+
+journalButton.Activated:Connect(function()
+	journalPanel.Visible = not journalPanel.Visible
+end)
+
+-- Samouczek: instrukcja na środku + pływający znacznik nad celem
+local tutorialLabel = makeLabel(gui, UDim2.new(0, 540, 0, 40), UDim2.new(0.5, -270, 0, 104), 17)
+tutorialLabel.BackgroundColor3 = Color3.fromRGB(160, 120, 30)
+tutorialLabel.Visible = false
+
+local marker = Instance.new("BillboardGui")
+marker.Name = "TutorialMarker"
+marker.Size = UDim2.new(0, 70, 0, 70)
+marker.StudsOffset = Vector3.new(0, 5, 0)
+marker.AlwaysOnTop = true
+marker.Enabled = false
+local markerLabel = Instance.new("TextLabel")
+markerLabel.Size = UDim2.fromScale(1, 1)
+markerLabel.BackgroundTransparency = 1
+markerLabel.Text = "⬇️"
+markerLabel.TextScaled = true
+markerLabel.Parent = marker
+
+local function nearestOwnMushroomPart(): BasePart?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local folder = workspace:FindFirstChild("Mushrooms_" .. player.UserId)
+	if not (root and folder) then
+		return nil
+	end
+	local best: BasePart? = nil
+	local bestDist = math.huge
+	for _, node in folder:GetChildren() do
+		local part = node:FindFirstChildWhichIsA("BasePart")
+		if part then
+			local dist = (part.Position - (root :: BasePart).Position).Magnitude
+			if dist < bestDist then
+				best, bestDist = part, dist
+			end
+		end
+	end
+	return best
+end
+
+task.spawn(function()
+	while true do
+		local step = player:GetAttribute("TutorialStep") or 0
+		if step == 1 then
+			tutorialLabel.Text = "🍄 KROK 1/3: Pobiegnij w las (Shift = bieg) i przytrzymaj E przy grzybku"
+			local target = nearestOwnMushroomPart()
+			marker.Parent = target
+			marker.Enabled = target ~= nil
+		elseif step == 2 then
+			tutorialLabel.Text = "📦 KROK 2/3: Wróć do bazy i przytrzymaj E na drewnianym polu"
+			marker.Parent = workspace:FindFirstChild("BasePad")
+			marker.Enabled = marker.Parent ~= nil
+		elseif step == 3 then
+			tutorialLabel.Text = "⬆️ KROK 3/3: Kup pierwsze ulepszenie w panelu po lewej"
+			marker.Enabled = false
+			marker.Parent = nil
+		else
+			marker.Enabled = false
+			marker.Parent = nil
+		end
+		tutorialLabel.Visible = step >= 1 and step <= 3
+		task.wait(1)
+	end
+end)
+
 -- ============================================================================
 -- Odświeżanie HUD z atrybutów gracza (ustawia je serwer)
 -- ============================================================================
@@ -208,6 +317,18 @@ local function refresh()
 	upgradeButtons.Shelf.Text = shelves >= Config.Base.maxShelves
 		and "🪵 Półki: MAX"
 		or ("🪵 Półka [%d/%d] — %s 💰"):format(shelves, Config.Base.maxShelves, fmt(shelfCost))
+
+	-- dzienne zadania + skrzynka czasowa
+	local chestIn = player:GetAttribute("ChestIn") or 0
+	local quests = player:GetAttribute("QuestsText") or ""
+	questsPanel.Text = ("📋 DZISIAJ   🎁 skrzynka za %s\n%s"):format(fmtTime(chestIn), quests)
+
+	-- dziennik grzybiarza
+	local journalCount = player:GetAttribute("JournalCount") or 0
+	local journalTotal = player:GetAttribute("JournalTotal") or 0
+	journalButton.Text = ("📖 Dziennik %d/%d"):format(journalCount, journalTotal)
+	journalPanel.Text = ("📖 DZIENNIK GRZYBIARZA (%d/%d)\n\n%s")
+		:format(journalCount, journalTotal, player:GetAttribute("JournalText") or "")
 end
 
 player.AttributeChanged:Connect(refresh)
