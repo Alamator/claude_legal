@@ -44,6 +44,30 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na
       ekranie, prompty działają dotykiem.
 
+## Najczęstsza usterka: „nic się nie pojawia"
+
+1. Mapa i gra powstają **dopiero po wciśnięciu Play (F5)** — w trybie edycji
+   widać tylko pustą płytę.
+2. Skrypty MUSZĄ siedzieć w kontenerach z tabeli powyżej. Wrzucone luzem
+   (np. do Workspace) nie zadziałają. W Explorerze można je przeciągnąć
+   myszką na właściwe miejsce.
+3. `GameConfig` i `DataService` muszą być **ModuleScriptami** — wstawione
+   jako Script powodują, że reszta wisi w nieskończoność (żółte ostrzeżenie
+   `Infinite yield possible…` w Output).
+4. Zawsze zaglądaj do **View → Output**: powinny być linijki
+   `[MapBuilder] Mapa gotowa…` i `[GameServer] …wystartował 🍄`; czerwone
+   błędy mówią, który skrypt jest nie tak.
+
+## Praca bez ręcznego wklejania (opcjonalnie, na później)
+
+- **Oficjalny Roblox Studio MCP** — Claude zainstalowany na Twoim
+  komputerze (Claude Desktop / Claude Code) może wstawiać skrypty do Studio
+  bezpośrednio: https://github.com/Roblox/studio-rust-mcp-server
+- **Rojo** — plik `../default.project.json` mapuje te pliki na właściwe
+  kontenery; po zainstalowaniu wtyczki Rojo w Studio i uruchomieniu
+  `rojo serve` w katalogu `roblox-game/` wszystko synchronizuje się samo:
+  https://rojo.space
+
 ## Zasady
 
 - **Wszystkie liczby balansu żyją w `GameConfig.luau`** — skrypty logiki
