@@ -15,6 +15,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
+local EventService = require(ServerScriptService:WaitForChild("EventService"))
 
 local WORLD = Config.Worlds[1] -- prototyp: tylko Las Liściasty
 local NODES_PER_PLAYER = 14    -- ile miejscówek grzybowych naraz ma gracz
@@ -39,6 +40,9 @@ end
 local sprintRemote = makeRemote("Sprint")       -- klient → serwer: (bool) sprintuję?
 local buyRemote = makeRemote("BuyUpgrade")      -- klient → serwer: ("Stamina"|"Thermos"|"Shelf")
 local notifyRemote = makeRemote("Notify")       -- serwer → klient(y): (tekst) ogłoszenia
+local sellRemote = makeRemote("SellWeakest")    -- klient → serwer: sprzedaj najsłabszy grzyb z półki
+
+EventService.init(notifyRemote, WORLD.id)
 
 -- ============================================================================
 -- Stan sesji graczy
@@ -128,9 +132,16 @@ local function rollRarity(ringIndex: number): number
 end
 
 -- Od najrzadszej: pierwsza wylosowana wygrywa. 0 = czysty grzyb.
+-- Eventy podbijają szanse (Złoty Deszcz ×3, Tęcza otwiera Rainbow 1/150).
 local function rollMutation(): number
+	local eventMult = EventService.mutationChanceMult()
 	for index = #Config.Mutations, 1, -1 do
-		if math.random(Config.Mutations[index].oneIn) == 1 then
+		local mutation = Config.Mutations[index]
+		local chance = eventMult / mutation.oneIn
+		if mutation.id == "Rainbow" and EventService.rainbowActive() then
+			chance = 1 / EventService.rainbowOneIn()
+		end
+		if math.random() < chance then
 			return index
 		end
 	end
@@ -197,7 +208,8 @@ local function cutNode(player: Player, node: Model, ringIndex: number)
 	end
 
 	syncAttributes(player)
-	task.delay(NODE_RESPAWN_DELAY, function()
+	-- event „Wysyp": grzyby odrastają szybciej
+	task.delay(NODE_RESPAWN_DELAY / EventService.spawnRateMult(), function()
 		if sessions[player] then
 			spawnNode(player)
 		end
@@ -286,6 +298,67 @@ end
 basePrompt.Triggered:Connect(deliver)
 
 -- ============================================================================
+-- Skróty powrotne (GDD §3): kup raz, potem teleport do bazy z każdego użycia
+-- ============================================================================
+
+local BASE_RETURN_CFRAME = CFrame.new(0, 4, -20)
+
+local shortcutsFolder = workspace:WaitForChild("Shortcuts", 10)
+if shortcutsFolder then
+	for _, portal in shortcutsFolder:GetChildren() do
+		local ringIndex = portal:GetAttribute("RingIndex")
+		local prompt = portal:FindFirstChildOfClass("ProximityPrompt")
+		local shortcut = Config.Shortcuts[ringIndex]
+		if not (prompt and shortcut) then continue end
+
+		prompt.Triggered:Connect(function(player)
+			local s = sessions[player]
+			if not s then return end
+			local key = tostring(ringIndex) -- klucze DataStore muszą być stringami
+
+			if s.data.shortcuts[key] then
+				local character = player.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if root then
+					root.CFrame = BASE_RETURN_CFRAME
+					notifyRemote:FireClient(player, ("⚡ %s! Jesteś w bazie — odłóż grzyby."):format(shortcut.name))
+				end
+			elseif s.data.cash >= shortcut.cost then
+				s.data.cash -= shortcut.cost
+				s.data.shortcuts[key] = true
+				notifyRemote:FireClient(player, ("✅ Kupiono: %s! Od teraz teleportuje cię do bazy."):format(shortcut.name))
+			else
+				notifyRemote:FireClient(player, ("❌ %s kosztuje %d 💰 — za mało kasy."):format(shortcut.name, shortcut.cost))
+			end
+			syncAttributes(player)
+		end)
+	end
+end
+
+-- ============================================================================
+-- Sprzedaż najsłabszego grzyba z półki (zwalnia slot, daje 60 s jego dochodu)
+-- ============================================================================
+
+sellRemote.OnServerEvent:Connect(function(player)
+	local s = sessions[player]
+	if not s or #s.data.shelf == 0 then return end
+
+	local worstIdx, worstIncome = 1, math.huge
+	for index, item in s.data.shelf do
+		local income = itemIncome(item)
+		if income < worstIncome then
+			worstIdx, worstIncome = index, income
+		end
+	end
+
+	local value = worstIncome * Config.Base.sellFromShelfMult
+	table.remove(s.data.shelf, worstIdx)
+	s.data.cash += value
+	notifyRemote:FireClient(player, ("💸 Sprzedano najsłabszy grzyb za %d 💰 (slot wolny)."):format(math.floor(value)))
+	syncAttributes(player)
+end)
+
+-- ============================================================================
 -- Ulepszenia (klient prosi, serwer decyduje)
 -- ============================================================================
 
@@ -371,9 +444,10 @@ task.spawn(function()
 			end
 			applySpeed(player)
 
-			-- świeżość niesionych grzybów
+			-- świeżość niesionych grzybów (event „Przymrozek" spowalnia psucie)
+			local eventDecayMult = EventService.decayMult()
 			for _, item in s.carried do
-				item.freshness = math.max(0, item.freshness - decayPerSec(data, item.rarityIdx))
+				item.freshness = math.max(0, item.freshness - decayPerSec(data, item.rarityIdx) * eventDecayMult)
 			end
 
 			-- dochód z półek

@@ -13,6 +13,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local sprintRemote = remotes:WaitForChild("Sprint")
 local buyRemote = remotes:WaitForChild("BuyUpgrade")
 local notifyRemote = remotes:WaitForChild("Notify")
+local sellRemote = remotes:WaitForChild("SellWeakest")
 
 local player = Players.LocalPlayer
 
@@ -105,6 +106,26 @@ carriedPadding.Parent = carriedPanel
 local toast = makeLabel(gui, UDim2.new(0, 420, 0, 34), UDim2.new(0.5, -210, 0, 60), 16)
 toast.Visible = false
 
+-- Baner aktywnego eventu (lewy górny róg) — czyta atrybuty workspace
+local eventBanner = makeLabel(gui, UDim2.new(0, 260, 0, 36), UDim2.new(0, 10, 0, 8), 16)
+eventBanner.BackgroundColor3 = Color3.fromRGB(120, 70, 160)
+eventBanner.Visible = false
+
+task.spawn(function()
+	while true do
+		local name = workspace:GetAttribute("EventName")
+		local endsAt = workspace:GetAttribute("EventEndsAt")
+		if name and endsAt then
+			local remaining = math.max(0, endsAt - os.time())
+			eventBanner.Text = ("⚡ %s — %d s"):format(name, remaining)
+			eventBanner.Visible = remaining > 0
+		else
+			eventBanner.Visible = false
+		end
+		task.wait(1)
+	end
+end)
+
 -- Panel ulepszeń (lewa strona)
 local upgradeNames = {
 	{ id = "Stamina", icon = "🏃", label = "Kondycja" },
@@ -131,6 +152,24 @@ for index, upgrade in upgradeNames do
 	end)
 	upgradeButtons[upgrade.id] = button
 end
+
+-- Przycisk sprzedaży najsłabszego grzyba z półki (zwalnia slot)
+local sellButton = Instance.new("TextButton")
+sellButton.Size = UDim2.new(0, 230, 0, 46)
+sellButton.Position = UDim2.new(0, 10, 0.5, -80 + #upgradeNames * 54)
+sellButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+sellButton.BackgroundTransparency = 0.15
+sellButton.TextColor3 = Color3.new(1, 1, 1)
+sellButton.Font = Enum.Font.GothamBold
+sellButton.TextSize = 15
+sellButton.Text = "💸 Sprzedaj najsłabszy z półki"
+sellButton.Parent = gui
+local sellCorner = Instance.new("UICorner")
+sellCorner.CornerRadius = UDim.new(0, 8)
+sellCorner.Parent = sellButton
+sellButton.Activated:Connect(function()
+	sellRemote:FireServer()
+end)
 
 -- ============================================================================
 -- Odświeżanie HUD z atrybutów gracza (ustawia je serwer)

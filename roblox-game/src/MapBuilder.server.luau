@@ -76,6 +76,10 @@ local ringsFolder = Instance.new("Folder")
 ringsFolder.Name = "Rings"
 ringsFolder.Parent = workspace
 
+local shortcutsFolder = Instance.new("Folder")
+shortcutsFolder.Name = "Shortcuts"
+shortcutsFolder.Parent = workspace
+
 local sprintSpeed = Config.Movement.sprintSpeed
 local prevEndZ = 0
 
@@ -110,6 +114,29 @@ for ringIndex, ringConfig in Config.Rings do
 	label.TextColor3 = Color3.fromRGB(40, 40, 40)
 	label.Text = "PIERŚCIEŃ " .. ringIndex
 	label.Parent = gui
+
+	-- świecący portal skrótu powrotnego na początku pierścienia (GDD §3)
+	local shortcutConfig = Config.Shortcuts[ringIndex]
+	if shortcutConfig then
+		local portal = makePart(
+			"ShortcutPortal" .. ringIndex,
+			Vector3.new(5, 9, 1),
+			CFrame.new(MAP_WIDTH / 2 - 12, 5, prevEndZ + 4),
+			Color3.fromRGB(110, 190, 255)
+		)
+		portal.Material = Enum.Material.Neon
+		portal.Transparency = 0.25
+		portal:SetAttribute("RingIndex", ringIndex)
+		portal.Parent = shortcutsFolder
+
+		local portalPrompt = Instance.new("ProximityPrompt")
+		portalPrompt.ActionText = "Skrót do bazy"
+		portalPrompt.ObjectText = ("%s — %d 💰 (raz)"):format(shortcutConfig.name, shortcutConfig.cost)
+		portalPrompt.HoldDuration = 0.4
+		portalPrompt.MaxActivationDistance = 10
+		portalPrompt.RequiresLineOfSight = false
+		portalPrompt.Parent = portal
+	end
 
 	prevEndZ = endZ
 end

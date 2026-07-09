@@ -24,6 +24,8 @@ function DataService.defaultData()
 		shelvesOwned = Config.Base.startShelves,
 		-- grzyby na półkach: { {speciesIdx, rarityIdx, mutationIdx, freshness}, ... }
 		shelf = {},
+		-- kupione skróty powrotne: { ["2"] = true, ... } (klucze-stringi dla DataStore)
+		shortcuts = {},
 		pity = 0,
 		lastSeen = 0, -- os.time() ostatniego zapisu (do liczenia zarobku offline)
 	}

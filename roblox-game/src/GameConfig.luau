@@ -201,7 +201,7 @@ Config.Events = {
 	list = {
 		{ id = "GoldenRain",  name = "Złoty Deszcz",    duration = 90,  effect = { mutationChanceMult = 3 } },
 		{ id = "Bloom",       name = "Wysyp",           duration = 60,  effect = { spawnRateMult = 3 } },
-		{ id = "RainbowSky",  name = "Tęcza nad lasem", duration = 120, effect = { rainbowEnabled = true } },
+		{ id = "RainbowSky",  name = "Tęcza nad lasem", duration = 120, effect = { rainbowEnabled = true, rainbowOneIn = 150 } },
 		{ id = "Frost",       name = "Przymrozek",      duration = 120, effect = { freshnessDecayMult = 0.5 } },
 		{ id = "MeteorRain",  name = "Deszcz meteorów", duration = 90,  effect = { meteorShroom = true }, onlyWorld = "Mushmoon" },
 	},

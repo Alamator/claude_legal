@@ -1,7 +1,14 @@
 # Kod gry — montaż prototypu w Roblox Studio (~15 minut)
 
-Komplet skryptów **grywalnego prototypu** (faza 4 planu): mapa buduje się
-sama, więc niczego nie modelujesz ręcznie. Wklejasz 5 plików i grasz.
+Komplet skryptów **grywalnego prototypu** (faza 4 planu + pierwsza porcja
+fazy 5): mapa buduje się sama, więc niczego nie modelujesz ręcznie.
+Wklejasz 6 plików i grasz.
+
+Poza pętlą podstawową działa już: **eventy serwerowe** co 4–6 min (Złoty
+Deszcz, Wysyp, Tęcza nad lasem, Przymrozek — baner z odliczaniem w lewym
+górnym rogu), **skróty powrotne** (świecące portale na pierścieniach 2–5:
+pierwsze użycie kupuje, kolejne teleportują do bazy) i **sprzedaż
+najsłabszego grzyba z półki** (przycisk pod ulepszeniami — zwalnia slot).
 
 ## Pliki i ich miejsca w Studio
 
@@ -9,6 +16,7 @@ sama, więc niczego nie modelujesz ręcznie. Wklejasz 5 plików i grasz.
 |------|-------------|----------------|----------------|
 | `GameConfig.luau` | **ModuleScript** | `ReplicatedStorage` | `GameConfig` |
 | `DataService.luau` | **ModuleScript** | `ServerScriptService` | `DataService` |
+| `EventService.luau` | **ModuleScript** | `ServerScriptService` | `EventService` |
 | `MapBuilder.server.luau` | **Script** | `ServerScriptService` | `MapBuilder` |
 | `GameServer.server.luau` | **Script** | `ServerScriptService` | `GameServer` |
 | `ClientMain.client.luau` | **LocalScript** | `StarterPlayer → StarterPlayerScripts` | `ClientMain` |
@@ -41,6 +49,10 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
       na półki i kasa rośnie co sekundę.
 - [ ] Kupujesz ulepszenia; po **Stop i ponownym Play** kasa/poziomy wracają
       (zapis działa).
+- [ ] Po 4–6 minutach gry pojawia się baner eventu (⚡) z odliczaniem.
+- [ ] Świecący portal na pierścieniu 2: pierwsze **E** kupuje skrót
+      (2000 💰), kolejne teleportuje do bazy.
+- [ ] Przycisk „💸 Sprzedaj najsłabszy" zdejmuje grzyb z półki i dodaje kasę.
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na
       ekranie, prompty działają dotykiem.
 
@@ -82,7 +94,7 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 1. Grzyby innych graczy są *widoczne* dla wszystkich (ściąć może tylko
    właściciel). Docelowo: rendering per-gracz po stronie klienta (GDD §4).
 2. Mapa ma skalę 0,5 (`MAP_SCALE` w MapBuilder) — testy bez zdzierania nóg.
-3. Brak eventów serwerowych, skrótów powrotnych, dziennika i sprzedaży
-   z półek — wchodzą w fazie 5 (produkcja MVP).
+3. Brak dziennika grzybiarza, dziennych zadań i skrzynek czasowych —
+   wchodzą w dalszej części fazy 5 (produkcja MVP).
 4. Zapis przez `SetAsync` co 120 s — przed premierą przejdziemy na
    `UpdateAsync` + kolejkę (ochrona przed utratą danych przy awarii).

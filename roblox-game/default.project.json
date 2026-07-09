@@ -9,6 +9,7 @@
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "DataService": { "$path": "src/DataService.luau" },
+      "EventService": { "$path": "src/EventService.luau" },
       "MapBuilder": { "$path": "src/MapBuilder.server.luau" },
       "GameServer": { "$path": "src/GameServer.server.luau" }
     },
