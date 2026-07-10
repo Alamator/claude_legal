@@ -293,6 +293,23 @@ Config.Combo = {
 }
 
 -- ===========================================================================
+-- REBIRTH — zeruje kasę/ulepszenia/światy, daje TRWAŁY mnożnik dochodu
+-- i szczęścia. Silnik długiego progresu: „jeszcze jeden reset…"
+-- ===========================================================================
+
+Config.Rebirth = {
+	baseCost = 50_000,          -- pierwszy rebirth
+	costGrowth = 6,             -- każdy kolejny ×6
+	incomeBonusPerRebirth = 0.5, -- +50% dochodu za każdy rebirth (na stałe)
+	luckPerRebirth = 0.02,      -- +2% szansy mutacji za każdy rebirth
+	maxRebirths = 50,
+}
+
+function Config.rebirthCost(rebirths: number): number
+	return math.floor(Config.Rebirth.baseCost * Config.Rebirth.costGrowth ^ rebirths)
+end
+
+-- ===========================================================================
 -- SERIA DZIENNA (login streak) — dzień 1-7, potem powtarza dzień 7
 -- ===========================================================================
 

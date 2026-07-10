@@ -20,8 +20,11 @@ w bazie, grzyby na nim mają kolor rzadkości, a mutacje świecą) oraz **pakiet
 retencji**: poziomy gracza z paskiem XP i odznaką (nagroda co poziom, trwałe
 +0,5% szczęścia za poziom, kamienie milowe co 5), combo za seryjne ścinanie
 (mnożnik XP do ×3, bonusy za ×10/×25/×50, rosnący pitch dźwięku, licznik
-z „punchem"), fanfara level-upu (błysk ekranu + wielki napis + dźwięki)
-i seria logowań dzień 1–7.
+z „punchem"), fanfara level-upu (błysk ekranu + wielki napis + dźwięki),
+seria logowań dzień 1–7 oraz **rebirth**: fioletowy przycisk 🌀 pod
+dziennikiem otwiera minimalistyczny modal („×1.5 → ×2.0", co zeruje / co
+zostaje, cena; przycisk szarzeje, gdy Cię nie stać) — reset daje trwały
+mnożnik dochodu i szczęścia, z fioletową fanfarą i ogłoszeniem serwerowym.
 
 ## Pliki i ich miejsca w Studio
 
@@ -78,6 +81,9 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] Pasek XP pod kasą rośnie po każdym ścięciu; wejście na poziom =
       błysk ekranu + „⬆️ POZIOM N!" + nagroda w kasie.
 - [ ] Przy wejściu (raz dziennie) toast „🔥 Seria dzienna: dzień N".
+- [ ] Przycisk „🌀 ×1.0" otwiera modal rebirtha; przy 50k 💰 przycisk robi
+      się fioletowy, po potwierdzeniu: reset do Świata 1, fioletowy błysk
+      „🌀 REBIRTH ×1!", dochód liczony ×1.5.
 - [ ] Przy BasePadzie stoi stojak z twoim nickiem; po dostawie pojawiają się
       na nim kulki w kolorach rzadkości (mutacje świecą).
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na

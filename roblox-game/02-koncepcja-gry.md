@@ -259,8 +259,14 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 ## 10. Zakres v1.0 — twarda lista „NIE"
 
 Do premiery NIE robimy: petów/pomocników, handlu między graczami, kradzieży
-z cudzych baz, prestiżu/rebirth (v1.1 jako „Nowy Sezon Grzybowy"), podwójnych
-mutacji, craftingu, PvP, AI przeciwników, pogody wpływającej na ruch.
+z cudzych baz, podwójnych mutacji, craftingu, PvP, AI przeciwników, pogody
+wpływającej na ruch.
+
+**Rebirth (przeniesiony z v1.1 do v1.0):** za rosnącą cenę (50k ×6 za każdy
+kolejny) zerujesz kasę, ulepszenia, półki, skróty i światy — w zamian trwały
+mnożnik dochodu (+50%/szt.) i szczęścia (+2%/szt.). Zostaje: poziom/XP,
+dziennik, seria dzienna. To domyka pętlę długoterminową: świeży start jest
+szybszy i szczęśliwszy, a licznik 🌀 to status na serwerze.
 Każda z tych rzeczy to gotowy nagłówek przyszłej aktualizacji — nie zaległość.
 
 ## 11. Miary sukcesu

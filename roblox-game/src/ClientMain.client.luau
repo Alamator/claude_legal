@@ -18,6 +18,7 @@ local sprintRemote = remotes:WaitForChild("Sprint")
 local buyRemote = remotes:WaitForChild("BuyUpgrade")
 local notifyRemote = remotes:WaitForChild("Notify")
 local sellRemote = remotes:WaitForChild("SellWeakest")
+local rebirthRemote = remotes:WaitForChild("Rebirth")
 
 local player = Players.LocalPlayer
 
@@ -413,6 +414,81 @@ makeButton(journalPanel,
 	end).Text = "✕"
 
 -- ============================================================================
+-- Rebirth: przycisk + minimalistyczny modal (mnożnik → mnożnik, jedna decyzja)
+-- ============================================================================
+
+local rebirthPanel = makeCard(gui, UDim2.new(0, 300, 0, 300), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
+rebirthPanel.Visible = false
+addHeader(rebirthPanel, "🌀 REBIRTH", Color3.fromRGB(190, 120, 255), Color3.fromRGB(120, 60, 200))
+
+-- duża linia mnożnika: „×1.5 → ×2.0" — sedno decyzji w jednym spojrzeniu
+local rebirthMultLine = Instance.new("TextLabel")
+rebirthMultLine.Size = UDim2.new(1, -24, 0, 56)
+rebirthMultLine.Position = UDim2.new(0.5, 0, 0, 52)
+rebirthMultLine.AnchorPoint = Vector2.new(0.5, 0)
+rebirthMultLine.BackgroundTransparency = 1
+rebirthMultLine.Parent = rebirthPanel
+styleText(rebirthMultLine, 34)
+rebirthMultLine.TextColor3 = Color3.fromRGB(210, 160, 255)
+
+local rebirthSubtitle = Instance.new("TextLabel")
+rebirthSubtitle.Size = UDim2.new(1, -24, 0, 20)
+rebirthSubtitle.Position = UDim2.new(0.5, 0, 0, 108)
+rebirthSubtitle.AnchorPoint = Vector2.new(0.5, 0)
+rebirthSubtitle.BackgroundTransparency = 1
+rebirthSubtitle.Text = "stały mnożnik dochodu i szczęścia"
+rebirthSubtitle.Parent = rebirthPanel
+styleText(rebirthSubtitle, 14)
+rebirthSubtitle.TextTransparency = 0.25
+
+local rebirthInfo = Instance.new("TextLabel")
+rebirthInfo.Size = UDim2.new(1, -32, 0, 72)
+rebirthInfo.Position = UDim2.new(0.5, 0, 0, 140)
+rebirthInfo.AnchorPoint = Vector2.new(0.5, 0)
+rebirthInfo.BackgroundTransparency = 1
+rebirthInfo.TextWrapped = true
+rebirthInfo.Text = "Zeruje: kasę, ulepszenia, półki, światy\nZostaje: poziom, dziennik, seria dzienna"
+rebirthInfo.Parent = rebirthPanel
+styleText(rebirthInfo, 14)
+rebirthInfo.TextTransparency = 0.15
+
+local rebirthConfirm = makeButton(rebirthPanel,
+	UDim2.new(1, -32, 0, 48),
+	UDim2.new(0.5, 0, 1, -14),
+	Vector2.new(0.5, 1),
+	Color3.fromRGB(190, 120, 255), Color3.fromRGB(120, 60, 200), 17,
+	function()
+		rebirthRemote:FireServer()
+		rebirthPanel.Visible = false
+	end)
+local rebirthConfirmGradient = rebirthConfirm:FindFirstChildOfClass("UIGradient")
+
+makeButton(rebirthPanel,
+	UDim2.new(0, 30, 0, 30),
+	UDim2.new(1, -6, 0, 6),
+	Vector2.new(1, 0),
+	Color3.fromRGB(240, 100, 90), Color3.fromRGB(190, 55, 45), 16,
+	function()
+		rebirthPanel.Visible = false
+	end).Text = "✕"
+
+local rebirthPanelScale = Instance.new("UIScale")
+rebirthPanelScale.Parent = rebirthPanel
+
+local rebirthButton = makeButton(gui,
+	UDim2.new(0, 170, 0, 42),
+	UDim2.new(1, -14, 0, 62),
+	Vector2.new(1, 0),
+	Color3.fromRGB(190, 120, 255), Color3.fromRGB(120, 60, 200), 15,
+	function()
+		rebirthPanel.Visible = not rebirthPanel.Visible
+		if rebirthPanel.Visible then
+			rebirthPanelScale.Scale = 0.7
+			TweenService:Create(rebirthPanelScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		end
+	end)
+
+-- ============================================================================
 -- Dół: pasek kondycji + pity
 -- ============================================================================
 
@@ -514,11 +590,43 @@ levelUpLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
 local levelUpScale = Instance.new("UIScale")
 levelUpScale.Parent = levelUpLabel
 
+-- fioletowa fanfara rebirtha (używa tych samych elementów co level-up)
+local lastRebirths = -1
+player:GetAttributeChangedSignal("Rebirths"):Connect(function()
+	local rebirths = player:GetAttribute("Rebirths") or 0
+	if lastRebirths >= 0 and rebirths > lastRebirths then
+		levelFlash.BackgroundColor3 = Color3.fromRGB(200, 150, 255)
+		levelFlash.BackgroundTransparency = 0.45
+		TweenService:Create(levelFlash, TweenInfo.new(0.8), { BackgroundTransparency = 1 }):Play()
+		levelUpLabel.TextColor3 = Color3.fromRGB(210, 160, 255)
+		levelUpLabel.Text = ("🌀 REBIRTH ×%d!"):format(rebirths)
+		levelUpLabel.Visible = true
+		levelUpLabel.TextTransparency = 0
+		levelUpScale.Scale = 0.4
+		TweenService:Create(levelUpScale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		task.delay(1.8, function()
+			TweenService:Create(levelUpLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			task.delay(0.4, function()
+				levelUpLabel.Visible = false
+				levelUpLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+			end)
+		end)
+		for step = 0, 3 do
+			task.delay(step * 0.11, function()
+				ding.PlaybackSpeed = 0.8 + step * 0.3
+				ding:Play()
+			end)
+		end
+	end
+	lastRebirths = rebirths
+end)
+
 local lastLevel = 0
 player:GetAttributeChangedSignal("Level"):Connect(function()
 	local level = player:GetAttribute("Level") or 1
 	if lastLevel > 0 and level > lastLevel then
 		-- błysk
+		levelFlash.BackgroundColor3 = Color3.fromRGB(255, 230, 150)
 		levelFlash.BackgroundTransparency = 0.55
 		TweenService:Create(levelFlash, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
 		-- napis z punchem
@@ -664,6 +772,20 @@ local function refresh()
 	journalButton.Text = ("📖 Dziennik %d/%d"):format(journalCount, journalTotal)
 	journalHeader.Text = ("📖 DZIENNIK %d/%d"):format(journalCount, journalTotal)
 	journalBody.Text = player:GetAttribute("JournalText") or ""
+
+	-- rebirth: przycisk pokazuje obecny mnożnik, modal — decyzję i cenę
+	local rebirths = player:GetAttribute("Rebirths") or 0
+	local rebirthMultNow = player:GetAttribute("RebirthMult") or 1
+	local rebirthCost = player:GetAttribute("RebirthCost") or 0
+	rebirthButton.Text = ("🌀 ×%.1f"):format(rebirthMultNow)
+	rebirthMultLine.Text = ("×%.1f  →  ×%.1f"):format(rebirthMultNow, rebirthMultNow + Config.Rebirth.incomeBonusPerRebirth)
+	local canAfford = cash >= rebirthCost
+	rebirthConfirm.Text = ("REBIRTH — %s 💰"):format(fmt(rebirthCost))
+	if rebirthConfirmGradient then
+		rebirthConfirmGradient.Color = canAfford
+			and ColorSequence.new(Color3.fromRGB(190, 120, 255), Color3.fromRGB(120, 60, 200))
+			or ColorSequence.new(Color3.fromRGB(110, 110, 125), Color3.fromRGB(70, 70, 85))
+	end
 end
 
 player.AttributeChanged:Connect(refresh)

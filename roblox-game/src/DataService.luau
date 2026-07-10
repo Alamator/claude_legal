@@ -37,6 +37,7 @@ function DataService.defaultData()
 		level = 1,
 		streakDay = 0,
 		lastLoginDate = "",
+		rebirths = 0,
 		-- światy (GDD §5): bieżący i odblokowane (klucze-stringi dla DataStore)
 		currentWorld = 1,
 		worldsUnlocked = { ["1"] = true },

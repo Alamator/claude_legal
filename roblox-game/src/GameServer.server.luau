@@ -44,6 +44,7 @@ local sprintRemote = makeRemote("Sprint")       -- klient → serwer: (bool) spr
 local buyRemote = makeRemote("BuyUpgrade")      -- klient → serwer: ("Stamina"|"Thermos"|"Shelf")
 local notifyRemote = makeRemote("Notify")       -- serwer → klient(y): (tekst) ogłoszenia
 local sellRemote = makeRemote("SellWeakest")    -- klient → serwer: sprzedaj najsłabszy grzyb z półki
+local rebirthRemote = makeRemote("Rebirth")     -- klient → serwer: prośba o rebirth
 
 -- eventy globalne dla całego serwera; Deszcz meteorów (onlyWorld) czeka
 -- na porządną implementację wspólnych spawnów w fazie MVP
@@ -119,18 +120,24 @@ local function decayPerSec(data, item: Carried): number
 	return Config.decayPerSec(world.freshnessDecayPerSec, data.thermosLevel, false, item.rarityIdx)
 end
 
-local function itemIncome(item: Carried): number
+-- trwały mnożnik dochodu z rebirthów (GDD: silnik długiego progresu)
+local function rebirthMult(data): number
+	return 1 + (data.rebirths or 0) * Config.Rebirth.incomeBonusPerRebirth
+end
+
+local function itemIncome(item: Carried, data): number
 	local world = Config.Worlds[item.worldIdx or 1]
 	local species = world.species[item.speciesIdx]
 	local rarity = Config.Rarities[item.rarityIdx]
 	local mutationMult = item.mutationIdx > 0 and Config.Mutations[item.mutationIdx].incomeMult or 1
 	return Config.shelfIncome(species.baseIncome, rarity.incomeMult, mutationMult, item.freshness, world.incomeMult)
+		* rebirthMult(data)
 end
 
 local function shelfIncomePerSec(data): number
 	local total = 0
 	for _, item in data.shelf do
-		total += itemIncome(item)
+		total += itemIncome(item, data)
 	end
 	return total
 end
@@ -326,6 +333,9 @@ local function syncAttributes(player: Player)
 	end
 	player:SetAttribute("CarriedSummary", table.concat(lines, "\n"))
 
+	player:SetAttribute("Rebirths", data.rebirths)
+	player:SetAttribute("RebirthCost", Config.rebirthCost(data.rebirths))
+	player:SetAttribute("RebirthMult", rebirthMult(data))
 	player:SetAttribute("Level", data.level)
 	player:SetAttribute("XP", math.floor(data.xp))
 	player:SetAttribute("XPNeeded", Config.xpForLevel(data.level))
@@ -494,7 +504,7 @@ local function refreshShelfDisplay(player: Player)
 	-- najlepszy okaz dostaje piedestał i iskierki (flex!)
 	local bestIdx, bestIncome = 0, -1
 	for index, item in s.data.shelf do
-		local income = itemIncome(item)
+		local income = itemIncome(item, s.data)
 		if income > bestIncome then
 			bestIdx, bestIncome = index, income
 		end
@@ -557,10 +567,11 @@ local function rollRarity(ringIndex: number): number
 end
 
 -- Od najrzadszej: pierwsza wylosowana wygrywa. 0 = czysty grzyb.
--- Eventy podbijają szanse (Złoty Deszcz ×3, Tęcza otwiera Rainbow 1/150),
--- a każdy poziom gracza daje trwałe +0,5% szczęścia.
-local function rollMutation(playerLevel: number): number
-	local luckMult = EventService.mutationChanceMult() * (1 + playerLevel * Config.XP.luckPerLevel)
+-- Eventy podbijają szanse (Złoty Deszcz ×3, Tęcza otwiera Rainbow 1/150);
+-- poziomy (+0,5%/poz.) i rebirthy (+2%/szt.) dają trwałe szczęście.
+local function rollMutation(data): number
+	local luckMult = EventService.mutationChanceMult()
+		* (1 + data.level * Config.XP.luckPerLevel + (data.rebirths or 0) * Config.Rebirth.luckPerRebirth)
 	for index = #Config.Mutations, 1, -1 do
 		local mutation = Config.Mutations[index]
 		local chance = luckMult / mutation.oneIn
@@ -622,7 +633,7 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 		worldIdx = worldIdx,
 		speciesIdx = math.random(#world.species),
 		rarityIdx = rarityIdx,
-		mutationIdx = rollMutation(s.data.level),
+		mutationIdx = rollMutation(s.data),
 		freshness = Config.Freshness.startPercent,
 	}
 	table.insert(s.carried, item)
@@ -787,7 +798,7 @@ local function deliver(player: Player)
 			shelved += 1
 		else
 			-- brak miejsca: natychmiastowa sprzedaż (= 60 s dochodu, GDD §6)
-			local value = itemIncome(item) * Config.Base.sellFromShelfMult
+			local value = itemIncome(item, s.data) * Config.Base.sellFromShelfMult
 			s.data.cash += value
 			sold += 1
 			soldValue += value
@@ -925,7 +936,7 @@ sellRemote.OnServerEvent:Connect(function(player)
 
 	local worstIdx, worstIncome = 1, math.huge
 	for index, item in s.data.shelf do
-		local income = itemIncome(item)
+		local income = itemIncome(item, s.data)
 		if income < worstIncome then
 			worstIdx, worstIncome = index, income
 		end
@@ -936,6 +947,55 @@ sellRemote.OnServerEvent:Connect(function(player)
 	s.data.cash += value
 	notifyRemote:FireClient(player, ("💸 Sprzedano najsłabszy grzyb za %d 💰 (slot wolny)."):format(math.floor(value)))
 	refreshShelfDisplay(player)
+	syncAttributes(player)
+end)
+
+-- ============================================================================
+-- Rebirth: reset postępu za trwały mnożnik dochodu i szczęścia
+-- Zeruje: kasę, ulepszenia, półki, skróty, światy. Zostaje: poziom/XP,
+-- dziennik, seria dzienna, samouczek.
+-- ============================================================================
+
+rebirthRemote.OnServerEvent:Connect(function(player)
+	local s = sessions[player]
+	if not s then return end
+	local data = s.data
+	if data.rebirths >= Config.Rebirth.maxRebirths then return end
+
+	local cost = Config.rebirthCost(data.rebirths)
+	if data.cash < cost then
+		notifyRemote:FireClient(player, ("❌ Rebirth kosztuje %d 💰 — za mało kasy."):format(cost))
+		return
+	end
+
+	data.rebirths += 1
+	data.cash = 0
+	data.staminaLevel = 0
+	data.thermosLevel = 0
+	data.shelvesOwned = Config.Base.startShelves
+	data.shelf = {}
+	data.shortcuts = {}
+	data.currentWorld = 1
+	data.worldsUnlocked = { ["1"] = true }
+	data.pity = 0
+	s.carried = {}
+	s.stamina = staminaMax(data)
+	s.exhausted = false
+	s.comboCount = 0
+
+	teleportToBase(player, 1)
+	respawnAllNodes(player)
+	refreshShelfDisplay(player)
+
+	notifyRemote:FireAllClients(("🌀 %s zrobił REBIRTH ×%d! Jego dochód rośnie ×%.1f na stałe!")
+		:format(player.DisplayName, data.rebirths, rebirthMult(data)))
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		burstAt(root.Position, Color3.fromRGB(190, 120, 255))
+		floatingText(root.Position + Vector3.new(0, 3, 0),
+			("REBIRTH ×%d!"):format(data.rebirths), Color3.fromRGB(190, 120, 255))
+	end
 	syncAttributes(player)
 end)
 
