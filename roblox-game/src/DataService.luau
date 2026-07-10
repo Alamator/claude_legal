@@ -32,6 +32,9 @@ function DataService.defaultData()
 		-- dzienne zadania: { date = "RRRR-MM-DD", quests = {{id, progress, done}} }
 		daily = { date = "", quests = {} },
 		tutorialDone = false,
+		-- światy (GDD §5): bieżący i odblokowane (klucze-stringi dla DataStore)
+		currentWorld = 1,
+		worldsUnlocked = { ["1"] = true },
 		pity = 0,
 		lastSeen = 0, -- os.time() ostatniego zapisu (do liczenia zarobku offline)
 	}

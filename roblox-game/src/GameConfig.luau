@@ -130,7 +130,18 @@ Config.Worlds = {
 		incomeMult = 8,
 		freshnessDecayPerSec = 1.6,
 		portalCost = 25_000, -- cel: osiągalny po ~2-3 h gry (GDD §8)
-		species = {}, -- TODO: 10 gatunków w fazie produkcji
+		species = {
+			{ id = "RydzBorowy",   name = "Rydz Borowy",        baseIncome = 1 },
+			{ id = "MaslakSosnowy", name = "Maślak Sosnowy",    baseIncome = 2 },
+			{ id = "OpienkaMglista", name = "Opieńka Mglista",  baseIncome = 3 },
+			{ id = "Zieleniatka",  name = "Zieleniatka",        baseIncome = 4 },
+			{ id = "Szyszkowka",   name = "Szyszkówka",         baseIncome = 6 },
+			{ id = "Mroznik",      name = "Mroźnik",            baseIncome = 8 },
+			{ id = "Iglowiec",     name = "Igłowiec",           baseIncome = 11 },
+			{ id = "Smolak",       name = "Smolak",             baseIncome = 15 },
+			{ id = "BorowikKrolewski", name = "Borowik Królewski", baseIncome = 20 },
+			{ id = "WidmowyMuchomor", name = "Widmowy Muchomor", baseIncome = 28 },
+		},
 	},
 	{
 		id = "Swamp",
@@ -138,7 +149,18 @@ Config.Worlds = {
 		incomeMult = 50,
 		freshnessDecayPerSec = 2.2,
 		portalCost = 400_000,
-		species = {},
+		species = {
+			{ id = "Blotnik",      name = "Błotnik",            baseIncome = 1 },
+			{ id = "Zgnilek",      name = "Zgniłek",            baseIncome = 2 },
+			{ id = "TrzesakBagienny", name = "Trzęsak Bagienny", baseIncome = 3 },
+			{ id = "Mszarnik",     name = "Mszarnik",           baseIncome = 4 },
+			{ id = "BagiennaKurka", name = "Bagienna Kurka",    baseIncome = 6 },
+			{ id = "Fosforek",     name = "Fosforek",           baseIncome = 8 },
+			{ id = "SwietlikBagienny", name = "Świetlik Bagienny", baseIncome = 11 },
+			{ id = "Topielec",     name = "Topielec",           baseIncome = 15 },
+			{ id = "Mglak",        name = "Mglak",              baseIncome = 20 },
+			{ id = "KrolMokradel", name = "Król Mokradeł",      baseIncome = 28 },
+		},
 	},
 	{
 		id = "CrystalCave",
@@ -146,7 +168,18 @@ Config.Worlds = {
 		incomeMult = 300,
 		freshnessDecayPerSec = 3.0,
 		portalCost = 6_000_000,
-		species = {},
+		species = {
+			{ id = "Kwarcownik",   name = "Kwarcownik",         baseIncome = 1 },
+			{ id = "Grotolaz",     name = "Grotołaz",           baseIncome = 2 },
+			{ id = "Echowiec",     name = "Echowiec",           baseIncome = 3 },
+			{ id = "Lazuryt",      name = "Lazuryt",            baseIncome = 4 },
+			{ id = "Rubinek",      name = "Rubinek",            baseIncome = 6 },
+			{ id = "Szmaragdziak", name = "Szmaragdziak",       baseIncome = 8 },
+			{ id = "Ametystowka",  name = "Ametystówka",        baseIncome = 11 },
+			{ id = "Obsydianka",   name = "Obsydianka",         baseIncome = 15 },
+			{ id = "Krysztalak",   name = "Kryształak",         baseIncome = 20 },
+			{ id = "DiamentowyKapelusz", name = "Diamentowy Kapelusz", baseIncome = 28 },
+		},
 	},
 	{
 		id = "Mushmoon",
@@ -154,8 +187,19 @@ Config.Worlds = {
 		incomeMult = 2000,
 		freshnessDecayPerSec = 4.0,
 		portalCost = 90_000_000,
-		species = {},
-		lowGravity = true, -- dłuższe skoki: JumpPower/gravity override na mapie
+		species = {
+			{ id = "Kraterek",     name = "Kraterek",           baseIncome = 1 },
+			{ id = "Lunark",       name = "Lunark",             baseIncome = 2 },
+			{ id = "Kometka",      name = "Kometka",            baseIncome = 3 },
+			{ id = "GwiezdnyPyl",  name = "Gwiezdny Pył",       baseIncome = 4 },
+			{ id = "OrbitalnyBorowik", name = "Orbitalny Borowik", baseIncome = 6 },
+			{ id = "Plazmiak",     name = "Plazmiak",           baseIncome = 8 },
+			{ id = "Nebulon",      name = "Nebulon",            baseIncome = 11 },
+			{ id = "Antygrawik",   name = "Antygrawik",         baseIncome = 15 },
+			{ id = "Supernowik",   name = "Supernowik",         baseIncome = 20 },
+			{ id = "CzarnaDziura", name = "Czarna Dziura",      baseIncome = 28 },
+		},
+		lowGravity = true, -- dłuższe skoki: JumpPower override po podróży
 	},
 }
 

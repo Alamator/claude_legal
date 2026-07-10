@@ -1,5 +1,6 @@
--- GameServer: cała logika prototypu — spawny grzybów, ścinanie (losowanie),
--- świeżość, kondycja/sprint, dostawa na półki, dochód, ulepszenia, zapis.
+-- GameServer: cała logika gry — spawny grzybów, ścinanie (losowanie),
+-- świeżość, kondycja/sprint, dostawa na półki, dochód, ulepszenia, światy,
+-- dziennik, dzienne zadania, skrzynka, samouczek, wizualne półki, zapis.
 -- Wklej jako Script do ServerScriptService (nazwa: GameServer).
 --
 -- ZASADA (GDD): serwer NIGDY nie ufa klientowi. Klient tylko prosi
@@ -17,7 +18,6 @@ local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
 local EventService = require(ServerScriptService:WaitForChild("EventService"))
 
-local WORLD = Config.Worlds[1] -- prototyp: tylko Las Liściasty
 local NODES_PER_PLAYER = 14    -- ile miejscówek grzybowych naraz ma gracz
 local NODE_RESPAWN_DELAY = 5   -- sekundy do wyrośnięcia nowej miejscówki
 local AUTOSAVE_INTERVAL = 120
@@ -42,13 +42,49 @@ local buyRemote = makeRemote("BuyUpgrade")      -- klient → serwer: ("Stamina"
 local notifyRemote = makeRemote("Notify")       -- serwer → klient(y): (tekst) ogłoszenia
 local sellRemote = makeRemote("SellWeakest")    -- klient → serwer: sprzedaj najsłabszy grzyb z półki
 
-EventService.init(notifyRemote, WORLD.id)
+-- eventy globalne dla całego serwera; Deszcz meteorów (onlyWorld) czeka
+-- na porządną implementację wspólnych spawnów w fazie MVP
+EventService.init(notifyRemote, "Deciduous")
+
+-- ============================================================================
+-- Struktury mapy (zbudowane przez MapBuilder)
+-- ============================================================================
+
+local worldsFolder = workspace:WaitForChild("Worlds")
+
+local ringPartsByWorld: { [number]: { Part } } = {}
+local basePads: { [number]: Part } = {}
+local baseReturnCFrames: { [number]: CFrame } = {}
+
+for _, worldFolder in worldsFolder:GetChildren() do
+	local worldIdx = worldFolder:GetAttribute("WorldIndex")
+	if not worldIdx then continue end
+
+	local rings = {}
+	for _, part in worldFolder.Rings:GetChildren() do
+		local ringIndex = part:GetAttribute("RingIndex")
+		if ringIndex then
+			rings[ringIndex] = part
+		end
+	end
+	ringPartsByWorld[worldIdx] = rings
+
+	local pad = worldFolder:FindFirstChild("BasePad")
+	basePads[worldIdx] = pad
+	baseReturnCFrames[worldIdx] = CFrame.new(pad.Position + Vector3.new(0, 3, -10))
+end
 
 -- ============================================================================
 -- Stan sesji graczy
 -- ============================================================================
 
-type Carried = { speciesIdx: number, rarityIdx: number, mutationIdx: number, freshness: number }
+type Carried = {
+	worldIdx: number,
+	speciesIdx: number,
+	rarityIdx: number,
+	mutationIdx: number,
+	freshness: number,
+}
 
 local sessions: { [Player]: {
 	data: any,
@@ -59,21 +95,30 @@ local sessions: { [Player]: {
 	carried: { Carried },
 	tutorialStep: number, -- 1..3 = aktywny krok, 0 = ukończony
 	nextChestAt: number,  -- os.time() następnej skrzynki czasowej
+	plotIndex: number,    -- miejsce stojaka z półkami w bazie
 } } = {}
+
+local plotCounter = 0
+
+local function currentWorld(s): any
+	return Config.Worlds[s.data.currentWorld]
+end
 
 local function staminaMax(data): number
 	return Config.Stats.Stamina.baseBar + Config.Stats.Stamina.perLevel * data.staminaLevel
 end
 
-local function decayPerSec(data, rarityIdx: number): number
-	return Config.decayPerSec(WORLD.freshnessDecayPerSec, data.thermosLevel, false, rarityIdx)
+local function decayPerSec(data, item: Carried): number
+	local world = Config.Worlds[item.worldIdx or 1]
+	return Config.decayPerSec(world.freshnessDecayPerSec, data.thermosLevel, false, item.rarityIdx)
 end
 
 local function itemIncome(item: Carried): number
-	local species = WORLD.species[item.speciesIdx]
+	local world = Config.Worlds[item.worldIdx or 1]
+	local species = world.species[item.speciesIdx]
 	local rarity = Config.Rarities[item.rarityIdx]
 	local mutationMult = item.mutationIdx > 0 and Config.Mutations[item.mutationIdx].incomeMult or 1
-	return Config.shelfIncome(species.baseIncome, rarity.incomeMult, mutationMult, item.freshness, WORLD.incomeMult)
+	return Config.shelfIncome(species.baseIncome, rarity.incomeMult, mutationMult, item.freshness, world.incomeMult)
 end
 
 local function shelfIncomePerSec(data): number
@@ -85,7 +130,8 @@ local function shelfIncomePerSec(data): number
 end
 
 local function itemLabel(item: Carried): string
-	local species = WORLD.species[item.speciesIdx]
+	local world = Config.Worlds[item.worldIdx or 1]
+	local species = world.species[item.speciesIdx]
 	local rarity = Config.Rarities[item.rarityIdx]
 	local mutation = item.mutationIdx > 0 and (" [" .. Config.Mutations[item.mutationIdx].name .. "]") or ""
 	return ("%s (%s)%s %d%%"):format(species.name, rarity.name, mutation, math.floor(item.freshness))
@@ -100,6 +146,15 @@ for _, template in Config.Daily.templates do
 	templateById[template.id] = template
 end
 
+local JOURNAL_TOTAL = 0
+for _, world in Config.Worlds do
+	JOURNAL_TOTAL += #world.species * #Config.Rarities
+end
+
+local function journalKey(item: Carried): string
+	return ("%d:%d:%d"):format(item.worldIdx, item.speciesIdx, item.rarityIdx)
+end
+
 local function journalCount(data): number
 	local count = 0
 	for _ in data.journal do
@@ -108,12 +163,15 @@ local function journalCount(data): number
 	return count
 end
 
+-- strona dziennika dla bieżącego świata gracza
 local function journalText(data): string
-	local lines = {}
-	for speciesIdx, species in WORLD.species do
+	local worldIdx = data.currentWorld
+	local world = Config.Worlds[worldIdx]
+	local lines = { ("— %s —"):format(world.name) }
+	for speciesIdx, species in world.species do
 		local found = 0
 		for rarityIdx = 1, #Config.Rarities do
-			if data.journal[speciesIdx .. ":" .. rarityIdx] then
+			if data.journal[("%d:%d:%d"):format(worldIdx, speciesIdx, rarityIdx)] then
 				found += 1
 			end
 		end
@@ -175,6 +233,8 @@ local function syncAttributes(player: Player)
 	player:SetAttribute("ShelfCount", #data.shelf)
 	player:SetAttribute("IncomePerSec", math.floor(shelfIncomePerSec(data)))
 	player:SetAttribute("Pity", data.pity)
+	player:SetAttribute("WorldName", currentWorld(s).name)
+	player:SetAttribute("CurrentWorld", data.currentWorld)
 
 	local lines = {}
 	for _, item in s.carried do
@@ -185,7 +245,7 @@ local function syncAttributes(player: Player)
 	player:SetAttribute("TutorialStep", s.tutorialStep)
 	player:SetAttribute("ChestIn", math.max(0, s.nextChestAt - os.time()))
 	player:SetAttribute("JournalCount", journalCount(data))
-	player:SetAttribute("JournalTotal", #WORLD.species * #Config.Rarities)
+	player:SetAttribute("JournalTotal", JOURNAL_TOTAL)
 	player:SetAttribute("JournalText", journalText(data))
 	player:SetAttribute("QuestsText", questsText(data))
 end
@@ -197,9 +257,8 @@ local function journalAdd(player: Player, item: Carried)
 	local data = s.data
 
 	local newEntry = false
-	local key = item.speciesIdx .. ":" .. item.rarityIdx
-	if not data.journal[key] then
-		data.journal[key] = true
+	if not data.journal[journalKey(item)] then
+		data.journal[journalKey(item)] = true
 		newEntry = true
 	end
 	if item.mutationIdx > 0 then
@@ -245,6 +304,68 @@ local function questProgress(player: Player, stat: string, amount: number, absol
 end
 
 -- ============================================================================
+-- Wizualne półki w bazie (GDD §6 — grzyby widoczne dla wszystkich)
+-- ============================================================================
+
+local function refreshShelfDisplay(player: Player)
+	local s = sessions[player]
+	if not s then return end
+
+	local old = workspace:FindFirstChild("ShelfDisplay_" .. player.UserId)
+	if old then old:Destroy() end
+
+	local pad = basePads[s.data.currentWorld]
+	if not pad then return end
+
+	local origin = pad.Position + Vector3.new(-50 + s.plotIndex * 12, 0, -14)
+
+	local model = Instance.new("Model")
+	model.Name = "ShelfDisplay_" .. player.UserId
+
+	local stand = Instance.new("Part")
+	stand.Name = "Stand"
+	stand.Size = Vector3.new(9, 1, 3)
+	stand.CFrame = CFrame.new(origin + Vector3.new(0, 1.5, 0))
+	stand.Color = Color3.fromRGB(120, 84, 50)
+	stand.Material = Enum.Material.WoodPlanks
+	stand.Anchored = true
+	stand.Parent = model
+
+	-- tabliczka z nickiem i dochodem
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.new(0, 160, 0, 40)
+	tag.StudsOffset = Vector3.new(0, 6, 0)
+	tag.AlwaysOnTop = false
+	tag.Parent = stand
+	local tagLabel = Instance.new("TextLabel")
+	tagLabel.Size = UDim2.fromScale(1, 1)
+	tagLabel.BackgroundTransparency = 0.4
+	tagLabel.BackgroundColor3 = Color3.fromRGB(25, 30, 25)
+	tagLabel.TextColor3 = Color3.new(1, 1, 1)
+	tagLabel.Font = Enum.Font.GothamBold
+	tagLabel.TextScaled = true
+	tagLabel.Text = ("🍄 %s  +%d/s"):format(player.DisplayName, math.floor(shelfIncomePerSec(s.data)))
+	tagLabel.Parent = tag
+
+	-- grzyby na stojaku: kolor = rzadkość, mutacje świecą
+	for index, item in s.data.shelf do
+		local column = (index - 1) % 4
+		local row = (index - 1) // 4
+		local ball = Instance.new("Part")
+		ball.Shape = Enum.PartType.Ball
+		ball.Size = Vector3.new(1.4, 1.4, 1.4)
+		ball.CFrame = CFrame.new(origin + Vector3.new(column * 2.2 - 3.3, 2.8 + row * 1.8, 0))
+		ball.Color = Config.Rarities[item.rarityIdx].color
+		ball.Material = item.mutationIdx > 0 and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		ball.Anchored = true
+		ball.CanCollide = false
+		ball.Parent = model
+	end
+
+	model.Parent = workspace
+end
+
+-- ============================================================================
 -- Losowanie (serce gry — GDD §4)
 -- ============================================================================
 
@@ -282,17 +403,8 @@ local function rollMutation(): number
 end
 
 -- ============================================================================
--- Miejscówki grzybowe (spawny per-gracz)
+-- Miejscówki grzybowe (spawny per-gracz, w bieżącym świecie gracza)
 -- ============================================================================
-
-local ringsFolder = workspace:WaitForChild("Rings")
-local ringParts: { Part } = {}
-for _, part in ringsFolder:GetChildren() do
-	local index = part:GetAttribute("RingIndex")
-	if index then
-		ringParts[index] = part
-	end
-end
 
 local function playerFolder(player: Player): Folder
 	local name = "Mushrooms_" .. player.UserId
@@ -307,7 +419,7 @@ end
 
 local spawnNode -- (deklaracja, bo cutNode woła spawnNode i odwrotnie)
 
-local function cutNode(player: Player, node: Model, ringIndex: number)
+local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex: number)
 	local s = sessions[player]
 	if not s then return end
 	node:Destroy()
@@ -325,8 +437,10 @@ local function cutNode(player: Player, node: Model, ringIndex: number)
 		end
 	end
 
+	local world = Config.Worlds[worldIdx]
 	local item: Carried = {
-		speciesIdx = math.random(#WORLD.species),
+		worldIdx = worldIdx,
+		speciesIdx = math.random(#world.species),
 		rarityIdx = rarityIdx,
 		mutationIdx = rollMutation(),
 		freshness = Config.Freshness.startPercent,
@@ -363,8 +477,12 @@ local function cutNode(player: Player, node: Model, ringIndex: number)
 end
 
 spawnNode = function(player: Player)
-	local ringIndex = math.random(1, #ringParts)
-	local ring = ringParts[ringIndex]
+	local s = sessions[player]
+	if not s then return end
+	local worldIdx = s.data.currentWorld
+	local rings = ringPartsByWorld[worldIdx]
+	local ringIndex = math.random(1, #rings)
+	local ring = rings[ringIndex]
 
 	local node = Instance.new("Model")
 	node.Name = "MushroomNode"
@@ -400,19 +518,23 @@ spawnNode = function(player: Player)
 
 	prompt.Triggered:Connect(function(who)
 		if who == player then -- skrót prototypowy: tylko właściciel ścina swoje
-			cutNode(player, node, ringIndex)
+			cutNode(player, node, worldIdx, ringIndex)
 		end
 	end)
 
 	node.Parent = playerFolder(player)
 end
 
--- ============================================================================
--- Dostawa do bazy (BasePad z MapBuildera)
--- ============================================================================
+local function respawnAllNodes(player: Player)
+	playerFolder(player):ClearAllChildren()
+	for _ = 1, NODES_PER_PLAYER do
+		spawnNode(player)
+	end
+end
 
-local basePad = workspace:WaitForChild("BasePad")
-local basePrompt = basePad:WaitForChild("ProximityPrompt")
+-- ============================================================================
+-- Dostawa do bazy (BasePady wszystkich światów)
+-- ============================================================================
 
 local function deliver(player: Player)
 	local s = sessions[player]
@@ -445,20 +567,79 @@ local function deliver(player: Player)
 		s.tutorialStep = 3
 		notifyRemote:FireClient(player, "🎯 Świetnie! Kup teraz pierwsze ulepszenie (panel po lewej).")
 	end
+	refreshShelfDisplay(player)
 	syncAttributes(player)
 end
 
-basePrompt.Triggered:Connect(deliver)
+for _, pad in basePads do
+	pad:FindFirstChildOfClass("ProximityPrompt").Triggered:Connect(deliver)
+end
+
+-- ============================================================================
+-- Podróże między światami (GDD §5)
+-- ============================================================================
+
+local function teleportToBase(player: Player, worldIdx: number)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.CFrame = baseReturnCFrames[worldIdx]
+	end
+	-- niska grawitacja Grzyboksiężyca: wyższy skok
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.UseJumpPower = true
+		humanoid.JumpPower = Config.Worlds[worldIdx].lowGravity and 100 or 50
+	end
+end
+
+local function travelTo(player: Player, worldIdx: number)
+	local s = sessions[player]
+	local world = Config.Worlds[worldIdx]
+	if not s or not world then return end
+
+	local key = tostring(worldIdx)
+	if not s.data.worldsUnlocked[key] then
+		if s.data.cash >= world.portalCost then
+			s.data.cash -= world.portalCost
+			s.data.worldsUnlocked[key] = true
+			notifyRemote:FireAllClients(("🌍 %s odblokował świat: %s!"):format(player.DisplayName, world.name))
+		else
+			notifyRemote:FireClient(player, ("❌ Portal do „%s" kosztuje %d 💰 — za mało kasy.")
+				:format(world.name, world.portalCost))
+			return
+		end
+	end
+
+	s.data.currentWorld = worldIdx
+	teleportToBase(player, worldIdx)
+	respawnAllNodes(player)
+	refreshShelfDisplay(player)
+	notifyRemote:FireClient(player, ("🌍 Witaj w: %s (dochód ×%d)"):format(world.name, world.incomeMult))
+	syncAttributes(player)
+end
+
+for _, worldFolder in worldsFolder:GetChildren() do
+	for _, portalName in { "PortalNext", "PortalPrev" } do
+		local portal = worldFolder:FindFirstChild(portalName)
+		if portal then
+			local target = portal:GetAttribute("TargetWorld")
+			portal:FindFirstChildOfClass("ProximityPrompt").Triggered:Connect(function(player)
+				travelTo(player, target)
+			end)
+		end
+	end
+end
 
 -- ============================================================================
 -- Skróty powrotne (GDD §3): kup raz, potem teleport do bazy z każdego użycia
 -- ============================================================================
 
-local BASE_RETURN_CFRAME = CFrame.new(0, 4, -20)
-
-local shortcutsFolder = workspace:WaitForChild("Shortcuts", 10)
-if shortcutsFolder then
-	for _, portal in shortcutsFolder:GetChildren() do
+for _, worldFolder in worldsFolder:GetChildren() do
+	local shortcuts = worldFolder:FindFirstChild("Shortcuts")
+	if not shortcuts then continue end
+	for _, portal in shortcuts:GetChildren() do
+		local worldIdx = portal:GetAttribute("WorldIndex")
 		local ringIndex = portal:GetAttribute("RingIndex")
 		local prompt = portal:FindFirstChildOfClass("ProximityPrompt")
 		local shortcut = Config.Shortcuts[ringIndex]
@@ -467,15 +648,11 @@ if shortcutsFolder then
 		prompt.Triggered:Connect(function(player)
 			local s = sessions[player]
 			if not s then return end
-			local key = tostring(ringIndex) -- klucze DataStore muszą być stringami
+			local key = worldIdx .. ":" .. ringIndex -- klucze DataStore muszą być stringami
 
 			if s.data.shortcuts[key] then
-				local character = player.Character
-				local root = character and character:FindFirstChild("HumanoidRootPart")
-				if root then
-					root.CFrame = BASE_RETURN_CFRAME
-					notifyRemote:FireClient(player, ("⚡ %s! Jesteś w bazie — odłóż grzyby."):format(shortcut.name))
-				end
+				teleportToBase(player, worldIdx)
+				notifyRemote:FireClient(player, ("⚡ %s! Jesteś w bazie — odłóż grzyby."):format(shortcut.name))
 			elseif s.data.cash >= shortcut.cost then
 				s.data.cash -= shortcut.cost
 				s.data.shortcuts[key] = true
@@ -508,6 +685,7 @@ sellRemote.OnServerEvent:Connect(function(player)
 	table.remove(s.data.shelf, worstIdx)
 	s.data.cash += value
 	notifyRemote:FireClient(player, ("💸 Sprzedano najsłabszy grzyb za %d 💰 (slot wolny)."):format(math.floor(value)))
+	refreshShelfDisplay(player)
 	syncAttributes(player)
 end)
 
@@ -581,7 +759,7 @@ local function applySpeed(player: Player)
 end
 
 -- ============================================================================
--- Pętla gry: 1 tyknięcie na sekundę (kondycja, świeżość, dochód)
+-- Pętla gry: 1 tyknięcie na sekundę (kondycja, świeżość, dochód, skrzynka)
 -- ============================================================================
 
 task.spawn(function()
@@ -611,7 +789,7 @@ task.spawn(function()
 			-- świeżość niesionych grzybów (event „Przymrozek" spowalnia psucie)
 			local eventDecayMult = EventService.decayMult()
 			for _, item in s.carried do
-				item.freshness = math.max(0, item.freshness - decayPerSec(data, item.rarityIdx) * eventDecayMult)
+				item.freshness = math.max(0, item.freshness - decayPerSec(data, item) * eventDecayMult)
 			end
 
 			-- dochód z półek
@@ -648,7 +826,6 @@ Players.PlayerAdded:Connect(function(player)
 		local elapsed = math.min(os.time() - data.lastSeen, Config.Offline.capSeconds)
 		if elapsed > 0 then
 			local earned = shelfIncomePerSec(data) * Config.Offline.incomeFraction * elapsed
-			-- (shelfIncomePerSec używa WORLD z zewnątrz — dla świata 1 OK w prototypie)
 			data.cash += earned
 			player:SetAttribute("OfflineEarned", math.floor(earned))
 		end
@@ -656,6 +833,7 @@ Players.PlayerAdded:Connect(function(player)
 
 	ensureDaily(data)
 
+	plotCounter += 1
 	sessions[player] = {
 		data = data,
 		loadedOk = loadedOk,
@@ -665,6 +843,7 @@ Players.PlayerAdded:Connect(function(player)
 		carried = {},
 		tutorialStep = data.tutorialDone and 0 or 1,
 		nextChestAt = os.time() + Config.Chest.intervalSeconds,
+		plotIndex = (plotCounter - 1) % 9,
 	}
 
 	-- leaderboard Roblox (lista graczy po prawej)
@@ -683,13 +862,16 @@ Players.PlayerAdded:Connect(function(player)
 
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
+		-- po respawnie wracasz do bazy swojego świata (spawn stoi w Świecie 1)
+		if sessions[player] and sessions[player].data.currentWorld > 1 then
+			teleportToBase(player, sessions[player].data.currentWorld)
+		end
 		applySpeed(player)
 	end)
 
 	syncAttributes(player)
-	for _ = 1, NODES_PER_PLAYER do
-		spawnNode(player)
-	end
+	respawnAllNodes(player)
+	refreshShelfDisplay(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -704,6 +886,10 @@ Players.PlayerRemoving:Connect(function(player)
 	local folder = workspace:FindFirstChild("Mushrooms_" .. player.UserId)
 	if folder then
 		folder:Destroy()
+	end
+	local display = workspace:FindFirstChild("ShelfDisplay_" .. player.UserId)
+	if display then
+		display:Destroy()
 	end
 end)
 
@@ -726,4 +912,4 @@ game:BindToClose(function()
 	end
 end)
 
-print("[GameServer] Prototyp Pick a Shroom wystartował 🍄")
+print("[GameServer] Pick a Shroom wystartował 🍄 (światów: " .. #Config.Worlds .. ")")

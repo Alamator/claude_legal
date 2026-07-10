@@ -73,8 +73,9 @@ local function makeLabel(parent, size, position, textSize): TextLabel
 	return label
 end
 
--- Kasa + dochód (góra, środek)
+-- Kasa + dochód (góra, środek) i nazwa świata pod spodem
 local cashLabel = makeLabel(gui, UDim2.new(0, 260, 0, 44), UDim2.new(0.5, -130, 0, 8), 22)
+local worldLabel = makeLabel(gui, UDim2.new(0, 200, 0, 26), UDim2.new(0.5, -100, 0, 56), 14)
 
 -- Pasek kondycji (dół, środek)
 local staminaBack = Instance.new("Frame")
@@ -108,8 +109,8 @@ carriedPadding.PaddingLeft = UDim.new(0, 10)
 carriedPadding.PaddingTop = UDim.new(0, 8)
 carriedPadding.Parent = carriedPanel
 
--- Powiadomienia (góra, pod kasą)
-local toast = makeLabel(gui, UDim2.new(0, 420, 0, 34), UDim2.new(0.5, -210, 0, 60), 16)
+-- Powiadomienia (góra, pod nazwą świata)
+local toast = makeLabel(gui, UDim2.new(0, 420, 0, 34), UDim2.new(0.5, -210, 0, 88), 16)
 toast.Visible = false
 
 -- Baner aktywnego eventu (lewy górny róg) — czyta atrybuty workspace
@@ -217,7 +218,7 @@ journalButton.Activated:Connect(function()
 end)
 
 -- Samouczek: instrukcja na środku + pływający znacznik nad celem
-local tutorialLabel = makeLabel(gui, UDim2.new(0, 540, 0, 40), UDim2.new(0.5, -270, 0, 104), 17)
+local tutorialLabel = makeLabel(gui, UDim2.new(0, 540, 0, 40), UDim2.new(0.5, -270, 0, 128), 17)
 tutorialLabel.BackgroundColor3 = Color3.fromRGB(160, 120, 30)
 tutorialLabel.Visible = false
 
@@ -265,7 +266,10 @@ task.spawn(function()
 			marker.Enabled = target ~= nil
 		elseif step == 2 then
 			tutorialLabel.Text = "📦 KROK 2/3: Wróć do bazy i przytrzymaj E na drewnianym polu"
-			marker.Parent = workspace:FindFirstChild("BasePad")
+			local worldIdx = player:GetAttribute("CurrentWorld") or 1
+			local worlds = workspace:FindFirstChild("Worlds")
+			local worldFolder = worlds and worlds:FindFirstChild("World" .. worldIdx)
+			marker.Parent = worldFolder and worldFolder:FindFirstChild("BasePad")
 			marker.Enabled = marker.Parent ~= nil
 		elseif step == 3 then
 			tutorialLabel.Text = "⬆️ KROK 3/3: Kup pierwsze ulepszenie w panelu po lewej"
@@ -288,6 +292,7 @@ local function refresh()
 	local cash = player:GetAttribute("Cash") or 0
 	local income = player:GetAttribute("IncomePerSec") or 0
 	cashLabel.Text = ("💰 %s   (+%s/s)"):format(fmt(cash), fmt(income))
+	worldLabel.Text = "🌍 " .. (player:GetAttribute("WorldName") or "…")
 
 	local stamina = player:GetAttribute("Stamina") or 0
 	local staminaMax = math.max(1, player:GetAttribute("StaminaMax") or 1)

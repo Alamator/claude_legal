@@ -11,8 +11,12 @@ pierwsze użycie kupuje, kolejne teleportują do bazy), **sprzedaż
 najsłabszego grzyba z półki** (przycisk pod ulepszeniami — zwalnia slot),
 **dziennik grzybiarza** (przycisk 📖 w prawym górnym rogu; nagrody za 10/25/
 50/70 wpisów), **3 dzienne zadania + skrzynka co 20 minut** (panel w lewym
-dolnym rogu) oraz **samouczek 3 kroków** prowadzący nowego gracza strzałką
-(zetnij → odłóż → ulepsz, +150 💰 na koniec).
+dolnym rogu), **samouczek 3 kroków** prowadzący nowego gracza strzałką
+(zetnij → odłóż → ulepsz, +150 💰 na koniec), **wszystkie 5 światów** (fioletowy
+portal w bazie odblokowuje następny świat za kasę, zielony wraca; każdy świat
+ma własną pulę 10 gatunków, mnożnik dochodu i szybsze psucie; Grzyboksiężyc ma
+wyższy skok) oraz **wizualne półki**: stojak z twoim nickiem i dochodem stoi
+w bazie, grzyby na nim mają kolor rzadkości, a mutacje świecą.
 
 ## Pliki i ich miejsca w Studio
 
@@ -62,6 +66,10 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] W lewym dolnym rogu: 3 zadania dzienne z postępem i odliczanie do 🎁.
 - [ ] Przycisk „📖 Dziennik" otwiera kolekcję; nowy wpis po każdym nowym
       gatunku×rzadkości.
+- [ ] Fioletowy portal w bazie: odblokowanie Boru Iglastego za 25k 💰,
+      podróż przenosi do nowej bazy, nazwa świata na HUD się zmienia.
+- [ ] Przy BasePadzie stoi stojak z twoim nickiem; po dostawie pojawiają się
+      na nim kulki w kolorach rzadkości (mutacje świecą).
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na
       ekranie, prompty działają dotykiem.
 
@@ -103,7 +111,9 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 1. Grzyby innych graczy są *widoczne* dla wszystkich (ściąć może tylko
    właściciel). Docelowo: rendering per-gracz po stronie klienta (GDD §4).
 2. Mapa ma skalę 0,5 (`MAP_SCALE` w MapBuilder) — testy bez zdzierania nóg.
-3. Brak jeszcze: światów 2–5, serii dziennej (login streak), petów i całej
-   monetyzacji — wchodzą w dalszej części fazy 5 i w fazie 8.
+3. Brak jeszcze: serii dziennej (login streak), Deszczu meteorów (wymaga
+   wspólnych spawnów) i całej monetyzacji — dalsza część fazy 5 i faza 8.
+4. Światy stoją obok siebie na jednej mapie (przesunięte o 400 studów) —
+   docelowo osobne miejsca/teleporty, ale do testów to zaleta: widać wszystko.
 4. Zapis przez `SetAsync` co 120 s — przed premierą przejdziemy na
    `UpdateAsync` + kolejkę (ochrona przed utratą danych przy awarii).
