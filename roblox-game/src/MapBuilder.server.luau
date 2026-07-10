@@ -383,6 +383,17 @@ for worldIdx, worldConfig in Config.Worlds do
 
 	buildBaseCamp(worldFolder, theme, offsetX)
 
+	-- gniazdo z jajem petów (GDD: gacha per świat)
+	local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 22, 1.2, -8), Color3.fromRGB(150, 110, 70), worldFolder)
+	nest.Material = Enum.Material.WoodPlanks
+	local egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4), CFrame.new(offsetX + 22, 3.2, -8), Color3.fromRGB(250, 245, 230), worldFolder)
+	egg.Shape = Enum.PartType.Ball
+	egg.Material = Enum.Material.SmoothPlastic
+	egg:SetAttribute("WorldIndex", worldIdx)
+	addSparkles(egg, theme.accent, 2)
+	makePrompt(egg, "Wyklnij peta",
+		("🥚 Jajo: %s — %d 💰"):format(worldConfig.name, Config.Pets.eggCostByWorld[worldIdx]))
+
 	-- === Portale podróży między światami ===
 	local nextWorld = Config.Worlds[worldIdx + 1]
 	if nextWorld then

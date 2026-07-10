@@ -301,6 +301,27 @@ Config.Combo = {
 }
 
 -- ===========================================================================
+-- PETY — gacha z jaj: każdy świat ma gniazdo z jajem; wyklute pety dają
+-- % do dochodu i szczęścia. Silnik kolekcjonowania i (docelowo) monetyzacji.
+-- ===========================================================================
+
+Config.Pets = {
+	maxEquipped = 3,  -- 4. slot = przyszły Game Pass
+	maxOwned = 50,
+	eggCostByWorld = { 5_000, 150_000, 2_000_000, 30_000_000, 500_000_000 },
+	hatchWeights = { 60, 25, 10, 4, 1 }, -- Zwykły..Legendarny (pety bez Mitycznych)
+	incomeBonusByRarity = { 0.05, 0.10, 0.20, 0.35, 0.60 },
+	luckBonusByRarity = { 0.02, 0.05, 0.10, 0.18, 0.30 },
+	poolsByWorld = {
+		{ "Grzybek Skoczek", "Ślimak Zamszowy", "Jeżozwierzyk", "Biedronix", "Wiewiór Rudzik" },
+		{ "Sowa Mgielna", "Szyszkostwór", "Lisek Borowy", "Mroźny Puszek", "Dzięciołek" },
+		{ "Bagienny Glut", "Świetlik Bzyk", "Neonowy Żabol", "Ropuch Królewski", "Mglisty Duszek" },
+		{ "Kryształowy Żuk", "Ametystowy Nietoperz", "Gemek", "Grotowy Golem", "Pryzmatek" },
+		{ "Kosmiczny Grzybek", "Lunar Puf", "Meteorek", "Gwiezdny Ślimak", "Czarnodziurek" },
+	},
+}
+
+-- ===========================================================================
 -- REBIRTH — zeruje kasę/ulepszenia/światy, daje TRWAŁY mnożnik dochodu
 -- i szczęścia. Silnik długiego progresu: „jeszcze jeden reset…"
 -- ===========================================================================

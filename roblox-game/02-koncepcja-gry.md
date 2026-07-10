@@ -258,9 +258,17 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 
 ## 10. Zakres v1.0 — twarda lista „NIE"
 
-Do premiery NIE robimy: petów/pomocników (v1.1 — pierwszy duży update,
-silnik gachy), handlu między graczami, kradzieży z cudzych baz (ew. tryb
-eventowy v1.2+), craftingu, PvP, AI przeciwników, pogody wpływającej na ruch.
+Do premiery NIE robimy: handlu między graczami, kradzieży z cudzych baz
+(ew. tryb eventowy v1.2+), craftingu, PvP, AI przeciwników, pogody
+wpływającej na ruch.
+
+**Pety — przeniesione do v1.0 (gacha):** każda baza ma gniazdo z jajem
+(5k → 500M wg świata); wyklucie losuje peta z puli świata (5 gatunków ×
+rzadkości Zwykły–Legendarny wg wag 60/25/10/4/1). Założone pety (max 3;
+4. slot = przyszły pass) dają +5–60% dochodu i +2–30% szczęścia. Pety
+lewitują przy graczu (widoczne dla wszystkich = flex), przeżywają rebirth
+jak dziennik. Fanfara wyklucia w kolorze rzadkości; Legendarny ogłaszany
+serwerowi. Fuzje/złote pety = content na update'y.
 
 **Podwójne mutacje — zakodowane, wyłączone flagą** (`Config.DoubleMutations.
 enabled`): włączenie jednym `true` daje gotowy event „Weekend Podwójnych

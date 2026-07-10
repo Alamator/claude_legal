@@ -16,6 +16,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local MarketplaceService = game:GetService("MarketplaceService")
+local HttpService = game:GetService("HttpService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
@@ -45,6 +46,8 @@ local buyRemote = makeRemote("BuyUpgrade")      -- klient → serwer: ("Stamina"
 local notifyRemote = makeRemote("Notify")       -- serwer → klient(y): (tekst) ogłoszenia
 local sellRemote = makeRemote("SellWeakest")    -- klient → serwer: sprzedaj najsłabszy grzyb z półki
 local rebirthRemote = makeRemote("Rebirth")     -- klient → serwer: prośba o rebirth
+local equipRemote = makeRemote("EquipPet")      -- klient → serwer: (indeks) załóż/zdejmij peta
+local hatchRemote = makeRemote("HatchResult")   -- serwer → klient: wynik wyklucia (do fanfary)
 
 -- eventy globalne dla całego serwera; Deszcz meteorów (onlyWorld) czeka
 -- na porządną implementację wspólnych spawnów w fazie MVP
@@ -126,6 +129,18 @@ local function rebirthMult(data): number
 	return 1 + (data.rebirths or 0) * Config.Rebirth.incomeBonusPerRebirth
 end
 
+-- sumaryczne bonusy z założonych petów: (+% dochodu, +% szczęścia)
+local function petBonuses(data): (number, number)
+	local income, luck = 0, 0
+	for _, pet in data.pets or {} do
+		if pet.eq then
+			income += Config.Pets.incomeBonusByRarity[pet.r] or 0
+			luck += Config.Pets.luckBonusByRarity[pet.r] or 0
+		end
+	end
+	return income, luck
+end
+
 local function itemIncome(item: Carried, data): number
 	local world = Config.Worlds[item.worldIdx or 1]
 	local species = world.species[item.speciesIdx]
@@ -135,8 +150,9 @@ local function itemIncome(item: Carried, data): number
 	if mutation2Idx > 0 then
 		mutationMult *= Config.Mutations[mutation2Idx].incomeMult
 	end
+	local petIncome = petBonuses(data)
 	return Config.shelfIncome(species.baseIncome, rarity.incomeMult, mutationMult, item.freshness, world.incomeMult)
-		* rebirthMult(data)
+		* rebirthMult(data) * (1 + petIncome)
 end
 
 local function shelfIncomePerSec(data): number
@@ -342,6 +358,7 @@ local function syncAttributes(player: Player)
 	end
 	player:SetAttribute("CarriedSummary", table.concat(lines, "\n"))
 
+	player:SetAttribute("PetsJSON", HttpService:JSONEncode(data.pets or {}))
 	player:SetAttribute("Rebirths", data.rebirths)
 	player:SetAttribute("RebirthCost", Config.rebirthCost(data.rebirths))
 	player:SetAttribute("RebirthMult", rebirthMult(data))
@@ -582,8 +599,9 @@ end
 -- Eventy podbijają szanse (Złoty Deszcz ×3, Tęcza otwiera Rainbow 1/150);
 -- poziomy (+0,5%/poz.) i rebirthy (+2%/szt.) dają trwałe szczęście.
 local function rollMutation(data, chanceMult: number?): number
+	local _, petLuck = petBonuses(data)
 	local luckMult = EventService.mutationChanceMult()
-		* (1 + data.level * Config.XP.luckPerLevel + (data.rebirths or 0) * Config.Rebirth.luckPerRebirth)
+		* (1 + data.level * Config.XP.luckPerLevel + (data.rebirths or 0) * Config.Rebirth.luckPerRebirth + petLuck)
 		* (chanceMult or 1)
 	for index = #Config.Mutations, 1, -1 do
 		local mutation = Config.Mutations[index]
@@ -970,6 +988,97 @@ sellRemote.OnServerEvent:Connect(function(player)
 	s.data.cash += value
 	notifyRemote:FireClient(player, ("💸 Sprzedano najsłabszy grzyb za %d 💰 (slot wolny)."):format(math.floor(value)))
 	refreshShelfDisplay(player)
+	syncAttributes(player)
+end)
+
+-- ============================================================================
+-- Pety: wykluwanie z jaj (gacha per świat) i zakładanie
+-- ============================================================================
+
+local function hatchEgg(player: Player, worldIdx: number)
+	local s = sessions[player]
+	if not s then return end
+	local data = s.data
+	local cost = Config.Pets.eggCostByWorld[worldIdx]
+
+	if #data.pets >= Config.Pets.maxOwned then
+		notifyRemote:FireClient(player, "❌ Masz komplet petów! (max " .. Config.Pets.maxOwned .. ")")
+		return
+	end
+	if data.cash < cost then
+		notifyRemote:FireClient(player, ("❌ Jajo kosztuje %d 💰 — za mało kasy."):format(cost))
+		return
+	end
+	data.cash -= cost
+
+	-- rzadkość z wag jaja (pety: Zwykły..Legendarny)
+	local total = 0
+	for _, weight in Config.Pets.hatchWeights do
+		total += weight
+	end
+	local pick = math.random() * total
+	local rarityIdx = 1
+	for index, weight in Config.Pets.hatchWeights do
+		pick -= weight
+		if pick <= 0 then
+			rarityIdx = index
+			break
+		end
+	end
+
+	local pool = Config.Pets.poolsByWorld[worldIdx]
+	local petIdx = math.random(#pool)
+
+	local equippedCount = 0
+	for _, pet in data.pets do
+		if pet.eq then equippedCount += 1 end
+	end
+
+	local pet = { w = worldIdx, p = petIdx, r = rarityIdx, eq = equippedCount < Config.Pets.maxEquipped }
+	table.insert(data.pets, pet)
+
+	local petName = pool[petIdx]
+	hatchRemote:FireClient(player, petName, rarityIdx, pet.eq)
+	if rarityIdx >= 5 then
+		notifyRemote:FireAllClients(("🥚 %s wykluł LEGENDARNEGO peta: %s!"):format(player.DisplayName, petName))
+	end
+	local egg = worldsFolder:FindFirstChild("World" .. worldIdx)
+	egg = egg and egg:FindFirstChild("WorldEgg")
+	if egg then
+		burstAt(egg.Position, Config.Rarities[rarityIdx].color)
+	end
+	syncAttributes(player)
+end
+
+for _, worldFolder in worldsFolder:GetChildren() do
+	local egg = worldFolder:FindFirstChild("WorldEgg")
+	if egg then
+		local worldIdx = egg:GetAttribute("WorldIndex")
+		egg:FindFirstChildOfClass("ProximityPrompt").Triggered:Connect(function(player)
+			hatchEgg(player, worldIdx)
+		end)
+	end
+end
+
+equipRemote.OnServerEvent:Connect(function(player, index)
+	local s = sessions[player]
+	if not s or type(index) ~= "number" then return end
+	local pet = s.data.pets[index]
+	if not pet then return end
+
+	if pet.eq then
+		pet.eq = false
+	else
+		local equippedCount = 0
+		for _, other in s.data.pets do
+			if other.eq then equippedCount += 1 end
+		end
+		if equippedCount >= Config.Pets.maxEquipped then
+			notifyRemote:FireClient(player, ("❌ Możesz mieć %d założone pety naraz."):format(Config.Pets.maxEquipped))
+			return
+		end
+		pet.eq = true
+	end
 	syncAttributes(player)
 end)
 

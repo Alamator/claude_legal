@@ -21,10 +21,14 @@ retencji**: poziomy gracza z paskiem XP i odznaką (nagroda co poziom, trwałe
 +0,5% szczęścia za poziom, kamienie milowe co 5), combo za seryjne ścinanie
 (mnożnik XP do ×3, bonusy za ×10/×25/×50, rosnący pitch dźwięku, licznik
 z „punchem"), fanfara level-upu (błysk ekranu + wielki napis + dźwięki),
-seria logowań dzień 1–7 oraz **rebirth**: fioletowy przycisk 🌀 pod
+seria logowań dzień 1–7, **rebirth** (fioletowy przycisk 🌀 pod
 dziennikiem otwiera minimalistyczny modal („×1.5 → ×2.0", co zeruje / co
 zostaje, cena; przycisk szarzeje, gdy Cię nie stać) — reset daje trwały
-mnożnik dochodu i szczęścia, z fioletową fanfarą i ogłoszeniem serwerowym.
+mnożnik dochodu i szczęścia, z fioletową fanfarą i ogłoszeniem serwerowym)
+oraz **pety (gacha)**: jajo w gnieździe każdej bazy, pule 5 petów na świat,
+wyklucie z fanfarą w kolorze rzadkości, panel 🐾 z listą (klik = załóż/
+zdejmij, max 3), bonusy % do dochodu i szczęścia, a założone pety lewitują
+przy graczach — widoczne dla całego serwera.
 
 ## Pliki i ich miejsca w Studio
 
@@ -84,6 +88,9 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] Przycisk „🌀 ×1.0" otwiera modal rebirtha; przy 50k 💰 przycisk robi
       się fioletowy, po potwierdzeniu: reset do Świata 1, fioletowy błysk
       „🌀 REBIRTH ×1!", dochód liczony ×1.5.
+- [ ] Jajo przy bazie (5k 💰): wyklucie = błysk w kolorze rzadkości +
+      „🐾 Nazwa!"; pet lewituje obok postaci z podpisem; panel 🐾 pozwala
+      zakładać/zdejmować (max 3), a dochód/s rośnie o bonus peta.
 - [ ] Przy BasePadzie stoi stojak z twoim nickiem; po dostawie pojawiają się
       na nim kulki w kolorach rzadkości (mutacje świecą).
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na

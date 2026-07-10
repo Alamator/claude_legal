@@ -19,6 +19,11 @@ local buyRemote = remotes:WaitForChild("BuyUpgrade")
 local notifyRemote = remotes:WaitForChild("Notify")
 local sellRemote = remotes:WaitForChild("SellWeakest")
 local rebirthRemote = remotes:WaitForChild("Rebirth")
+local equipRemote = remotes:WaitForChild("EquipPet")
+local hatchRemote = remotes:WaitForChild("HatchResult")
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
@@ -489,6 +494,95 @@ local rebirthButton = makeButton(gui,
 	end)
 
 -- ============================================================================
+-- Pety: panel z listą (klik = załóż/zdejmij)
+-- ============================================================================
+
+local petsPanel = makeCard(gui, UDim2.new(0, 340, 0, 380), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
+petsPanel.Visible = false
+local petsHeader = addHeader(petsPanel, "🐾 PETY", Color3.fromRGB(120, 200, 160), Color3.fromRGB(55, 140, 100))
+
+local petsScroll = Instance.new("ScrollingFrame")
+petsScroll.Size = UDim2.new(1, -20, 1, -50)
+petsScroll.Position = UDim2.new(0.5, 0, 0, 42)
+petsScroll.AnchorPoint = Vector2.new(0.5, 0)
+petsScroll.BackgroundTransparency = 1
+petsScroll.ScrollBarThickness = 6
+petsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+petsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+petsScroll.Parent = petsPanel
+
+local petsLayout = Instance.new("UIListLayout")
+petsLayout.Padding = UDim.new(0, 6)
+petsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+petsLayout.Parent = petsScroll
+
+makeButton(petsPanel,
+	UDim2.new(0, 30, 0, 30),
+	UDim2.new(1, -6, 0, 6),
+	Vector2.new(1, 0),
+	Color3.fromRGB(240, 100, 90), Color3.fromRGB(190, 55, 45), 16,
+	function()
+		petsPanel.Visible = false
+	end).Text = "✕"
+
+local function decodePets(): { any }
+	local ok, pets = pcall(function()
+		return HttpService:JSONDecode(player:GetAttribute("PetsJSON") or "[]")
+	end)
+	return ok and pets or {}
+end
+
+local function rebuildPetList()
+	for _, child in petsScroll:GetChildren() do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+	local pets = decodePets()
+	petsHeader.Text = ("🐾 PETY (%d/%d)"):format(#pets, Config.Pets.maxOwned)
+	for index, pet in pets do
+		local rarity = Config.Rarities[pet.r]
+		local name = Config.Pets.poolsByWorld[pet.w][pet.p]
+		local row = Instance.new("TextButton")
+		row.Size = UDim2.new(1, -8, 0, 52)
+		row.BackgroundColor3 = pet.eq and Color3.fromRGB(50, 90, 65) or Color3.fromRGB(40, 46, 66)
+		row.AutoButtonColor = true
+		row.LayoutOrder = index
+		row.Text = ("%s %s (%s)\n+%d%% 💰  +%d%% 🍀%s"):format(
+			pet.eq and "✅" or "▫️", name, rarity.name,
+			math.floor((Config.Pets.incomeBonusByRarity[pet.r] or 0) * 100),
+			math.floor((Config.Pets.luckBonusByRarity[pet.r] or 0) * 100),
+			pet.eq and "   [ZAŁOŻONY]" or "")
+		row.Parent = petsScroll
+		addCorner(row, 10)
+		styleText(row, 14)
+		row.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
+		row.Activated:Connect(function()
+			equipRemote:FireServer(index)
+		end)
+	end
+end
+
+player:GetAttributeChangedSignal("PetsJSON"):Connect(function()
+	if petsPanel.Visible then
+		rebuildPetList()
+	end
+end)
+
+local petsButton = makeButton(gui,
+	UDim2.new(0, 170, 0, 42),
+	UDim2.new(1, -14, 0, 112),
+	Vector2.new(1, 0),
+	Color3.fromRGB(120, 200, 160), Color3.fromRGB(55, 140, 100), 15,
+	function()
+		petsPanel.Visible = not petsPanel.Visible
+		if petsPanel.Visible then
+			rebuildPetList()
+		end
+	end)
+petsButton.Text = "🐾 Pety"
+
+-- ============================================================================
 -- Dół: pasek kondycji + pity
 -- ============================================================================
 
@@ -840,5 +934,157 @@ task.spawn(function()
 			break
 		end
 		task.wait(0.5)
+	end
+end)
+
+-- ============================================================================
+-- Fanfara wyklucia peta (kolor błysku = rzadkość)
+-- ============================================================================
+
+hatchRemote.OnClientEvent:Connect(function(petName: string, rarityIdx: number, equipped: boolean)
+	local rarity = Config.Rarities[rarityIdx]
+	levelFlash.BackgroundColor3 = rarity.color
+	levelFlash.BackgroundTransparency = 0.55
+	TweenService:Create(levelFlash, TweenInfo.new(0.7), { BackgroundTransparency = 1 }):Play()
+	levelUpLabel.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.4)
+	levelUpLabel.Text = ("🐾 %s! (%s)"):format(petName, rarity.name)
+	levelUpLabel.Visible = true
+	levelUpLabel.TextTransparency = 0
+	levelUpScale.Scale = 0.4
+	TweenService:Create(levelUpScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	task.delay(1.8, function()
+		TweenService:Create(levelUpLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+		task.delay(0.4, function()
+			levelUpLabel.Visible = false
+			levelUpLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+		end)
+	end)
+	for step = 0, 2 do
+		task.delay(step * 0.1, function()
+			ding.PlaybackSpeed = 1.1 + step * 0.2
+			ding:Play()
+		end)
+	end
+	showToast(equipped and ("🐾 %s dołącza do drużyny!"):format(petName)
+		or ("🐾 %s trafia do kolekcji (drużyna pełna)."):format(petName))
+end)
+
+-- ============================================================================
+-- Renderer petów: lewitujące stworki przy KAŻDYM graczu na serwerze
+-- (czysto wizualne, bez fizyki — pozycje liczone co klatkę z lerpem)
+-- ============================================================================
+
+local PET_OFFSETS = {
+	Vector3.new(-2.6, 2, 2),
+	Vector3.new(2.6, 2, 2),
+	Vector3.new(0, 2.4, 3.2),
+}
+
+local petFolder = Instance.new("Folder")
+petFolder.Name = "PetModels"
+petFolder.Parent = workspace
+
+local petModels: { [Player]: { Model } } = {}
+
+local function clearPetModels(owner: Player)
+	for _, model in petModels[owner] or {} do
+		model:Destroy()
+	end
+	petModels[owner] = nil
+end
+
+local function buildPetModels(owner: Player)
+	clearPetModels(owner)
+	local ok, pets = pcall(function()
+		return HttpService:JSONDecode(owner:GetAttribute("PetsJSON") or "[]")
+	end)
+	if not ok then return end
+
+	local models = {}
+	for _, pet in pets do
+		if pet.eq and #models < #PET_OFFSETS then
+			local rarity = Config.Rarities[pet.r]
+			local model = Instance.new("Model")
+			model.Name = ("Pet_%d_%d"):format(owner.UserId, #models + 1)
+
+			local body = Instance.new("Part")
+			body.Name = "Body"
+			body.Shape = Enum.PartType.Ball
+			body.Size = Vector3.new(1.6, 1.6, 1.6)
+			body.Color = rarity.color
+			body.Material = pet.r >= 4 and Enum.Material.Neon or Enum.Material.SmoothPlastic
+			body.Anchored = true
+			body.CanCollide = false
+			body.CanQuery = false
+			body.Parent = model
+
+			for _, side in { -0.35, 0.35 } do
+				local eye = Instance.new("Part")
+				eye.Shape = Enum.PartType.Ball
+				eye.Size = Vector3.new(0.3, 0.3, 0.3)
+				eye.Color = Color3.fromRGB(25, 25, 35)
+				eye.Anchored = true
+				eye.CanCollide = false
+				eye.CanQuery = false
+				eye.Name = "Eye"
+				eye.Parent = model
+				eye:SetAttribute("SideX", side)
+			end
+
+			local tag = Instance.new("BillboardGui")
+			tag.Size = UDim2.new(0, 110, 0, 22)
+			tag.StudsOffset = Vector3.new(0, 1.4, 0)
+			tag.AlwaysOnTop = false
+			tag.Parent = body
+			local tagLabel = Instance.new("TextLabel")
+			tagLabel.Size = UDim2.fromScale(1, 1)
+			tagLabel.BackgroundTransparency = 1
+			tagLabel.Font = Enum.Font.FredokaOne
+			tagLabel.TextScaled = true
+			tagLabel.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
+			tagLabel.Text = Config.Pets.poolsByWorld[pet.w][pet.p]
+			tagLabel.Parent = tag
+
+			model.PrimaryPart = body
+			model.Parent = petFolder
+			table.insert(models, model)
+		end
+	end
+	petModels[owner] = models
+end
+
+local function watchPlayer(other: Player)
+	buildPetModels(other)
+	other:GetAttributeChangedSignal("PetsJSON"):Connect(function()
+		buildPetModels(other)
+	end)
+end
+
+for _, other in Players:GetPlayers() do
+	watchPlayer(other)
+end
+Players.PlayerAdded:Connect(watchPlayer)
+Players.PlayerRemoving:Connect(clearPetModels)
+
+RunService.Heartbeat:Connect(function()
+	local now = os.clock()
+	for owner, models in petModels do
+		local character = owner.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not root then continue end
+		for index, model in models do
+			local body = model.PrimaryPart
+			if not body then continue end
+			local offset = PET_OFFSETS[index]
+			local bob = math.sin(now * 3 + index * 2) * 0.35
+			local target = root.CFrame * CFrame.new(offset.X, offset.Y + bob, offset.Z)
+			local newCFrame = body.CFrame:Lerp(target, 0.12)
+			body.CFrame = newCFrame
+			for _, part in model:GetChildren() do
+				if part.Name == "Eye" then
+					part.CFrame = newCFrame * CFrame.new(part:GetAttribute("SideX"), 0.15, -0.65)
+				end
+			end
+		end
 	end
 end)
