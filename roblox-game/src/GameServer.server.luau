@@ -13,6 +13,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
@@ -135,6 +137,84 @@ local function itemLabel(item: Carried): string
 	local rarity = Config.Rarities[item.rarityIdx]
 	local mutation = item.mutationIdx > 0 and (" [" .. Config.Mutations[item.mutationIdx].name .. "]") or ""
 	return ("%s (%s)%s %d%%"):format(species.name, rarity.name, mutation, math.floor(item.freshness))
+end
+
+-- ============================================================================
+-- Efekty („juice"): iskierki, rozbryzg przy ścięciu, pływający tekst nagrody
+-- ============================================================================
+
+local function addSparkle(parent: BasePart, color: Color3, rate: number): ParticleEmitter
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 1
+	emitter.Rate = rate
+	emitter.Lifetime = NumberRange.new(1, 2)
+	emitter.Speed = NumberRange.new(0.3, 0.8)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Parent = parent
+	return emitter
+end
+
+local function burstAt(position: Vector3, color: Color3)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.CanCollide = false
+	part.Transparency = 1
+	part.Size = Vector3.new(1, 1, 1)
+	part.CFrame = CFrame.new(position)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Enabled = false
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 0.6
+	emitter.Lifetime = NumberRange.new(0.3, 0.7)
+	emitter.Speed = NumberRange.new(4, 9)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.5),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Parent = part
+	part.Parent = workspace
+	emitter:Emit(18)
+	Debris:AddItem(part, 2)
+end
+
+-- unoszący się napis nagrody („+3 🍄", nazwa rzadkiego znaleziska)
+local function floatingText(position: Vector3, text: string, color: Color3)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.CanCollide = false
+	part.Transparency = 1
+	part.Size = Vector3.new(1, 1, 1)
+	part.CFrame = CFrame.new(position)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.new(0, 160, 0, 44)
+	billboard.StudsOffset = Vector3.new(0, 2, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = part
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = color
+	label.Text = text
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(30, 30, 45)
+	stroke.Thickness = 2
+	stroke.Parent = label
+	label.Parent = billboard
+	part.Parent = workspace
+	TweenService:Create(billboard, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+		StudsOffset = Vector3.new(0, 6, 0),
+	}):Play()
+	TweenService:Create(label, TweenInfo.new(1.1), { TextTransparency = 1 }):Play()
+	TweenService:Create(stroke, TweenInfo.new(1.1), { Transparency = 1 }):Play()
+	Debris:AddItem(part, 1.3)
 end
 
 -- ============================================================================
@@ -347,19 +427,46 @@ local function refreshShelfDisplay(player: Player)
 	tagLabel.Text = ("🍄 %s  +%d/s"):format(player.DisplayName, math.floor(shelfIncomePerSec(s.data)))
 	tagLabel.Parent = tag
 
-	-- grzyby na stojaku: kolor = rzadkość, mutacje świecą
+	-- najlepszy okaz dostaje piedestał i iskierki (flex!)
+	local bestIdx, bestIncome = 0, -1
+	for index, item in s.data.shelf do
+		local income = itemIncome(item)
+		if income > bestIncome then
+			bestIdx, bestIncome = index, income
+		end
+	end
+
+	-- grzyby na stojaku jako mini-grzybki: kapelusz = kolor rzadkości, mutacje świecą
 	for index, item in s.data.shelf do
 		local column = (index - 1) % 4
 		local row = (index - 1) // 4
-		local ball = Instance.new("Part")
-		ball.Shape = Enum.PartType.Ball
-		ball.Size = Vector3.new(1.4, 1.4, 1.4)
-		ball.CFrame = CFrame.new(origin + Vector3.new(column * 2.2 - 3.3, 2.8 + row * 1.8, 0))
-		ball.Color = Config.Rarities[item.rarityIdx].color
-		ball.Material = item.mutationIdx > 0 and Enum.Material.Neon or Enum.Material.SmoothPlastic
-		ball.Anchored = true
-		ball.CanCollide = false
-		ball.Parent = model
+		local isBest = index == bestIdx
+		local scale = isBest and 1.5 or 1
+		local position = origin + Vector3.new(column * 2.2 - 3.3, 2.5 + row * 2, 0)
+
+		local miniStem = Instance.new("Part")
+		miniStem.Shape = Enum.PartType.Cylinder
+		miniStem.Size = Vector3.new(0.9, 0.45, 0.45) * scale
+		miniStem.Color = Color3.fromRGB(240, 232, 210)
+		miniStem.Material = Enum.Material.SmoothPlastic
+		miniStem.Anchored = true
+		miniStem.CanCollide = false
+		miniStem.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
+		miniStem.Parent = model
+
+		local miniCap = Instance.new("Part")
+		miniCap.Shape = Enum.PartType.Ball
+		miniCap.Size = Vector3.new(1.3, 0.9, 1.3) * scale
+		miniCap.Color = Config.Rarities[item.rarityIdx].color
+		miniCap.Material = item.mutationIdx > 0 and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		miniCap.Anchored = true
+		miniCap.CanCollide = false
+		miniCap.CFrame = CFrame.new(position + Vector3.new(0, 0.55 * scale, 0))
+		miniCap.Parent = model
+
+		if isBest and bestIncome > 0 then
+			addSparkle(miniCap, Color3.fromRGB(255, 220, 120), 3)
+		end
 	end
 
 	model.Parent = workspace
@@ -422,7 +529,15 @@ local spawnNode -- (deklaracja, bo cutNode woła spawnNode i odwrotnie)
 local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex: number)
 	local s = sessions[player]
 	if not s then return end
+
+	-- rozbryzg w kolorze kapelusza w miejscu ścięcia
+	local cap = node:FindFirstChild("Cap")
+	local cutPosition = cap and cap.Position or nil
+	local cutColor = cap and cap.Color or Color3.fromRGB(220, 220, 220)
 	node:Destroy()
+	if cutPosition then
+		burstAt(cutPosition, cutColor)
+	end
 
 	local rarityIdx = rollRarity(ringIndex)
 
@@ -446,6 +561,12 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 		freshness = Config.Freshness.startPercent,
 	}
 	table.insert(s.carried, item)
+
+	-- pływający napis nad miejscem ścięcia, w kolorze rzadkości
+	if cutPosition then
+		local species = world.species[item.speciesIdx]
+		floatingText(cutPosition, species.name, Config.Rarities[item.rarityIdx].color)
+	end
 
 	-- rzadkie trafienia ogłaszamy całemu serwerowi (GDD §4)
 	if item.rarityIdx >= 5 or item.mutationIdx >= 4 then
@@ -480,6 +601,7 @@ spawnNode = function(player: Player)
 	local s = sessions[player]
 	if not s then return end
 	local worldIdx = s.data.currentWorld
+	local world = Config.Worlds[worldIdx]
 	local rings = ringPartsByWorld[worldIdx]
 	local ringIndex = math.random(1, #rings)
 	local ring = rings[ringIndex]
@@ -487,26 +609,56 @@ spawnNode = function(player: Player)
 	local node = Instance.new("Model")
 	node.Name = "MushroomNode"
 
-	local stem = Instance.new("Part")
-	stem.Shape = Enum.PartType.Cylinder
-	stem.Size = Vector3.new(1.6, 0.8, 0.8)
-	stem.Orientation = Vector3.new(0, 0, 90)
-	stem.Color = Color3.fromRGB(235, 225, 200)
-	stem.Anchored = true
-	stem.Parent = node
-
-	local cap = Instance.new("Part")
-	cap.Shape = Enum.PartType.Ball
-	cap.Size = Vector3.new(2, 1.4, 2)
-	cap.Color = Color3.fromRGB(200, 60, 50)
-	cap.Anchored = true
-	cap.Parent = node
+	-- każdy grzyb wygląda inaczej: kolor z palety świata, losowy rozmiar
+	local scale = 0.8 + math.random() * 0.5
+	local capColor = world.theme.caps[math.random(#world.theme.caps)]
 
 	local x = ring.Position.X + (math.random() - 0.5) * (ring.Size.X - 10)
 	local z = ring.Position.Z + (math.random() - 0.5) * (ring.Size.Z - 10)
 	local y = ring.Position.Y + ring.Size.Y / 2
-	stem.CFrame = CFrame.new(x, y + 0.8, z)
-	cap.CFrame = CFrame.new(x, y + 1.9, z)
+
+	local stem = Instance.new("Part")
+	stem.Name = "Stem"
+	stem.Shape = Enum.PartType.Cylinder
+	stem.Size = Vector3.new(1.6, 0.8, 0.8) * scale
+	stem.Color = Color3.fromRGB(240, 232, 210)
+	stem.Material = Enum.Material.SmoothPlastic
+	stem.Anchored = true
+	stem.CFrame = CFrame.new(x, y + 0.8 * scale, z) * CFrame.Angles(0, 0, math.rad(90))
+	stem.Parent = node
+
+	local cap = Instance.new("Part")
+	cap.Name = "Cap"
+	cap.Shape = Enum.PartType.Ball
+	cap.Size = Vector3.new(2, 1.4, 2) * scale
+	cap.Color = capColor
+	cap.Material = Enum.Material.SmoothPlastic
+	cap.Anchored = true
+	cap.CFrame = CFrame.new(x, y + 1.9 * scale, z)
+	cap.Parent = node
+
+	-- białe kropki na kapeluszu (klasyka!)
+	for _, offset in { Vector3.new(0.5, 0.45, 0.25), Vector3.new(-0.45, 0.5, -0.3), Vector3.new(0.05, 0.55, 0.5) } do
+		local dot = Instance.new("Part")
+		dot.Shape = Enum.PartType.Ball
+		dot.Size = Vector3.new(0.4, 0.25, 0.4) * scale
+		dot.Color = Color3.fromRGB(250, 248, 240)
+		dot.Material = Enum.Material.SmoothPlastic
+		dot.Anchored = true
+		dot.CanCollide = false
+		dot.CFrame = CFrame.new(Vector3.new(x, y + 1.9 * scale, z) + offset * scale)
+		dot.Parent = node
+	end
+
+	-- delikatne iskierki przyciągają wzrok; w głębi (pierścienie 4-5) grzyby świecą
+	addSparkle(cap, capColor:Lerp(Color3.new(1, 1, 1), 0.5), 1.5)
+	if ringIndex >= 4 then
+		local light = Instance.new("PointLight")
+		light.Color = capColor
+		light.Range = 8
+		light.Brightness = 1.2
+		light.Parent = cap
+	end
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Zetnij"
@@ -560,6 +712,16 @@ local function deliver(player: Player)
 		message ..= (", sprzedano %d za %d 💰 (brak półek!)"):format(sold, math.floor(soldValue))
 	end
 	notifyRemote:FireClient(player, message)
+
+	-- wyskakująca nagroda nad graczem
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local rewardText = sold > 0
+			and ("+%d 🍄  +%d 💰"):format(shelved, math.floor(soldValue))
+			or ("+%d 🍄"):format(shelved)
+		floatingText(root.Position + Vector3.new(0, 2, 0), rewardText, Color3.fromRGB(140, 235, 140))
+	end
 
 	questProgress(player, "delivered", shelved + sold, false)
 	questProgress(player, "shelfCount", #s.data.shelf, true)

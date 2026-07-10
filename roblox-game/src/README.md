@@ -73,6 +73,26 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na
       ekranie, prompty działają dotykiem.
 
+## Warstwa wizualna (pass „żeby nie wyglądało generycznie")
+
+- **Oświetlenie filmowe** ustawiane skryptem: ciepłe popołudnie, mgła
+  (Atmosphere), Bloom, korekcja kolorów (podbita saturacja — low-poly żyje
+  kolorem), promienie słońca.
+- **Każdy biom wygląda inaczej**: Las = drzewa-kule, Bór = świerki z dysków,
+  Mokradła = karłowate drzewa + świecące kałuże + świetliki, Grota = neonowe
+  kryształy (część ze światłem), Księżyc = kratery i lewitujące skały.
+  Środek mapy (pas biegu) jest zawsze wolny od dekoracji.
+- **Bazy jak obozowiska**: stragan z daszkiem nad BasePadem, ognisko
+  z cząsteczkami i ciepłym światłem, lampy przy wejściu w las, flaga
+  w kolorze świata, przekrzywione drewniane tabliczki.
+- **Portale z kamiennym łukiem**, poświatą, iskrami i światłem.
+- **Grzyby w lesie**: kolory kapeluszy z palety świata, losowy rozmiar,
+  białe kropki, iskierki; w pierścieniach 4-5 świecą własnym światłem.
+- **Efekty**: rozbryzg w kolorze kapelusza przy ścięciu, nazwa znaleziska
+  wylatuje w kolorze rzadkości, „+N 🍄" nad graczem przy dostawie.
+- **Stojaki w bazie**: mini-grzybki w kolorach rzadkości (mutacje świecą),
+  najlepszy okaz jest większy i sypie złotymi iskrami.
+
 ## Najczęstsza usterka: „nic się nie pojawia"
 
 1. Mapa i gra powstają **dopiero po wciśnięciu Play (F5)** — w trybie edycji

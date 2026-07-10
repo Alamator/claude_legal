@@ -1,12 +1,11 @@
--- MapBuilder: buduje CAŁĄ prototypową mapę ze skryptu — zero ręcznego modelowania.
+-- MapBuilder: buduje CAŁĄ mapę ze skryptu — zero ręcznego modelowania.
 -- Wklej jako Script do ServerScriptService (nazwa: MapBuilder).
 --
--- Wersja wieloświatowa (szkielet fazy 5): wszystkie światy z GameConfig
--- powstają obok siebie (przesunięte w osi X). Każdy świat ma:
---   * strefę bazy z "BasePad" (odkładanie grzybów) i portalami podróży,
---   * 5 pierścieni lasu z tabliczkami,
---   * świecące portale skrótów powrotnych (pierścienie 2-5).
--- SpawnLocation stoi tylko w Świecie 1 — dalej gracza przenosi GameServer.
+-- Wersja „ładna": filmowe oświetlenie (Atmosphere, Bloom, korekcja kolorów),
+-- dekoracje per biom (drzewa liściaste / świerki / bagno / kryształy /
+-- księżyc), bazy jako obozowiska (stragan, ognisko, lampy, flaga) i portale
+-- z łukiem, poświatą i cząsteczkami. Świecące kałuże, robaczki świętojańskie,
+-- lewitujące skały. Palety kolorów per świat: GameConfig → theme.
 --
 -- Struktura w workspace (czyta ją GameServer):
 --   Worlds/World<i> [attr WorldIndex]
@@ -16,6 +15,7 @@
 --     ├─ PortalNext / PortalPrev [attr TargetWorld]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 
 local MAP_SCALE = 0.5     -- prototyp jest 2× krótszy niż docelowe dystanse
@@ -31,6 +31,48 @@ local WORLD_GROUND = {
 	Color3.fromRGB(96, 110, 160),  -- Kryształowa Grota
 	Color3.fromRGB(150, 150, 160), -- Grzyboksiężyc
 }
+
+-- ============================================================================
+-- Oświetlenie: ciepłe popołudnie + mgła + bloom = „przytulny low-poly"
+-- ============================================================================
+
+Lighting.ClockTime = 14.2
+Lighting.Brightness = 3
+Lighting.ExposureCompensation = 0.1
+Lighting.ShadowSoftness = 0.35
+Lighting.GlobalShadows = true
+Lighting.EnvironmentDiffuseScale = 1
+Lighting.EnvironmentSpecularScale = 0.5
+
+local atmosphere = Instance.new("Atmosphere")
+atmosphere.Density = 0.3
+atmosphere.Offset = 0.5
+atmosphere.Color = Color3.fromRGB(206, 222, 245)
+atmosphere.Decay = Color3.fromRGB(255, 180, 120)
+atmosphere.Glare = 0.2
+atmosphere.Haze = 1.6
+atmosphere.Parent = Lighting
+
+local bloom = Instance.new("BloomEffect")
+bloom.Intensity = 0.5
+bloom.Size = 24
+bloom.Threshold = 1.4
+bloom.Parent = Lighting
+
+local colorCorrection = Instance.new("ColorCorrectionEffect")
+colorCorrection.Saturation = 0.22
+colorCorrection.Contrast = 0.08
+colorCorrection.TintColor = Color3.fromRGB(255, 250, 240)
+colorCorrection.Parent = Lighting
+
+local sunRays = Instance.new("SunRaysEffect")
+sunRays.Intensity = 0.09
+sunRays.Spread = 0.6
+sunRays.Parent = Lighting
+
+-- ============================================================================
+-- Pomocnicze klocki
+-- ============================================================================
 
 local function makePart(name: string, size: Vector3, cframe: CFrame, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
@@ -56,21 +98,242 @@ local function makePrompt(parent: Instance, actionText: string, objectText: stri
 	return prompt
 end
 
+-- drewniana tabliczka na słupku, lekko przekrzywiona (urok ręcznej roboty)
 local function makeSign(parent: Instance, text: string, cframe: CFrame)
-	local sign = makePart("Sign", Vector3.new(6, 4, 0.5), cframe, Color3.fromRGB(230, 220, 180), parent)
-	sign.Material = Enum.Material.SmoothPlastic
+	local tilt = CFrame.Angles(0, math.rad(math.random(-9, 9)), 0)
+	local post = makePart("SignPost", Vector3.new(0.5, 4, 0.5), cframe * tilt * CFrame.new(0, -1, 0), Color3.fromRGB(110, 76, 48), parent)
+	post.Material = Enum.Material.Wood
+	local board = makePart("SignBoard", Vector3.new(7, 3, 0.5), cframe * tilt * CFrame.new(0, 1.6, 0), Color3.fromRGB(196, 152, 98), parent)
+	board.Material = Enum.Material.WoodPlanks
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Back
-	gui.Parent = sign
+	gui.Parent = board
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.TextScaled = true
 	label.Font = Enum.Font.FredokaOne
-	label.TextColor3 = Color3.fromRGB(40, 40, 40)
+	label.TextColor3 = Color3.fromRGB(60, 40, 25)
 	label.Text = text
 	label.Parent = gui
 end
+
+local function addSparkles(parent: BasePart, color: Color3, rate: number)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 1
+	emitter.Rate = rate
+	emitter.Lifetime = NumberRange.new(1.5, 3)
+	emitter.Speed = NumberRange.new(0.3, 0.8)
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.25),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Transparency = NumberSequence.new(0.2)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Parent = parent
+	return emitter
+end
+
+-- ============================================================================
+-- Dekoracje per biom
+-- ============================================================================
+
+local function makeBallTree(theme, position: Vector3, parent: Instance)
+	local height = math.random(6, 9)
+	local trunk = makePart("Trunk", Vector3.new(1.4, height, 1.4), CFrame.new(position + Vector3.new(0, height / 2, 0)), theme.trunk, parent)
+	trunk.Material = Enum.Material.Wood
+	local canopyColor = theme.canopy[math.random(#theme.canopy)]
+	local size = math.random(6, 9)
+	local ball = makePart("Canopy", Vector3.new(size, size * 0.9, size), CFrame.new(position + Vector3.new(0, height + size * 0.3, 0)), canopyColor, parent)
+	ball.Shape = Enum.PartType.Ball
+	ball.Material = Enum.Material.SmoothPlastic
+	if math.random() < 0.5 then
+		local size2 = size * 0.6
+		local ball2 = makePart("Canopy", Vector3.new(size2, size2, size2),
+			CFrame.new(position + Vector3.new(math.random(-2, 2), height + size * 0.7, math.random(-2, 2))),
+			theme.canopy[math.random(#theme.canopy)], parent)
+		ball2.Shape = Enum.PartType.Ball
+		ball2.Material = Enum.Material.SmoothPlastic
+	end
+end
+
+local function makePineTree(theme, position: Vector3, parent: Instance)
+	local height = math.random(4, 6)
+	local trunk = makePart("Trunk", Vector3.new(1.2, height, 1.2), CFrame.new(position + Vector3.new(0, height / 2, 0)), theme.trunk, parent)
+	trunk.Material = Enum.Material.Wood
+	local canopyColor = theme.canopy[math.random(#theme.canopy)]
+	local radius = math.random(6, 8)
+	for layer = 0, 2 do
+		local layerRadius = radius * (1 - layer * 0.3)
+		local disk = makePart("Canopy", Vector3.new(2.2, layerRadius, layerRadius),
+			CFrame.new(position + Vector3.new(0, height + layer * 2.4, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			canopyColor, parent)
+		disk.Shape = Enum.PartType.Cylinder
+		disk.Material = Enum.Material.SmoothPlastic
+	end
+end
+
+local function makeSwampTree(theme, position: Vector3, parent: Instance)
+	local trunk = makePart("Trunk", Vector3.new(2, 4, 2),
+		CFrame.new(position + Vector3.new(0, 2, 0)) * CFrame.Angles(math.rad(math.random(-12, 12)), 0, math.rad(math.random(-12, 12))),
+		theme.trunk, parent)
+	trunk.Material = Enum.Material.Wood
+	local canopy = makePart("Canopy", Vector3.new(7, 3, 7), CFrame.new(position + Vector3.new(0, 5.5, 0)),
+		theme.canopy[math.random(#theme.canopy)], parent)
+	canopy.Shape = Enum.PartType.Ball
+	canopy.Material = Enum.Material.SmoothPlastic
+	-- świecąca kałuża u stóp
+	local puddle = makePart("Puddle", Vector3.new(math.random(4, 7), 0.2, math.random(4, 7)),
+		CFrame.new(position + Vector3.new(math.random(-3, 3), 0.12, math.random(-3, 3))), theme.accent, parent)
+	puddle.Material = Enum.Material.Neon
+	puddle.Transparency = 0.35
+end
+
+local function makeCrystal(theme, position: Vector3, parent: Instance)
+	local height = math.random(5, 11)
+	local crystal = makePart("Crystal", Vector3.new(math.random(2, 3), height, math.random(2, 3)),
+		CFrame.new(position + Vector3.new(0, height / 2 - 0.5, 0))
+			* CFrame.Angles(math.rad(math.random(-18, 18)), math.rad(math.random(0, 360)), math.rad(math.random(-18, 18))),
+		theme.caps[math.random(#theme.caps)], parent)
+	crystal.Material = Enum.Material.Neon
+	crystal.Transparency = 0.15
+	-- światło tylko na ~1/3 kryształów (setki PointLightów zabiłyby FPS)
+	if math.random() < 0.35 then
+		local light = Instance.new("PointLight")
+		light.Color = crystal.Color
+		light.Range = 14
+		light.Brightness = 0.8
+		light.Parent = crystal
+	end
+end
+
+local function makeMoonDecor(theme, position: Vector3, parent: Instance)
+	if math.random() < 0.5 then
+		-- krater
+		local radius = math.random(6, 12)
+		local crater = makePart("Crater", Vector3.new(1.2, radius, radius),
+			CFrame.new(position + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color3.fromRGB(105, 105, 118), parent)
+		crater.Shape = Enum.PartType.Cylinder
+		crater.Material = Enum.Material.Slate
+	else
+		-- lewitująca skała
+		local size = math.random(3, 6)
+		local rock = makePart("FloatingRock", Vector3.new(size, size * 0.8, size),
+			CFrame.new(position + Vector3.new(0, math.random(8, 16), 0))
+				* CFrame.Angles(math.rad(math.random(0, 360)), math.rad(math.random(0, 360)), 0),
+			Color3.fromRGB(130, 130, 145), parent)
+		rock.Material = Enum.Material.Slate
+	end
+end
+
+local function makeFireflies(color: Color3, position: Vector3, parent: Instance)
+	local anchor = makePart("Fireflies", Vector3.new(1, 1, 1), CFrame.new(position + Vector3.new(0, 4, 0)), color, parent)
+	anchor.Transparency = 1
+	anchor.CanCollide = false
+	local emitter = addSparkles(anchor, color, 3)
+	emitter.Speed = NumberRange.new(0.4, 1.2)
+	emitter.Lifetime = NumberRange.new(3, 5)
+end
+
+local DECOR_BY_STYLE = {
+	ball = makeBallTree,
+	pine = makePineTree,
+	swamp = makeSwampTree,
+	crystal = makeCrystal,
+	moon = makeMoonDecor,
+}
+
+-- ============================================================================
+-- Baza-obozowisko: stragan nad BasePadem, ognisko, lampy, flaga
+-- ============================================================================
+
+local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
+	-- stragan: 4 słupki + czerwono-biały daszek nad BasePadem
+	for _, corner in { { -4, -4 }, { 4, -4 }, { -4, 4 }, { 4, 4 } } do
+		local post = makePart("StallPost", Vector3.new(0.6, 7, 0.6),
+			CFrame.new(offsetX + corner[1], 4, -12 + corner[2]), Color3.fromRGB(150, 105, 65), worldFolder)
+		post.Material = Enum.Material.Wood
+	end
+	local roof = makePart("StallRoof", Vector3.new(11, 0.6, 11), CFrame.new(offsetX, 7.8, -12), Color3.fromRGB(210, 65, 60), worldFolder)
+	roof.Material = Enum.Material.SmoothPlastic
+	local roofTrim = makePart("StallRoofTrim", Vector3.new(11.6, 0.5, 11.6), CFrame.new(offsetX, 7.4, -12), Color3.fromRGB(245, 240, 225), worldFolder)
+	roofTrim.Material = Enum.Material.SmoothPlastic
+
+	-- ognisko: skrzyżowane polana + ogień + ciepłe światło
+	local firePos = Vector3.new(offsetX - 22, 1, -20)
+	for angle = 0, 120, 60 do
+		local log = makePart("Log", Vector3.new(4, 0.9, 0.9),
+			CFrame.new(firePos) * CFrame.Angles(0, math.rad(angle), math.rad(8)), Color3.fromRGB(96, 66, 40), worldFolder)
+		log.Material = Enum.Material.Wood
+	end
+	local fireCore = makePart("FireCore", Vector3.new(1, 1, 1), CFrame.new(firePos + Vector3.new(0, 0.8, 0)), Color3.fromRGB(255, 150, 50), worldFolder)
+	fireCore.Transparency = 1
+	fireCore.CanCollide = false
+	local fire = Instance.new("ParticleEmitter")
+	fire.Color = ColorSequence.new(Color3.fromRGB(255, 190, 80), Color3.fromRGB(230, 80, 40))
+	fire.LightEmission = 1
+	fire.Rate = 22
+	fire.Lifetime = NumberRange.new(0.5, 1)
+	fire.Speed = NumberRange.new(2, 4)
+	fire.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	fire.Parent = fireCore
+	local fireLight = Instance.new("PointLight")
+	fireLight.Color = Color3.fromRGB(255, 170, 90)
+	fireLight.Range = 18
+	fireLight.Brightness = 1.4
+	fireLight.Parent = fireCore
+
+	-- lampy przy wejściu do lasu
+	for _, side in { -1, 1 } do
+		local pole = makePart("LampPole", Vector3.new(0.5, 6, 0.5), CFrame.new(offsetX + side * 12, 3.5, -2), Color3.fromRGB(70, 70, 80), worldFolder)
+		pole.Material = Enum.Material.Metal
+		local bulb = makePart("LampBulb", Vector3.new(1.6, 1.6, 1.6), CFrame.new(offsetX + side * 12, 7, -2), Color3.fromRGB(255, 225, 150), worldFolder)
+		bulb.Shape = Enum.PartType.Ball
+		bulb.Material = Enum.Material.Neon
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 225, 150)
+		light.Range = 16
+		light.Brightness = 0.9
+		light.Parent = bulb
+	end
+
+	-- flaga w kolorze świata
+	local flagPole = makePart("FlagPole", Vector3.new(0.4, 12, 0.4), CFrame.new(offsetX + 24, 6.5, -30), Color3.fromRGB(200, 200, 210), worldFolder)
+	flagPole.Material = Enum.Material.Metal
+	local flag = makePart("Flag", Vector3.new(5, 3, 0.3), CFrame.new(offsetX + 26.9, 10.5, -30), theme.accent, worldFolder)
+	flag.Material = Enum.Material.SmoothPlastic
+end
+
+-- portal z kamiennym łukiem, poświatą i cząsteczkami
+local function buildTravelPortal(worldFolder: Instance, name: string, position: Vector3, color: Color3, targetWorld: number, promptObjectText: string)
+	for _, side in { -1, 1 } do
+		local pillar = makePart(name .. "Pillar", Vector3.new(2, 11, 2), CFrame.new(position + Vector3.new(0, 0.5, side * 4)), Color3.fromRGB(120, 118, 130), worldFolder)
+		pillar.Material = Enum.Material.Slate
+	end
+	local beam = makePart(name .. "Beam", Vector3.new(2.4, 2, 10.5), CFrame.new(position + Vector3.new(0, 6.5, 0)), Color3.fromRGB(120, 118, 130), worldFolder)
+	beam.Material = Enum.Material.Slate
+
+	local glow = makePart(name, Vector3.new(0.8, 9, 6.5), CFrame.new(position + Vector3.new(0, 0.5, 0)), color, worldFolder)
+	glow.Material = Enum.Material.Neon
+	glow.Transparency = 0.35
+	glow:SetAttribute("TargetWorld", targetWorld)
+	addSparkles(glow, color, 6)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 16
+	light.Brightness = 1.2
+	light.Parent = glow
+	makePrompt(glow, "Podróż", promptObjectText)
+end
+
+-- ============================================================================
+-- Budowa światów
+-- ============================================================================
 
 local worldsFolder = Instance.new("Folder")
 worldsFolder.Name = "Worlds"
@@ -81,6 +344,7 @@ local sprintSpeed = Config.Movement.sprintSpeed
 for worldIdx, worldConfig in Config.Worlds do
 	local offsetX = (worldIdx - 1) * WORLD_SPACING
 	local ground = WORLD_GROUND[worldIdx] or WORLD_GROUND[#WORLD_GROUND]
+	local theme = worldConfig.theme
 
 	local worldFolder = Instance.new("Folder")
 	worldFolder.Name = "World" .. worldIdx
@@ -95,7 +359,7 @@ for worldIdx, worldConfig in Config.Worlds do
 		ground:Lerp(Color3.new(1, 1, 1), 0.25),
 		worldFolder
 	)
-	makeSign(worldFolder, worldConfig.name, CFrame.new(offsetX, 3, -BASE_LENGTH + 4))
+	makeSign(worldFolder, "🍄 " .. worldConfig.name, CFrame.new(offsetX, 2, -BASE_LENGTH + 4))
 
 	if worldIdx == 1 then
 		local spawnLocation = Instance.new("SpawnLocation")
@@ -117,33 +381,21 @@ for worldIdx, worldConfig in Config.Worlds do
 	basePad:SetAttribute("WorldIndex", worldIdx)
 	makePrompt(basePad, "Odłóż grzyby", "Półki w bazie")
 
+	buildBaseCamp(worldFolder, theme, offsetX)
+
 	-- === Portale podróży między światami ===
 	local nextWorld = Config.Worlds[worldIdx + 1]
 	if nextWorld then
-		local portal = makePart(
-			"PortalNext",
-			Vector3.new(1, 10, 6),
-			CFrame.new(offsetX + MAP_WIDTH / 2 - 8, 5.5, -BASE_LENGTH / 2),
-			Color3.fromRGB(180, 120, 255),
-			worldFolder
-		)
-		portal.Material = Enum.Material.Neon
-		portal.Transparency = 0.25
-		portal:SetAttribute("TargetWorld", worldIdx + 1)
-		makePrompt(portal, "Podróż", ("→ %s (odblokowanie: %d 💰)"):format(nextWorld.name, nextWorld.portalCost))
+		buildTravelPortal(worldFolder, "PortalNext",
+			Vector3.new(offsetX + MAP_WIDTH / 2 - 10, 5, -BASE_LENGTH / 2),
+			Color3.fromRGB(180, 120, 255), worldIdx + 1,
+			("→ %s (odblokowanie: %d 💰)"):format(nextWorld.name, nextWorld.portalCost))
 	end
 	if worldIdx > 1 then
-		local portal = makePart(
-			"PortalPrev",
-			Vector3.new(1, 10, 6),
-			CFrame.new(offsetX - MAP_WIDTH / 2 + 8, 5.5, -BASE_LENGTH / 2),
-			Color3.fromRGB(120, 255, 180),
-			worldFolder
-		)
-		portal.Material = Enum.Material.Neon
-		portal.Transparency = 0.25
-		portal:SetAttribute("TargetWorld", worldIdx - 1)
-		makePrompt(portal, "Podróż", ("← %s"):format(Config.Worlds[worldIdx - 1].name))
+		buildTravelPortal(worldFolder, "PortalPrev",
+			Vector3.new(offsetX - MAP_WIDTH / 2 + 10, 5, -BASE_LENGTH / 2),
+			Color3.fromRGB(120, 255, 180), worldIdx - 1,
+			("← %s"):format(Config.Worlds[worldIdx - 1].name))
 	end
 
 	-- === Pierścienie lasu (z = 0 .. w głąb) ===
@@ -155,7 +407,9 @@ for worldIdx, worldConfig in Config.Worlds do
 	shortcutsFolder.Name = "Shortcuts"
 	shortcutsFolder.Parent = worldFolder
 
+	local decorate = DECOR_BY_STYLE[theme.style]
 	local prevEndZ = 0
+
 	for ringIndex, ringConfig in Config.Rings do
 		local endZ = ringConfig.sprintSecondsFromBase * sprintSpeed * MAP_SCALE
 		local length = endZ - prevEndZ
@@ -169,7 +423,30 @@ for worldIdx, worldConfig in Config.Worlds do
 		ring:SetAttribute("RingIndex", ringIndex)
 
 		makeSign(worldFolder, "PIERŚCIEŃ " .. ringIndex,
-			CFrame.new(offsetX - MAP_WIDTH / 2 + 6, 3, prevEndZ))
+			CFrame.new(offsetX - MAP_WIDTH / 2 + 8, 2, prevEndZ))
+
+		-- ściany lasu po bokach (rama korytarza) + dekoracje w polu,
+		-- środek (|x| < 18) zostaje wolny — to pas biegu
+		local edgeCount = math.max(3, math.floor(length / 14))
+		for _ = 1, edgeCount do
+			for _, side in { -1, 1 } do
+				decorate(theme,
+					Vector3.new(
+						offsetX + side * (MAP_WIDTH / 2 - math.random(3, 9)),
+						1,
+						prevEndZ + math.random() * length),
+					worldFolder)
+			end
+		end
+		local fieldCount = math.max(2, math.floor(length / 26))
+		for _ = 1, fieldCount do
+			local x = (math.random() < 0.5 and -1 or 1) * math.random(20, MAP_WIDTH / 2 - 14)
+			decorate(theme, Vector3.new(offsetX + x, 1, prevEndZ + math.random() * length), worldFolder)
+		end
+		if theme.fireflies then
+			makeFireflies(theme.accent,
+				Vector3.new(offsetX + math.random(-40, 40), 1, prevEndZ + length / 2), worldFolder)
+		end
 
 		-- świecący portal skrótu powrotnego (GDD §3)
 		local shortcutConfig = Config.Shortcuts[ringIndex]
@@ -185,6 +462,7 @@ for worldIdx, worldConfig in Config.Worlds do
 			portal.Transparency = 0.25
 			portal:SetAttribute("RingIndex", ringIndex)
 			portal:SetAttribute("WorldIndex", worldIdx)
+			addSparkles(portal, Color3.fromRGB(150, 210, 255), 4)
 			makePrompt(portal, "Skrót do bazy",
 				("%s — %d 💰 (raz)"):format(shortcutConfig.name, shortcutConfig.cost))
 		end

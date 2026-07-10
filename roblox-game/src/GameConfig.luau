@@ -110,6 +110,15 @@ Config.Worlds = {
 		incomeMult = 1,
 		freshnessDecayPerSec = 1.2, -- % świeżości na sekundę (baza, przed Termosem)
 		portalCost = 0,             -- świat startowy
+		-- paleta wizualna (MapBuilder: drzewa/dekoracje; GameServer: kapelusze)
+		theme = {
+			style = "ball", -- drzewa liściaste (kule)
+			trunk = Color3.fromRGB(110, 76, 48),
+			canopy = { Color3.fromRGB(88, 160, 66), Color3.fromRGB(122, 190, 80), Color3.fromRGB(160, 200, 70) },
+			caps = { Color3.fromRGB(205, 62, 50), Color3.fromRGB(235, 140, 50), Color3.fromRGB(205, 175, 95), Color3.fromRGB(195, 95, 145) },
+			accent = Color3.fromRGB(255, 205, 95),
+			fireflies = false,
+		},
 		species = {
 			-- baseIncome = kasa/s grzyba Zwykłego, 100% świeżości, bez mutacji
 			{ id = "Kurka",       name = "Kurka",              baseIncome = 1 },
@@ -130,6 +139,14 @@ Config.Worlds = {
 		incomeMult = 8,
 		freshnessDecayPerSec = 1.6,
 		portalCost = 25_000, -- cel: osiągalny po ~2-3 h gry (GDD §8)
+		theme = {
+			style = "pine", -- świerki (stożki z dysków)
+			trunk = Color3.fromRGB(86, 62, 44),
+			canopy = { Color3.fromRGB(40, 112, 92), Color3.fromRGB(52, 132, 102) },
+			caps = { Color3.fromRGB(152, 82, 42), Color3.fromRGB(92, 62, 38), Color3.fromRGB(192, 152, 62), Color3.fromRGB(122, 132, 142) },
+			accent = Color3.fromRGB(140, 220, 255),
+			fireflies = false,
+		},
 		species = {
 			{ id = "RydzBorowy",   name = "Rydz Borowy",        baseIncome = 1 },
 			{ id = "MaslakSosnowy", name = "Maślak Sosnowy",    baseIncome = 2 },
@@ -149,6 +166,14 @@ Config.Worlds = {
 		incomeMult = 50,
 		freshnessDecayPerSec = 2.2,
 		portalCost = 400_000,
+		theme = {
+			style = "swamp", -- karłowate drzewa + świecące kałuże
+			trunk = Color3.fromRGB(72, 82, 56),
+			canopy = { Color3.fromRGB(92, 122, 62), Color3.fromRGB(72, 102, 52) },
+			caps = { Color3.fromRGB(92, 202, 162), Color3.fromRGB(142, 222, 92), Color3.fromRGB(62, 162, 202), Color3.fromRGB(182, 122, 222) },
+			accent = Color3.fromRGB(120, 255, 200),
+			fireflies = true,
+		},
 		species = {
 			{ id = "Blotnik",      name = "Błotnik",            baseIncome = 1 },
 			{ id = "Zgnilek",      name = "Zgniłek",            baseIncome = 2 },
@@ -168,6 +193,14 @@ Config.Worlds = {
 		incomeMult = 300,
 		freshnessDecayPerSec = 3.0,
 		portalCost = 6_000_000,
+		theme = {
+			style = "crystal", -- świecące kryształy zamiast drzew
+			trunk = Color3.fromRGB(70, 70, 90),
+			canopy = {},
+			caps = { Color3.fromRGB(152, 122, 255), Color3.fromRGB(92, 202, 255), Color3.fromRGB(255, 122, 202), Color3.fromRGB(122, 255, 222) },
+			accent = Color3.fromRGB(170, 140, 255),
+			fireflies = true, -- świecące drobinki groty
+		},
 		species = {
 			{ id = "Kwarcownik",   name = "Kwarcownik",         baseIncome = 1 },
 			{ id = "Grotolaz",     name = "Grotołaz",           baseIncome = 2 },
@@ -187,6 +220,14 @@ Config.Worlds = {
 		incomeMult = 2000,
 		freshnessDecayPerSec = 4.0,
 		portalCost = 90_000_000,
+		theme = {
+			style = "moon", -- kratery i lewitujące skały
+			trunk = Color3.fromRGB(120, 120, 130),
+			canopy = {},
+			caps = { Color3.fromRGB(122, 255, 122), Color3.fromRGB(122, 202, 255), Color3.fromRGB(232, 232, 255), Color3.fromRGB(255, 122, 255) },
+			accent = Color3.fromRGB(150, 255, 180),
+			fireflies = true, -- kosmiczny pył
+		},
 		species = {
 			{ id = "Kraterek",     name = "Kraterek",           baseIncome = 1 },
 			{ id = "Lunark",       name = "Lunark",             baseIncome = 2 },
