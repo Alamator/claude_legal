@@ -258,9 +258,14 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 
 ## 10. Zakres v1.0 — twarda lista „NIE"
 
-Do premiery NIE robimy: petów/pomocników, handlu między graczami, kradzieży
-z cudzych baz, podwójnych mutacji, craftingu, PvP, AI przeciwników, pogody
-wpływającej na ruch.
+Do premiery NIE robimy: petów/pomocników (v1.1 — pierwszy duży update,
+silnik gachy), handlu między graczami, kradzieży z cudzych baz (ew. tryb
+eventowy v1.2+), craftingu, PvP, AI przeciwników, pogody wpływającej na ruch.
+
+**Podwójne mutacje — zakodowane, wyłączone flagą** (`Config.DoubleMutations.
+enabled`): włączenie jednym `true` daje gotowy event „Weekend Podwójnych
+Mutacji" (druga mutacja losuje się z 25% normalnych szans, mnożniki się
+mnożą, każde podwójne trafienie jest ogłaszane serwerowi).
 
 **Rebirth (przeniesiony z v1.1 do v1.0):** za rosnącą cenę (50k ×6 za każdy
 kolejny) zerujesz kasę, ulepszenia, półki, skróty i światy — w zamian trwały

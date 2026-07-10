@@ -87,6 +87,7 @@ type Carried = {
 	speciesIdx: number,
 	rarityIdx: number,
 	mutationIdx: number,
+	mutationIdx2: number, -- druga mutacja (0 = brak; event „podwójne mutacje")
 	freshness: number,
 }
 
@@ -130,6 +131,10 @@ local function itemIncome(item: Carried, data): number
 	local species = world.species[item.speciesIdx]
 	local rarity = Config.Rarities[item.rarityIdx]
 	local mutationMult = item.mutationIdx > 0 and Config.Mutations[item.mutationIdx].incomeMult or 1
+	local mutation2Idx = item.mutationIdx2 or 0
+	if mutation2Idx > 0 then
+		mutationMult *= Config.Mutations[mutation2Idx].incomeMult
+	end
 	return Config.shelfIncome(species.baseIncome, rarity.incomeMult, mutationMult, item.freshness, world.incomeMult)
 		* rebirthMult(data)
 end
@@ -147,6 +152,10 @@ local function itemLabel(item: Carried): string
 	local species = world.species[item.speciesIdx]
 	local rarity = Config.Rarities[item.rarityIdx]
 	local mutation = item.mutationIdx > 0 and (" [" .. Config.Mutations[item.mutationIdx].name .. "]") or ""
+	local mutation2Idx = item.mutationIdx2 or 0
+	if mutation2Idx > 0 then
+		mutation ..= " [" .. Config.Mutations[mutation2Idx].name .. "]"
+	end
 	return ("%s (%s)%s %d%%"):format(species.name, rarity.name, mutation, math.floor(item.freshness))
 end
 
@@ -360,11 +369,13 @@ local function journalAdd(player: Player, item: Carried)
 		data.journal[journalKey(item)] = true
 		newEntry = true
 	end
-	if item.mutationIdx > 0 then
-		local mutationId = Config.Mutations[item.mutationIdx].id
-		if not data.mutationsSeen[mutationId] then
-			data.mutationsSeen[mutationId] = true
-			notifyRemote:FireClient(player, ("📖 Nowa mutacja w Dzienniku: %s!"):format(mutationId))
+	for _, mutationIdx in { item.mutationIdx, item.mutationIdx2 or 0 } do
+		if mutationIdx > 0 then
+			local mutationId = Config.Mutations[mutationIdx].id
+			if not data.mutationsSeen[mutationId] then
+				data.mutationsSeen[mutationId] = true
+				notifyRemote:FireClient(player, ("📖 Nowa mutacja w Dzienniku: %s!"):format(mutationId))
+			end
 		end
 	end
 	if newEntry then
@@ -532,7 +543,8 @@ local function refreshShelfDisplay(player: Player)
 		miniCap.Shape = Enum.PartType.Ball
 		miniCap.Size = Vector3.new(1.3, 0.9, 1.3) * scale
 		miniCap.Color = Config.Rarities[item.rarityIdx].color
-		miniCap.Material = item.mutationIdx > 0 and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		miniCap.Material = (item.mutationIdx > 0 or (item.mutationIdx2 or 0) > 0)
+			and Enum.Material.Neon or Enum.Material.SmoothPlastic
 		miniCap.Anchored = true
 		miniCap.CanCollide = false
 		miniCap.CFrame = CFrame.new(position + Vector3.new(0, 0.55 * scale, 0))
@@ -569,9 +581,10 @@ end
 -- Od najrzadszej: pierwsza wylosowana wygrywa. 0 = czysty grzyb.
 -- Eventy podbijają szanse (Złoty Deszcz ×3, Tęcza otwiera Rainbow 1/150);
 -- poziomy (+0,5%/poz.) i rebirthy (+2%/szt.) dają trwałe szczęście.
-local function rollMutation(data): number
+local function rollMutation(data, chanceMult: number?): number
 	local luckMult = EventService.mutationChanceMult()
 		* (1 + data.level * Config.XP.luckPerLevel + (data.rebirths or 0) * Config.Rebirth.luckPerRebirth)
+		* (chanceMult or 1)
 	for index = #Config.Mutations, 1, -1 do
 		local mutation = Config.Mutations[index]
 		local chance = luckMult / mutation.oneIn
@@ -629,11 +642,20 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 	end
 
 	local world = Config.Worlds[worldIdx]
+	local mutationIdx = rollMutation(s.data)
+	local mutationIdx2 = 0
+	if Config.DoubleMutations.enabled and mutationIdx > 0 then
+		mutationIdx2 = rollMutation(s.data, Config.DoubleMutations.secondRollChanceMult)
+		if mutationIdx2 == mutationIdx then
+			mutationIdx2 = 0 -- ta sama mutacja dwa razy się nie liczy
+		end
+	end
 	local item: Carried = {
 		worldIdx = worldIdx,
 		speciesIdx = math.random(#world.species),
 		rarityIdx = rarityIdx,
-		mutationIdx = rollMutation(s.data),
+		mutationIdx = mutationIdx,
+		mutationIdx2 = mutationIdx2,
 		freshness = Config.Freshness.startPercent,
 	}
 	table.insert(s.carried, item)
@@ -668,7 +690,8 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 	end
 
 	-- rzadkie trafienia ogłaszamy całemu serwerowi (GDD §4)
-	if item.rarityIdx >= 5 or item.mutationIdx >= 4 then
+	-- podwójna mutacja to zawsze widowisko — ogłaszamy każdą
+	if item.rarityIdx >= 5 or item.mutationIdx >= 4 or item.mutationIdx2 > 0 then
 		notifyRemote:FireAllClients(("🎉 %s znalazł: %s!"):format(player.DisplayName, itemLabel(item)))
 	else
 		notifyRemote:FireClient(player, "🍄 " .. itemLabel(item))

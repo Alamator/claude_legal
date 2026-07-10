@@ -85,6 +85,14 @@ Config.Mutations = {
 	{ id = "Rainbow", name = "Rainbow", oneIn = 10000, incomeMult = 150 },
 }
 
+-- Podwójne mutacje: WYŁĄCZONE na premierę, włączane jednym `true` na event
+-- weekendowy („Weekend Podwójnych Mutacji!"). Druga mutacja losuje się
+-- z ułamkiem normalnych szans i musi być inna niż pierwsza; mnożniki się mnożą.
+Config.DoubleMutations = {
+	enabled = false,
+	secondRollChanceMult = 0.25, -- 25% normalnych szans na drugą mutację
+}
+
 -- ===========================================================================
 -- PIERŚCIENIE LASU — wagi rzadkości per pierścień (GDD §4)
 -- sprintSecondsFromBase: ile sekund CIĄGŁEGO sprintu od bazy (projekt mapy!)
