@@ -349,6 +349,8 @@ Config.GamePasses = {
 }
 
 Config.DevProducts = {
+	-- „podwój zarobek offline" — kupowane z modala powitalnego (19 Robux)
+	OfflineDouble = { name = "Podwójny Zbiór Nocny", priceRobux = 19, id = 0, effect = { offlineMultiplier = 2 } },
 	LuckPotion   = { name = "Eliksir Szczęścia", id = 0, effect = { luckMult = 2, durationSec = 1200 } },
 	ReturnTotem5 = { name = "Totem Powrotu x5",  id = 0, effect = { returnTotems = 5 } },
 	Energy5      = { name = "Energetyk x5",      id = 0, effect = { staminaRefills = 5 } },

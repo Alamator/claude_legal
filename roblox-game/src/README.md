@@ -123,8 +123,12 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
   `require`'ują config, nigdy nie mają liczb wpisanych na sztywno.
 - Serwer nie ufa klientowi: klient tylko wyświetla HUD i wysyła prośby
   (sprint, zakup); losowania, kasa i zapis są wyłącznie po stronie serwera.
-- Pola `id = 0` w monetyzacji uzupełnimy po utworzeniu passów w Creator Hub
-  (faza 8). Światy 2–5 mają puste pule gatunków — uzupełnimy w fazie MVP.
+- Pola `id = 0` w monetyzacji uzupełnimy po utworzeniu passów i produktów
+  w Creator Hub (faza 8). Pierwszy działający produkt: **Podwójny Zbiór
+  Nocny (19 R$)** — złoty przycisk „×2" w modalu powitalnym; serwer ma już
+  `ProcessReceipt`, wystarczy utworzyć produkt w Creator Hub i wpisać jego
+  ID w `Config.DevProducts.OfflineDouble.id`. Do czasu wpisania ID przycisk
+  pokazuje ostrzeżenie zamiast okna zakupu.
 
 ## Świadome skróty prototypu (do zrobienia porządnie w fazie MVP)
 

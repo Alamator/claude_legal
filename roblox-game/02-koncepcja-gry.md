@@ -234,6 +234,9 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 | 👑 VIP | 449 | +10% szczęścia, złoty nick, aura, tytuł w bazie |
 
 ### Developer Products (wielokrotne — główny przychód w tym formacie)
+- 🌙 **Podwójny Zbiór Nocny** (19 Robux) — przycisk „×2" w modalu
+  powitalnym podwaja zarobek offline; niska cena + moment maksymalnej
+  satysfakcji = klasyczny bestseller gier idle;
 - Paczki kasy (4 progi cenowe);
 - 🍀 **Eliksir Szczęścia** (20 min, szansa rzadkości ×2) — bestseller formatu;
 - 🌀 **Totem Powrotu** ×5 (natychmiastowy teleport do bazy Z PEŁNĄ świeżością

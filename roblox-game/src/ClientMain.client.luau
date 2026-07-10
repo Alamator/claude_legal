@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContextActionService = game:GetService("ContextActionService")
 local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -556,17 +557,30 @@ task.spawn(function()
 			overlay.AutoButtonColor = false
 			overlay.Parent = gui
 
-			local modal = makeCard(overlay, UDim2.new(0, 320, 0, 190), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
+			local modal = makeCard(overlay, UDim2.new(0, 340, 0, 210), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
 			addHeader(modal, "🌙 WITAJ Z POWROTEM!", Color3.fromRGB(160, 110, 235), Color3.fromRGB(105, 60, 190))
 			local body = addBody(modal, 17)
 			body.TextXAlignment = Enum.TextXAlignment.Center
 			body.Text = ("Twoje grzyby pracowały!\n\n💰 +%s"):format(fmt(earned))
 
-			makeButton(modal, UDim2.new(0, 140, 0, 42), UDim2.new(0.5, 0, 1, -12), Vector2.new(0.5, 1),
-				Color3.fromRGB(96, 205, 106), Color3.fromRGB(38, 140, 70), 17,
+			makeButton(modal, UDim2.new(0, 130, 0, 44), UDim2.new(0.5, -70, 1, -12), Vector2.new(0.5, 1),
+				Color3.fromRGB(96, 205, 106), Color3.fromRGB(38, 140, 70), 16,
 				function()
 					overlay:Destroy()
 				end).Text = "Super!"
+
+			-- ×2 zarobku offline za Robux (obsługa zakupu: serwer, ProcessReceipt)
+			local product = Config.DevProducts.OfflineDouble
+			makeButton(modal, UDim2.new(0, 150, 0, 44), UDim2.new(0.5, 78, 1, -12), Vector2.new(0.5, 1),
+				Color3.fromRGB(255, 200, 80), Color3.fromRGB(215, 140, 35), 16,
+				function()
+					if product.id ~= 0 then
+						MarketplaceService:PromptProductPurchase(player, product.id)
+						overlay:Destroy()
+					else
+						showToast("⚠️ Produkt nieaktywny — uzupełnij ID w GameConfig (faza 8).")
+					end
+				end).Text = ("×2 = %s 💰  (%d R$)"):format(fmt(earned * 2), product.priceRobux)
 
 			local modalScale = Instance.new("UIScale")
 			modalScale.Scale = 0.7

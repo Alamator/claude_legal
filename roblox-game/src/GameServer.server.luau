@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
@@ -98,6 +99,7 @@ local sessions: { [Player]: {
 	tutorialStep: number, -- 1..3 = aktywny krok, 0 = ukończony
 	nextChestAt: number,  -- os.time() następnej skrzynki czasowej
 	plotIndex: number,    -- miejsce stojaka z półkami w bazie
+	pendingOfflineBonus: number, -- druga połowa zarobku offline (×2 za Robux)
 } } = {}
 
 local plotCounter = 0
@@ -984,12 +986,15 @@ Players.PlayerAdded:Connect(function(player)
 	local data, loadedOk = DataService.load(player.UserId)
 
 	-- zarobek offline (GDD §8): 50% stawki, cap 2 h
+	-- (bonus ×2 do wykupienia za Robux — patrz ProcessReceipt niżej)
+	local offlineBonus = 0
 	if data.lastSeen > 0 then
 		local elapsed = math.min(os.time() - data.lastSeen, Config.Offline.capSeconds)
 		if elapsed > 0 then
 			local earned = shelfIncomePerSec(data) * Config.Offline.incomeFraction * elapsed
 			data.cash += earned
 			player:SetAttribute("OfflineEarned", math.floor(earned))
+			offlineBonus = earned * (Config.DevProducts.OfflineDouble.effect.offlineMultiplier - 1)
 		end
 	end
 
@@ -1006,6 +1011,7 @@ Players.PlayerAdded:Connect(function(player)
 		tutorialStep = data.tutorialDone and 0 or 1,
 		nextChestAt = os.time() + Config.Chest.intervalSeconds,
 		plotIndex = (plotCounter - 1) % 9,
+		pendingOfflineBonus = offlineBonus,
 	}
 
 	-- leaderboard Roblox (lista graczy po prawej)
@@ -1073,5 +1079,42 @@ game:BindToClose(function()
 		end
 	end
 end)
+
+-- ============================================================================
+-- Zakupy za Robux (Developer Products) — fundament fazy 8
+-- Po utworzeniu produktów w Creator Hub wpisz ich ID w GameConfig.DevProducts.
+-- ============================================================================
+
+MarketplaceService.ProcessReceipt = function(receiptInfo)
+	local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
+	if not player then
+		-- gracz wyszedł — Roblox spróbuje ponownie przy następnym wejściu
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local s = sessions[player]
+	if not s then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	-- 🌙 Podwójny Zbiór Nocny: dopłata drugiej połowy zarobku offline
+	if receiptInfo.ProductId == Config.DevProducts.OfflineDouble.id then
+		if s.pendingOfflineBonus > 0 then
+			s.data.cash += s.pendingOfflineBonus
+			notifyRemote:FireClient(player, ("🌙 Podwójny Zbiór Nocny: +%d 💰!"):format(math.floor(s.pendingOfflineBonus)))
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if root then
+				floatingText(root.Position + Vector3.new(0, 2, 0),
+					("+%d 💰"):format(math.floor(s.pendingOfflineBonus)), Color3.fromRGB(255, 220, 120))
+			end
+			s.pendingOfflineBonus = 0
+			syncAttributes(player)
+		end
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+
+	warn("[GameServer] Nieznany ProductId w ProcessReceipt: " .. receiptInfo.ProductId)
+	return Enum.ProductPurchaseDecision.NotProcessedYet
+end
 
 print("[GameServer] Pick a Shroom wystartował 🍄 (światów: " .. #Config.Worlds .. ")")
