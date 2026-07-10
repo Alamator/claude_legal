@@ -66,7 +66,7 @@ local function makeSign(parent: Instance, text: string, cframe: CFrame)
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
+	label.Font = Enum.Font.FredokaOne
 	label.TextColor3 = Color3.fromRGB(40, 40, 40)
 	label.Text = text
 	label.Parent = gui

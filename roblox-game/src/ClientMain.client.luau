@@ -1,4 +1,6 @@
--- ClientMain: HUD i sterowanie sprintem. Cały interfejs budowany z kodu.
+-- ClientMain: HUD i sterowanie sprintem. Cały interfejs budowany z kodu,
+-- w nowoczesnym „bąbelkowym" stylu topowych symulatorów: font Fredoka One,
+-- gradienty, grube obwódki, animacje pop, responsywne skalowanie pod mobile.
 -- Wklej jako LocalScript do StarterPlayer → StarterPlayerScripts (nazwa: ClientMain).
 --
 -- Klient NICZEGO nie liczy sam — wyświetla atrybuty ustawiane przez serwer
@@ -7,6 +9,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContextActionService = game:GetService("ContextActionService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -16,6 +19,8 @@ local notifyRemote = remotes:WaitForChild("Notify")
 local sellRemote = remotes:WaitForChild("SellWeakest")
 
 local player = Players.LocalPlayer
+
+local FONT = Enum.Font.FredokaOne
 
 -- „12345" → „12.3k" (czytelne liczby na HUD)
 local function fmt(n: number): string
@@ -49,7 +54,139 @@ ContextActionService:SetTitle("Sprint", "BIEG")
 ContextActionService:SetPosition("Sprint", UDim2.new(1, -90, 1, -140))
 
 -- ============================================================================
--- Budowa HUD
+-- Mini-biblioteka stylu (bąbelkowy wygląd współczesnych symulatorów)
+-- ============================================================================
+
+local function addCorner(instance: Instance, radius: number?)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 14)
+	corner.Parent = instance
+end
+
+local function addStroke(instance: Instance, color: Color3?, thickness: number?): UIStroke
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color or Color3.fromRGB(20, 24, 38)
+	stroke.Thickness = thickness or 2.5
+	stroke.Parent = instance
+	return stroke
+end
+
+local function addGradient(instance: Instance, top: Color3, bottom: Color3)
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(top, bottom)
+	gradient.Rotation = 90
+	gradient.Parent = instance
+end
+
+local function addPadding(instance: Instance, pixels: number)
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, pixels)
+	padding.PaddingRight = UDim.new(0, pixels)
+	padding.PaddingTop = UDim.new(0, pixels)
+	padding.PaddingBottom = UDim.new(0, pixels)
+	padding.Parent = instance
+end
+
+-- napis w stylu gry: gruby font + ciemna obwódka liter
+local function styleText(label: TextLabel | TextButton, size: number)
+	label.Font = FONT
+	label.TextSize = size
+	label.TextColor3 = Color3.new(1, 1, 1)
+	local stroke = Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	stroke.Color = Color3.fromRGB(30, 30, 45)
+	stroke.Thickness = 2
+	stroke.Parent = label
+end
+
+-- kolorowa „pigułka" z gradientem (kasa, świat, eventy)
+local function makePill(parent: Instance, size: UDim2, position: UDim2, anchor: Vector2, top: Color3, bottom: Color3, textSize: number): TextLabel
+	local pill = Instance.new("TextLabel")
+	pill.Size = size
+	pill.Position = position
+	pill.AnchorPoint = anchor
+	pill.BackgroundColor3 = Color3.new(1, 1, 1)
+	pill.Text = ""
+	pill.Parent = parent
+	addCorner(pill, 999) -- pełne zaokrąglenie
+	addStroke(pill)
+	addGradient(pill, top, bottom)
+	styleText(pill, textSize)
+	return pill
+end
+
+-- ciemna karta-panel (kosz, zadania, dziennik)
+local function makeCard(parent: Instance, size: UDim2, position: UDim2, anchor: Vector2): Frame
+	local card = Instance.new("Frame")
+	card.Size = size
+	card.Position = position
+	card.AnchorPoint = anchor
+	card.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+	card.BackgroundTransparency = 0.12
+	card.Parent = parent
+	addCorner(card, 16)
+	addStroke(card, Color3.fromRGB(255, 255, 255), 1.5).Transparency = 0.75
+	return card
+end
+
+-- nagłówek karty (kolorowa belka u góry)
+local function addHeader(card: Frame, text: string, top: Color3, bottom: Color3): TextLabel
+	local header = Instance.new("TextLabel")
+	header.Size = UDim2.new(1, -12, 0, 30)
+	header.Position = UDim2.new(0.5, 0, 0, 6)
+	header.AnchorPoint = Vector2.new(0.5, 0)
+	header.BackgroundColor3 = Color3.new(1, 1, 1)
+	header.Text = text
+	header.Parent = card
+	addCorner(header, 10)
+	addGradient(header, top, bottom)
+	styleText(header, 16)
+	return header
+end
+
+-- treść karty (wielolinijkowy tekst)
+local function addBody(card: Frame, textSize: number): TextLabel
+	local body = Instance.new("TextLabel")
+	body.Size = UDim2.new(1, -20, 1, -48)
+	body.Position = UDim2.new(0.5, 0, 0, 42)
+	body.AnchorPoint = Vector2.new(0.5, 0)
+	body.BackgroundTransparency = 1
+	body.TextXAlignment = Enum.TextXAlignment.Left
+	body.TextYAlignment = Enum.TextYAlignment.Top
+	body.TextWrapped = true
+	body.Text = ""
+	body.Parent = card
+	styleText(body, textSize)
+	return body
+end
+
+-- przycisk z gradientem i animacją „pop" przy kliknięciu
+local function makeButton(parent: Instance, size: UDim2, position: UDim2, anchor: Vector2, top: Color3, bottom: Color3, textSize: number, onClick: () -> ()): TextButton
+	local button = Instance.new("TextButton")
+	button.Size = size
+	button.Position = position
+	button.AnchorPoint = anchor
+	button.BackgroundColor3 = Color3.new(1, 1, 1)
+	button.AutoButtonColor = false
+	button.Text = ""
+	button.Parent = parent
+	addCorner(button, 12)
+	addStroke(button)
+	addGradient(button, top, bottom)
+	styleText(button, textSize)
+
+	local scale = Instance.new("UIScale")
+	scale.Parent = button
+	button.Activated:Connect(function()
+		scale.Scale = 0.9
+		TweenService:Create(scale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		onClick()
+	end)
+	return button
+end
+
+-- ============================================================================
+-- Korzeń GUI + responsywne skalowanie (telefon dostaje mniejszy HUD)
 -- ============================================================================
 
 local gui = Instance.new("ScreenGui")
@@ -57,65 +194,27 @@ gui.Name = "HUD"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local function makeLabel(parent, size, position, textSize): TextLabel
-	local label = Instance.new("TextLabel")
-	label.Size = size
-	label.Position = position
-	label.BackgroundColor3 = Color3.fromRGB(25, 30, 25)
-	label.BackgroundTransparency = 0.35
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = textSize
-	label.Parent = parent
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = label
-	return label
+local rootScale = Instance.new("UIScale")
+rootScale.Parent = gui
+local camera = workspace.CurrentCamera
+local function updateScale()
+	rootScale.Scale = math.clamp(camera.ViewportSize.X / 1280, 0.6, 1)
 end
+camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+updateScale()
 
--- Kasa + dochód (góra, środek) i nazwa świata pod spodem
-local cashLabel = makeLabel(gui, UDim2.new(0, 260, 0, 44), UDim2.new(0.5, -130, 0, 8), 22)
-local worldLabel = makeLabel(gui, UDim2.new(0, 200, 0, 26), UDim2.new(0.5, -100, 0, 56), 14)
+-- ============================================================================
+-- Góra: kasa, świat, event, powiadomienia
+-- ============================================================================
 
--- Pasek kondycji (dół, środek)
-local staminaBack = Instance.new("Frame")
-staminaBack.Size = UDim2.new(0, 300, 0, 20)
-staminaBack.Position = UDim2.new(0.5, -150, 1, -76)
-staminaBack.BackgroundColor3 = Color3.fromRGB(25, 30, 25)
-staminaBack.BackgroundTransparency = 0.35
-staminaBack.Parent = gui
-local staminaCorner = Instance.new("UICorner")
-staminaCorner.CornerRadius = UDim.new(0, 10)
-staminaCorner.Parent = staminaBack
+local cashPill = makePill(gui, UDim2.new(0, 280, 0, 52), UDim2.new(0.5, 0, 0, 12), Vector2.new(0.5, 0),
+	Color3.fromRGB(96, 205, 106), Color3.fromRGB(38, 140, 70), 24)
 
-local staminaFill = Instance.new("Frame")
-staminaFill.Size = UDim2.new(1, 0, 1, 0)
-staminaFill.BackgroundColor3 = Color3.fromRGB(90, 200, 90)
-staminaFill.Parent = staminaBack
-local fillCorner = Instance.new("UICorner")
-fillCorner.CornerRadius = UDim.new(0, 10)
-fillCorner.Parent = staminaFill
+local worldPill = makePill(gui, UDim2.new(0, 210, 0, 32), UDim2.new(0.5, 0, 0, 70), Vector2.new(0.5, 0),
+	Color3.fromRGB(160, 110, 235), Color3.fromRGB(105, 60, 190), 15)
 
--- Pity (pod paskiem kondycji)
-local pityLabel = makeLabel(gui, UDim2.new(0, 300, 0, 22), UDim2.new(0.5, -150, 1, -50), 14)
-
--- Kosz (prawa strona)
-local carriedPanel = makeLabel(gui, UDim2.new(0, 240, 0, 220), UDim2.new(1, -250, 0.5, -110), 14)
-carriedPanel.TextXAlignment = Enum.TextXAlignment.Left
-carriedPanel.TextYAlignment = Enum.TextYAlignment.Top
-carriedPanel.TextWrapped = true
-local carriedPadding = Instance.new("UIPadding")
-carriedPadding.PaddingLeft = UDim.new(0, 10)
-carriedPadding.PaddingTop = UDim.new(0, 8)
-carriedPadding.Parent = carriedPanel
-
--- Powiadomienia (góra, pod nazwą świata)
-local toast = makeLabel(gui, UDim2.new(0, 420, 0, 34), UDim2.new(0.5, -210, 0, 88), 16)
-toast.Visible = false
-
--- Baner aktywnego eventu (lewy górny róg) — czyta atrybuty workspace
-local eventBanner = makeLabel(gui, UDim2.new(0, 260, 0, 36), UDim2.new(0, 10, 0, 8), 16)
-eventBanner.BackgroundColor3 = Color3.fromRGB(120, 70, 160)
+local eventBanner = makePill(gui, UDim2.new(0, 270, 0, 40), UDim2.new(0, 14, 0, 12), Vector2.new(0, 0),
+	Color3.fromRGB(255, 170, 70), Color3.fromRGB(220, 110, 30), 16)
 eventBanner.Visible = false
 
 task.spawn(function()
@@ -133,94 +232,194 @@ task.spawn(function()
 	end
 end)
 
--- Panel ulepszeń (lewa strona)
-local upgradeNames = {
-	{ id = "Stamina", icon = "🏃", label = "Kondycja" },
-	{ id = "Thermos", icon = "❄️", label = "Termos" },
-	{ id = "Shelf", icon = "🪵", label = "Półka" },
-}
-local upgradeButtons: { [string]: TextButton } = {}
+-- powiadomienia (toast): wsuwa się i znika z animacją
+local toast = Instance.new("TextLabel")
+toast.Size = UDim2.new(0, 460, 0, 38)
+toast.Position = UDim2.new(0.5, 0, 0, 112)
+toast.AnchorPoint = Vector2.new(0.5, 0)
+toast.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+toast.Visible = false
+toast.Parent = gui
+addCorner(toast, 999)
+styleText(toast, 16)
+local toastStroke = toast:FindFirstChildOfClass("UIStroke")
 
-for index, upgrade in upgradeNames do
-	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 230, 0, 46)
-	button.Position = UDim2.new(0, 10, 0.5, -80 + (index - 1) * 54)
-	button.BackgroundColor3 = Color3.fromRGB(40, 70, 40)
-	button.BackgroundTransparency = 0.15
-	button.TextColor3 = Color3.new(1, 1, 1)
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = 15
-	button.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = button
-	button.Activated:Connect(function()
-		buyRemote:FireServer(upgrade.id)
+local toastId = 0
+local function showToast(message: string, duration: number?)
+	toastId += 1
+	local myId = toastId
+	toast.Text = message
+	toast.Visible = true
+	toast.BackgroundTransparency = 1
+	toast.TextTransparency = 1
+	toastStroke.Transparency = 1
+	toast.Position = UDim2.new(0.5, 0, 0, 100)
+	TweenService:Create(toast, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0.5, 0, 0, 112),
+		BackgroundTransparency = 0.15,
+		TextTransparency = 0,
+	}):Play()
+	TweenService:Create(toastStroke, TweenInfo.new(0.25), { Transparency = 0 }):Play()
+	task.delay(duration or 3, function()
+		if toastId ~= myId then return end
+		local out = TweenService:Create(toast, TweenInfo.new(0.3), {
+			BackgroundTransparency = 1,
+			TextTransparency = 1,
+		})
+		out:Play()
+		TweenService:Create(toastStroke, TweenInfo.new(0.3), { Transparency = 1 }):Play()
+		out.Completed:Once(function()
+			if toastId == myId then
+				toast.Visible = false
+			end
+		end)
 	end)
-	upgradeButtons[upgrade.id] = button
 end
 
--- Przycisk sprzedaży najsłabszego grzyba z półki (zwalnia slot)
-local sellButton = Instance.new("TextButton")
-sellButton.Size = UDim2.new(0, 230, 0, 46)
-sellButton.Position = UDim2.new(0, 10, 0.5, -80 + #upgradeNames * 54)
-sellButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-sellButton.BackgroundTransparency = 0.15
-sellButton.TextColor3 = Color3.new(1, 1, 1)
-sellButton.Font = Enum.Font.GothamBold
-sellButton.TextSize = 15
-sellButton.Text = "💸 Sprzedaj najsłabszy z półki"
-sellButton.Parent = gui
-local sellCorner = Instance.new("UICorner")
-sellCorner.CornerRadius = UDim.new(0, 8)
-sellCorner.Parent = sellButton
-sellButton.Activated:Connect(function()
-	sellRemote:FireServer()
-end)
+notifyRemote.OnClientEvent:Connect(showToast)
 
--- Panel dziennych zadań + licznik skrzynki (lewy dolny róg)
-local questsPanel = makeLabel(gui, UDim2.new(0, 260, 0, 110), UDim2.new(0, 10, 1, -122), 13)
-questsPanel.TextXAlignment = Enum.TextXAlignment.Left
-questsPanel.TextYAlignment = Enum.TextYAlignment.Top
-questsPanel.TextWrapped = true
-local questsPadding = Instance.new("UIPadding")
-questsPadding.PaddingLeft = UDim.new(0, 10)
-questsPadding.PaddingTop = UDim.new(0, 8)
-questsPadding.Parent = questsPanel
+-- ============================================================================
+-- Lewa kolumna: ulepszenia + sprzedaż (kolorowe przyciski)
+-- ============================================================================
 
--- Dziennik grzybiarza: przycisk (prawy górny róg) + zwijany panel
-local journalButton = Instance.new("TextButton")
-journalButton.Size = UDim2.new(0, 150, 0, 36)
-journalButton.Position = UDim2.new(1, -160, 0, 8)
-journalButton.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
-journalButton.BackgroundTransparency = 0.2
-journalButton.TextColor3 = Color3.new(1, 1, 1)
-journalButton.Font = Enum.Font.GothamBold
-journalButton.TextSize = 15
-journalButton.Text = "📖 Dziennik"
-journalButton.Parent = gui
-local journalButtonCorner = Instance.new("UICorner")
-journalButtonCorner.CornerRadius = UDim.new(0, 8)
-journalButtonCorner.Parent = journalButton
+local upgradeButtons: { [string]: TextButton } = {}
 
-local journalPanel = makeLabel(gui, UDim2.new(0, 340, 0, 340), UDim2.new(0.5, -170, 0.5, -170), 14)
-journalPanel.TextXAlignment = Enum.TextXAlignment.Left
-journalPanel.TextYAlignment = Enum.TextYAlignment.Top
-journalPanel.TextWrapped = true
+local BUTTONS = {
+	{ id = "Stamina", top = Color3.fromRGB(255, 150, 90),  bottom = Color3.fromRGB(215, 85, 40) },
+	{ id = "Thermos", top = Color3.fromRGB(110, 190, 255), bottom = Color3.fromRGB(45, 110, 210) },
+	{ id = "Shelf",   top = Color3.fromRGB(220, 160, 90),  bottom = Color3.fromRGB(160, 100, 45) },
+}
+
+for index, def in BUTTONS do
+	upgradeButtons[def.id] = makeButton(gui,
+		UDim2.new(0, 240, 0, 48),
+		UDim2.new(0, 14, 0.5, -110 + (index - 1) * 58),
+		Vector2.new(0, 0),
+		def.top, def.bottom, 15,
+		function()
+			buyRemote:FireServer(def.id)
+		end)
+end
+
+makeButton(gui,
+	UDim2.new(0, 240, 0, 48),
+	UDim2.new(0, 14, 0.5, -110 + #BUTTONS * 58),
+	Vector2.new(0, 0),
+	Color3.fromRGB(250, 205, 90), Color3.fromRGB(205, 150, 40), 15,
+	function()
+		sellRemote:FireServer()
+	end).Text = "💸 Sprzedaj najsłabszy"
+
+-- ============================================================================
+-- Prawa strona: kosz; lewy dół: dzienne zadania
+-- ============================================================================
+
+local basketCard = makeCard(gui, UDim2.new(0, 250, 0, 230), UDim2.new(1, -14, 0.5, 0), Vector2.new(1, 0.5))
+addHeader(basketCard, "🧺 KOSZ", Color3.fromRGB(120, 200, 120), Color3.fromRGB(60, 140, 70))
+local basketBody = addBody(basketCard, 14)
+
+local questsCard = makeCard(gui, UDim2.new(0, 270, 0, 130), UDim2.new(0, 14, 1, -14), Vector2.new(0, 1))
+local questsHeader = addHeader(questsCard, "📋 DZISIAJ", Color3.fromRGB(255, 170, 70), Color3.fromRGB(215, 110, 35))
+local questsBody = addBody(questsCard, 13)
+
+-- ============================================================================
+-- Dziennik grzybiarza: przycisk + wyskakujący panel z przewijaniem
+-- ============================================================================
+
+local journalPanel = makeCard(gui, UDim2.new(0, 360, 0, 380), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
 journalPanel.Visible = false
-local journalPadding = Instance.new("UIPadding")
-journalPadding.PaddingLeft = UDim.new(0, 12)
-journalPadding.PaddingTop = UDim.new(0, 10)
-journalPadding.Parent = journalPanel
+local journalHeader = addHeader(journalPanel, "📖 DZIENNIK", Color3.fromRGB(200, 150, 90), Color3.fromRGB(140, 95, 50))
 
-journalButton.Activated:Connect(function()
-	journalPanel.Visible = not journalPanel.Visible
-end)
+local journalScroll = Instance.new("ScrollingFrame")
+journalScroll.Size = UDim2.new(1, -20, 1, -50)
+journalScroll.Position = UDim2.new(0.5, 0, 0, 42)
+journalScroll.AnchorPoint = Vector2.new(0.5, 0)
+journalScroll.BackgroundTransparency = 1
+journalScroll.ScrollBarThickness = 6
+journalScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+journalScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+journalScroll.Parent = journalPanel
 
--- Samouczek: instrukcja na środku + pływający znacznik nad celem
-local tutorialLabel = makeLabel(gui, UDim2.new(0, 540, 0, 40), UDim2.new(0.5, -270, 0, 128), 17)
-tutorialLabel.BackgroundColor3 = Color3.fromRGB(160, 120, 30)
-tutorialLabel.Visible = false
+local journalBody = Instance.new("TextLabel")
+journalBody.Size = UDim2.new(1, -8, 0, 0)
+journalBody.AutomaticSize = Enum.AutomaticSize.Y
+journalBody.BackgroundTransparency = 1
+journalBody.TextXAlignment = Enum.TextXAlignment.Left
+journalBody.TextYAlignment = Enum.TextYAlignment.Top
+journalBody.TextWrapped = true
+journalBody.Parent = journalScroll
+styleText(journalBody, 15)
+
+local journalScale = Instance.new("UIScale")
+journalScale.Parent = journalPanel
+
+local function setJournalOpen(open: boolean)
+	if open then
+		journalPanel.Visible = true
+		journalScale.Scale = 0.7
+		TweenService:Create(journalScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	else
+		journalPanel.Visible = false
+	end
+end
+
+local journalButton = makeButton(gui,
+	UDim2.new(0, 170, 0, 42),
+	UDim2.new(1, -14, 0, 12),
+	Vector2.new(1, 0),
+	Color3.fromRGB(200, 150, 90), Color3.fromRGB(140, 95, 50), 15,
+	function()
+		setJournalOpen(not journalPanel.Visible)
+	end)
+
+makeButton(journalPanel,
+	UDim2.new(0, 30, 0, 30),
+	UDim2.new(1, -6, 0, 6),
+	Vector2.new(1, 0),
+	Color3.fromRGB(240, 100, 90), Color3.fromRGB(190, 55, 45), 16,
+	function()
+		setJournalOpen(false)
+	end).Text = "✕"
+
+-- ============================================================================
+-- Dół: pasek kondycji + pity
+-- ============================================================================
+
+local staminaBack = Instance.new("Frame")
+staminaBack.Size = UDim2.new(0, 320, 0, 24)
+staminaBack.Position = UDim2.new(0.5, 0, 1, -68)
+staminaBack.AnchorPoint = Vector2.new(0.5, 1)
+staminaBack.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+staminaBack.Parent = gui
+addCorner(staminaBack, 999)
+addStroke(staminaBack)
+
+local staminaFill = Instance.new("Frame")
+staminaFill.Size = UDim2.new(1, 0, 1, 0)
+staminaFill.BackgroundColor3 = Color3.new(1, 1, 1)
+staminaFill.Parent = staminaBack
+addCorner(staminaFill, 999)
+local staminaGradient = Instance.new("UIGradient")
+staminaGradient.Color = ColorSequence.new(Color3.fromRGB(130, 230, 130), Color3.fromRGB(60, 170, 80))
+staminaGradient.Rotation = 90
+staminaGradient.Parent = staminaFill
+
+local staminaText = Instance.new("TextLabel")
+staminaText.Size = UDim2.new(1, 0, 1, 0)
+staminaText.BackgroundTransparency = 1
+staminaText.Parent = staminaBack
+styleText(staminaText, 14)
+
+local pityPill = makePill(gui, UDim2.new(0, 260, 0, 26), UDim2.new(0.5, 0, 1, -36), Vector2.new(0.5, 1),
+	Color3.fromRGB(120, 220, 160), Color3.fromRGB(55, 150, 95), 13)
+
+-- ============================================================================
+-- Samouczek: baner + pływający znacznik nad celem
+-- ============================================================================
+
+local tutorialBanner = makePill(gui, UDim2.new(0, 560, 0, 42), UDim2.new(0.5, 0, 0, 158), Vector2.new(0.5, 0),
+	Color3.fromRGB(255, 210, 90), Color3.fromRGB(220, 160, 40), 16)
+tutorialBanner.Visible = false
 
 local marker = Instance.new("BillboardGui")
 marker.Name = "TutorialMarker"
@@ -260,26 +459,26 @@ task.spawn(function()
 	while true do
 		local step = player:GetAttribute("TutorialStep") or 0
 		if step == 1 then
-			tutorialLabel.Text = "🍄 KROK 1/3: Pobiegnij w las (Shift = bieg) i przytrzymaj E przy grzybku"
+			tutorialBanner.Text = "🍄 KROK 1/3: Pobiegnij w las (Shift = bieg) i przytrzymaj E przy grzybku"
 			local target = nearestOwnMushroomPart()
 			marker.Parent = target
 			marker.Enabled = target ~= nil
 		elseif step == 2 then
-			tutorialLabel.Text = "📦 KROK 2/3: Wróć do bazy i przytrzymaj E na drewnianym polu"
+			tutorialBanner.Text = "📦 KROK 2/3: Wróć do bazy i przytrzymaj E na drewnianym polu"
 			local worldIdx = player:GetAttribute("CurrentWorld") or 1
 			local worlds = workspace:FindFirstChild("Worlds")
 			local worldFolder = worlds and worlds:FindFirstChild("World" .. worldIdx)
 			marker.Parent = worldFolder and worldFolder:FindFirstChild("BasePad")
 			marker.Enabled = marker.Parent ~= nil
 		elseif step == 3 then
-			tutorialLabel.Text = "⬆️ KROK 3/3: Kup pierwsze ulepszenie w panelu po lewej"
+			tutorialBanner.Text = "⬆️ KROK 3/3: Kup pierwsze ulepszenie w panelu po lewej"
 			marker.Enabled = false
 			marker.Parent = nil
 		else
 			marker.Enabled = false
 			marker.Parent = nil
 		end
-		tutorialLabel.Visible = step >= 1 and step <= 3
+		tutorialBanner.Visible = step >= 1 and step <= 3
 		task.wait(1)
 	end
 end)
@@ -291,25 +490,26 @@ end)
 local function refresh()
 	local cash = player:GetAttribute("Cash") or 0
 	local income = player:GetAttribute("IncomePerSec") or 0
-	cashLabel.Text = ("💰 %s   (+%s/s)"):format(fmt(cash), fmt(income))
-	worldLabel.Text = "🌍 " .. (player:GetAttribute("WorldName") or "…")
+	cashPill.Text = ("💰 %s  (+%s/s)"):format(fmt(cash), fmt(income))
+	worldPill.Text = "🌍 " .. (player:GetAttribute("WorldName") or "…")
 
 	local stamina = player:GetAttribute("Stamina") or 0
 	local staminaMax = math.max(1, player:GetAttribute("StaminaMax") or 1)
 	local fraction = stamina / staminaMax
-	staminaFill.Size = UDim2.new(fraction, 0, 1, 0)
-	staminaFill.BackgroundColor3 = fraction > 0.3
-		and Color3.fromRGB(90, 200, 90)
-		or Color3.fromRGB(220, 90, 60)
+	TweenService:Create(staminaFill, TweenInfo.new(0.2), { Size = UDim2.new(fraction, 0, 1, 0) }):Play()
+	staminaGradient.Color = fraction > 0.3
+		and ColorSequence.new(Color3.fromRGB(130, 230, 130), Color3.fromRGB(60, 170, 80))
+		or ColorSequence.new(Color3.fromRGB(250, 130, 100), Color3.fromRGB(200, 65, 45))
+	staminaText.Text = ("🏃 %d / %d"):format(stamina, staminaMax)
 
 	local pity = player:GetAttribute("Pity") or 0
-	pityLabel.Text = ("🍀 Gwarancja Rzadkiego: %d/%d"):format(pity, Config.Pity.cutsForGuaranteedRare)
+	pityPill.Text = ("🍀 Gwarancja Rzadkiego: %d/%d"):format(pity, Config.Pity.cutsForGuaranteedRare)
 
 	local carried = player:GetAttribute("CarriedSummary") or ""
 	local shelfCount = player:GetAttribute("ShelfCount") or 0
 	local shelves = player:GetAttribute("ShelvesOwned") or 0
-	carriedPanel.Text = ("🧺 KOSZ (odłóż w bazie!)\n%s\n\n🪵 Półki: %d/%d")
-		:format(carried == "" and "— pusty —" or carried, shelfCount, shelves)
+	basketBody.Text = ("%s\n\n🪵 Półki: %d/%d")
+		:format(carried == "" and "— pusty —\n(odłóż grzyby w bazie!)" or carried, shelfCount, shelves)
 
 	-- przyciski ulepszeń z aktualnymi cenami (te same wzory co na serwerze)
 	local staminaLevel = player:GetAttribute("StaminaLevel") or 0
@@ -325,45 +525,53 @@ local function refresh()
 
 	-- dzienne zadania + skrzynka czasowa
 	local chestIn = player:GetAttribute("ChestIn") or 0
-	local quests = player:GetAttribute("QuestsText") or ""
-	questsPanel.Text = ("📋 DZISIAJ   🎁 skrzynka za %s\n%s"):format(fmtTime(chestIn), quests)
+	questsHeader.Text = ("📋 DZISIAJ   🎁 %s"):format(fmtTime(chestIn))
+	questsBody.Text = player:GetAttribute("QuestsText") or ""
 
 	-- dziennik grzybiarza
 	local journalCount = player:GetAttribute("JournalCount") or 0
 	local journalTotal = player:GetAttribute("JournalTotal") or 0
 	journalButton.Text = ("📖 Dziennik %d/%d"):format(journalCount, journalTotal)
-	journalPanel.Text = ("📖 DZIENNIK GRZYBIARZA (%d/%d)\n\n%s")
-		:format(journalCount, journalTotal, player:GetAttribute("JournalText") or "")
+	journalHeader.Text = ("📖 DZIENNIK %d/%d"):format(journalCount, journalTotal)
+	journalBody.Text = player:GetAttribute("JournalText") or ""
 end
 
 player.AttributeChanged:Connect(refresh)
 refresh()
 
 -- ============================================================================
--- Powiadomienia i zarobek offline
+-- Zarobek offline: modal „Witaj z powrotem!"
 -- ============================================================================
-
-local toastUntil = 0
-notifyRemote.OnClientEvent:Connect(function(message: string)
-	toast.Text = message
-	toast.Visible = true
-	local shownAt = os.clock()
-	toastUntil = shownAt + 3
-	task.delay(3, function()
-		if os.clock() >= toastUntil then
-			toast.Visible = false
-		end
-	end)
-end)
 
 task.spawn(function()
 	-- atrybut pojawia się chwilę po wejściu, jeśli coś zarobiliśmy offline
 	for _ = 1, 20 do
 		local earned = player:GetAttribute("OfflineEarned")
 		if earned and earned > 0 then
-			toast.Text = ("🌙 Zarobiłeś %s 💰 kiedy cię nie było!"):format(fmt(earned))
-			toast.Visible = true
-			task.delay(6, function() toast.Visible = false end)
+			local overlay = Instance.new("TextButton") -- klik gdziekolwiek zamyka
+			overlay.Size = UDim2.fromScale(1, 1)
+			overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+			overlay.BackgroundTransparency = 0.45
+			overlay.Text = ""
+			overlay.AutoButtonColor = false
+			overlay.Parent = gui
+
+			local modal = makeCard(overlay, UDim2.new(0, 320, 0, 190), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
+			addHeader(modal, "🌙 WITAJ Z POWROTEM!", Color3.fromRGB(160, 110, 235), Color3.fromRGB(105, 60, 190))
+			local body = addBody(modal, 17)
+			body.TextXAlignment = Enum.TextXAlignment.Center
+			body.Text = ("Twoje grzyby pracowały!\n\n💰 +%s"):format(fmt(earned))
+
+			makeButton(modal, UDim2.new(0, 140, 0, 42), UDim2.new(0.5, 0, 1, -12), Vector2.new(0.5, 1),
+				Color3.fromRGB(96, 205, 106), Color3.fromRGB(38, 140, 70), 17,
+				function()
+					overlay:Destroy()
+				end).Text = "Super!"
+
+			local modalScale = Instance.new("UIScale")
+			modalScale.Scale = 0.7
+			modalScale.Parent = modal
+			TweenService:Create(modalScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 			break
 		end
 		task.wait(0.5)

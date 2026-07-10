@@ -342,7 +342,7 @@ local function refreshShelfDisplay(player: Player)
 	tagLabel.BackgroundTransparency = 0.4
 	tagLabel.BackgroundColor3 = Color3.fromRGB(25, 30, 25)
 	tagLabel.TextColor3 = Color3.new(1, 1, 1)
-	tagLabel.Font = Enum.Font.GothamBold
+	tagLabel.Font = Enum.Font.FredokaOne
 	tagLabel.TextScaled = true
 	tagLabel.Text = ("🍄 %s  +%d/s"):format(player.DisplayName, math.floor(shelfIncomePerSec(s.data)))
 	tagLabel.Parent = tag
