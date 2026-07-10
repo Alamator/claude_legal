@@ -201,6 +201,14 @@ rosnące liczby.
     kontrolowany wyjątek dla emocji społecznych).
 - **Feedback co sekundę**: popupy kasy z półek, pasek pity rosnący przy
   każdym ścięciu, tykający pasek świeżości, ogłoszenia rzadkich trafień.
+- **Poziomy gracza (XP)**: każde ścięcie karmi zawsze widoczny pasek XP;
+  poziom = kasa + trwałe +0,5% szczęścia (progres nigdy nie jest pusty);
+  co 5 poziomów kamień milowy ×5 ogłaszany serwerowi.
+- **Combo**: ścięcia w oknie 4 s budują serię (mnożnik XP do ×3, kasa za
+  ×10/×25/×50); dźwięk ścięcia rośnie pitchem z każdym stackiem — pętla
+  uwagi chwila-po-chwili i materiał na klipy.
+- **Seria dzienna**: dzień 1–7 z rosnącymi nagrodami (skalowane poziomem);
+  przerwa zeruje serię — powód, by wrócić jutro.
 - **Krótkie cele zawsze widoczne**: 3 dzienne zadania („Zetnij 5 Rzadkich",
   „Dobiegnij do pierścienia 4"), skrzynka co 20 min online, seria dzienna.
 - **Wyprawa trwa maks. 2,5 min** — pełna pętla nagrody mieści się w oknie

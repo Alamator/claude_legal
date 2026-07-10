@@ -15,8 +15,13 @@ dolnym rogu), **samouczek 3 kroków** prowadzący nowego gracza strzałką
 (zetnij → odłóż → ulepsz, +150 💰 na koniec), **wszystkie 5 światów** (fioletowy
 portal w bazie odblokowuje następny świat za kasę, zielony wraca; każdy świat
 ma własną pulę 10 gatunków, mnożnik dochodu i szybsze psucie; Grzyboksiężyc ma
-wyższy skok) oraz **wizualne półki**: stojak z twoim nickiem i dochodem stoi
-w bazie, grzyby na nim mają kolor rzadkości, a mutacje świecą.
+wyższy skok), **wizualne półki** (stojak z twoim nickiem i dochodem stoi
+w bazie, grzyby na nim mają kolor rzadkości, a mutacje świecą) oraz **pakiet
+retencji**: poziomy gracza z paskiem XP i odznaką (nagroda co poziom, trwałe
++0,5% szczęścia za poziom, kamienie milowe co 5), combo za seryjne ścinanie
+(mnożnik XP do ×3, bonusy za ×10/×25/×50, rosnący pitch dźwięku, licznik
+z „punchem"), fanfara level-upu (błysk ekranu + wielki napis + dźwięki)
+i seria logowań dzień 1–7.
 
 ## Pliki i ich miejsca w Studio
 
@@ -68,6 +73,11 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
       gatunku×rzadkości.
 - [ ] Fioletowy portal w bazie: odblokowanie Boru Iglastego za 25k 💰,
       podróż przenosi do nowej bazy, nazwa świata na HUD się zmienia.
+- [ ] Szybkie ścinanie kilku grzybów pod rząd: licznik „🔥 COMBO ×N"
+      z podskokiem i dźwięk o coraz wyższym tonie.
+- [ ] Pasek XP pod kasą rośnie po każdym ścięciu; wejście na poziom =
+      błysk ekranu + „⬆️ POZIOM N!" + nagroda w kasie.
+- [ ] Przy wejściu (raz dziennie) toast „🔥 Seria dzienna: dzień N".
 - [ ] Przy BasePadzie stoi stojak z twoim nickiem; po dostawie pojawiają się
       na nim kulki w kolorach rzadkości (mutacje świecą).
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na

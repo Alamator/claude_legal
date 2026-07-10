@@ -32,6 +32,11 @@ function DataService.defaultData()
 		-- dzienne zadania: { date = "RRRR-MM-DD", quests = {{id, progress, done}} }
 		daily = { date = "", quests = {} },
 		tutorialDone = false,
+		-- poziomy gracza i seria dzienna
+		xp = 0,
+		level = 1,
+		streakDay = 0,
+		lastLoginDate = "",
 		-- światy (GDD §5): bieżący i odblokowane (klucze-stringi dla DataStore)
 		currentWorld = 1,
 		worldsUnlocked = { ["1"] = true },

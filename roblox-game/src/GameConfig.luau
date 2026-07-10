@@ -265,6 +265,43 @@ Config.Shortcuts = {
 }
 
 -- ===========================================================================
+-- POZIOMY GRACZA (XP) — pasek zawsze rośnie, nagroda co poziom,
+-- każdy poziom daje stały bonus do szczęścia (progres nigdy nie jest pusty)
+-- ===========================================================================
+
+Config.XP = {
+	perCutByRarity = { 5, 9, 16, 30, 60, 130, 320 }, -- XP za ścięcie wg rzadkości
+	maxLevel = 100,
+	cashRewardBase = 60,     -- nagroda za poziom = base × growth^poziom
+	cashRewardGrowth = 1.22,
+	milestoneEvery = 5,      -- co 5 poziomów nagroda ×milestoneMult
+	milestoneMult = 5,
+	luckPerLevel = 0.005,    -- +0,5% szansy mutacji za każdy poziom (trwałe!)
+}
+
+-- ===========================================================================
+-- COMBO — seryjne ścinanie (okno kilku sekund) mnoży XP; kamienie milowe
+-- sypią kasą. Rosnący licznik + rosnący pitch dźwięku = pętla uwagi
+-- ===========================================================================
+
+Config.Combo = {
+	windowSeconds = 4,   -- tyle czasu na kolejne ścięcie, by podbić combo
+	xpMultPerStack = 0.1, -- każdy stack = +10% XP
+	maxMult = 3,
+	-- combo → nagroda w sekundach dochodu z półek (min. 50 kasy)
+	milestones = { [10] = 60, [25] = 180, [50] = 600 },
+}
+
+-- ===========================================================================
+-- SERIA DZIENNA (login streak) — dzień 1-7, potem powtarza dzień 7
+-- ===========================================================================
+
+Config.Streak = {
+	baseRewards = { 150, 300, 600, 1200, 2500, 5000, 10000 },
+	levelScale = 0.15, -- nagroda × (1 + poziom × to) — rośnie z graczem
+}
+
+-- ===========================================================================
 -- DZIENNIK GRZYBIARZA (GDD §6) — nagrody za liczbę odkrytych wpisów
 -- (wpis = gatunek × rzadkość; mutacje liczone osobno jako odznaki)
 -- ===========================================================================
@@ -369,6 +406,11 @@ Config.DevProducts = {
 -- Koszt następnego poziomu statystyki
 function Config.statCost(stat: { baseCost: number, costGrowth: number }, currentLevel: number): number
 	return math.floor(stat.baseCost * stat.costGrowth ^ currentLevel)
+end
+
+-- Ile XP potrzeba, żeby wejść z danego poziomu na następny
+function Config.xpForLevel(level: number): number
+	return math.floor(80 * 1.15 ^ level)
 end
 
 -- Tempo psucia dla gracza: świat × Termos (z twardym dnem) × pass × rzadkość

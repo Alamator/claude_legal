@@ -211,7 +211,37 @@ updateScale()
 local cashPill = makePill(gui, UDim2.new(0, 280, 0, 52), UDim2.new(0.5, 0, 0, 12), Vector2.new(0.5, 0),
 	Color3.fromRGB(96, 205, 106), Color3.fromRGB(38, 140, 70), 24)
 
-local worldPill = makePill(gui, UDim2.new(0, 210, 0, 32), UDim2.new(0.5, 0, 0, 70), Vector2.new(0.5, 0),
+-- odznaka poziomu (kółko przy kasie) + pasek XP pod kasą
+local levelBadge = Instance.new("TextLabel")
+levelBadge.Size = UDim2.new(0, 52, 0, 52)
+levelBadge.Position = UDim2.new(0, -8, 0.5, 0)
+levelBadge.AnchorPoint = Vector2.new(1, 0.5)
+levelBadge.BackgroundColor3 = Color3.new(1, 1, 1)
+levelBadge.Text = ""
+levelBadge.Parent = cashPill
+addCorner(levelBadge, 999)
+addStroke(levelBadge)
+addGradient(levelBadge, Color3.fromRGB(255, 210, 90), Color3.fromRGB(220, 150, 40))
+styleText(levelBadge, 18)
+local levelBadgeScale = Instance.new("UIScale")
+levelBadgeScale.Parent = levelBadge
+
+local xpBack = Instance.new("Frame")
+xpBack.Size = UDim2.new(0, 240, 0, 10)
+xpBack.Position = UDim2.new(0.5, 0, 0, 68)
+xpBack.AnchorPoint = Vector2.new(0.5, 0)
+xpBack.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
+xpBack.Parent = gui
+addCorner(xpBack, 999)
+addStroke(xpBack, nil, 1.5)
+local xpFill = Instance.new("Frame")
+xpFill.Size = UDim2.new(0, 0, 1, 0)
+xpFill.BackgroundColor3 = Color3.new(1, 1, 1)
+xpFill.Parent = xpBack
+addCorner(xpFill, 999)
+addGradient(xpFill, Color3.fromRGB(120, 230, 255), Color3.fromRGB(60, 150, 230))
+
+local worldPill = makePill(gui, UDim2.new(0, 210, 0, 32), UDim2.new(0.5, 0, 0, 84), Vector2.new(0.5, 0),
 	Color3.fromRGB(160, 110, 235), Color3.fromRGB(105, 60, 190), 15)
 
 local eventBanner = makePill(gui, UDim2.new(0, 270, 0, 40), UDim2.new(0, 14, 0, 12), Vector2.new(0, 0),
@@ -236,7 +266,7 @@ end)
 -- powiadomienia (toast): wsuwa się i znika z animacją
 local toast = Instance.new("TextLabel")
 toast.Size = UDim2.new(0, 460, 0, 38)
-toast.Position = UDim2.new(0.5, 0, 0, 112)
+toast.Position = UDim2.new(0.5, 0, 0, 126)
 toast.AnchorPoint = Vector2.new(0.5, 0)
 toast.BackgroundColor3 = Color3.fromRGB(28, 34, 52)
 toast.Visible = false
@@ -254,9 +284,9 @@ local function showToast(message: string, duration: number?)
 	toast.BackgroundTransparency = 1
 	toast.TextTransparency = 1
 	toastStroke.Transparency = 1
-	toast.Position = UDim2.new(0.5, 0, 0, 100)
+	toast.Position = UDim2.new(0.5, 0, 0, 114)
 	TweenService:Create(toast, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, 0, 0, 112),
+		Position = UDim2.new(0.5, 0, 0, 126),
 		BackgroundTransparency = 0.15,
 		TextTransparency = 0,
 	}):Play()
@@ -418,9 +448,102 @@ local pityPill = makePill(gui, UDim2.new(0, 260, 0, 26), UDim2.new(0.5, 0, 1, -3
 -- Samouczek: baner + pływający znacznik nad celem
 -- ============================================================================
 
-local tutorialBanner = makePill(gui, UDim2.new(0, 560, 0, 42), UDim2.new(0.5, 0, 0, 158), Vector2.new(0.5, 0),
+local tutorialBanner = makePill(gui, UDim2.new(0, 560, 0, 42), UDim2.new(0.5, 0, 0, 172), Vector2.new(0.5, 0),
 	Color3.fromRGB(255, 210, 90), Color3.fromRGB(220, 160, 40), 16)
 tutorialBanner.Visible = false
+
+-- ============================================================================
+-- Combo: licznik z „punchem" i rosnącym dźwiękiem + fanfara level-upu
+-- ============================================================================
+
+-- wbudowany dźwięk silnika (podmienimy na własny w fazie oprawy audio)
+local ding = Instance.new("Sound")
+ding.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+ding.Volume = 0.6
+ding.Parent = gui
+
+local comboLabel = Instance.new("TextLabel")
+comboLabel.Size = UDim2.new(0, 220, 0, 60)
+comboLabel.Position = UDim2.new(0.5, 0, 0.32, 0)
+comboLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+comboLabel.BackgroundTransparency = 1
+comboLabel.Visible = false
+comboLabel.Parent = gui
+styleText(comboLabel, 34)
+comboLabel.TextColor3 = Color3.fromRGB(255, 170, 70)
+local comboScale = Instance.new("UIScale")
+comboScale.Parent = comboLabel
+
+local lastCombo = 0
+player:GetAttributeChangedSignal("ComboCount"):Connect(function()
+	local combo = player:GetAttribute("ComboCount") or 0
+	if combo >= 2 then
+		comboLabel.Text = ("🔥 COMBO ×%d"):format(combo)
+		comboLabel.Visible = true
+		comboScale.Scale = 1.35
+		TweenService:Create(comboScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	elseif combo == 0 then
+		comboLabel.Visible = false
+	end
+	-- dźwięk ścięcia z pitchem rosnącym wraz z combo (satysfakcja serii)
+	if combo > 0 and combo >= lastCombo then
+		ding.PlaybackSpeed = math.min(0.9 + combo * 0.06, 2)
+		ding:Play()
+	end
+	lastCombo = combo
+end)
+
+-- fanfara poziomu: błysk ekranu, wielki napis, seria rosnących dźwięków
+local levelFlash = Instance.new("Frame")
+levelFlash.Size = UDim2.fromScale(1, 1)
+levelFlash.BackgroundColor3 = Color3.fromRGB(255, 230, 150)
+levelFlash.BackgroundTransparency = 1
+levelFlash.ZIndex = 5
+levelFlash.Parent = gui
+
+local levelUpLabel = Instance.new("TextLabel")
+levelUpLabel.Size = UDim2.new(0, 500, 0, 90)
+levelUpLabel.Position = UDim2.new(0.5, 0, 0.4, 0)
+levelUpLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+levelUpLabel.BackgroundTransparency = 1
+levelUpLabel.Visible = false
+levelUpLabel.ZIndex = 6
+levelUpLabel.Parent = gui
+styleText(levelUpLabel, 44)
+levelUpLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+local levelUpScale = Instance.new("UIScale")
+levelUpScale.Parent = levelUpLabel
+
+local lastLevel = 0
+player:GetAttributeChangedSignal("Level"):Connect(function()
+	local level = player:GetAttribute("Level") or 1
+	if lastLevel > 0 and level > lastLevel then
+		-- błysk
+		levelFlash.BackgroundTransparency = 0.55
+		TweenService:Create(levelFlash, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
+		-- napis z punchem
+		levelUpLabel.Text = ("⬆️ POZIOM %d!"):format(level)
+		levelUpLabel.Visible = true
+		levelUpLabel.TextTransparency = 0
+		levelUpScale.Scale = 0.5
+		TweenService:Create(levelUpScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		task.delay(1.4, function()
+			TweenService:Create(levelUpLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			task.delay(0.4, function() levelUpLabel.Visible = false end)
+		end)
+		-- odznaka podskakuje
+		levelBadgeScale.Scale = 1.4
+		TweenService:Create(levelBadgeScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		-- trzy rosnące dźwięki
+		for step = 0, 2 do
+			task.delay(step * 0.12, function()
+				ding.PlaybackSpeed = 1 + step * 0.25
+				ding:Play()
+			end)
+		end
+	end
+	lastLevel = level
+end)
 
 local marker = Instance.new("BillboardGui")
 marker.Name = "TutorialMarker"
@@ -493,6 +616,12 @@ local function refresh()
 	local income = player:GetAttribute("IncomePerSec") or 0
 	cashPill.Text = ("💰 %s  (+%s/s)"):format(fmt(cash), fmt(income))
 	worldPill.Text = "🌍 " .. (player:GetAttribute("WorldName") or "…")
+
+	-- poziom + pasek XP (zawsze rośnie — to on trzyma wzrok)
+	levelBadge.Text = tostring(player:GetAttribute("Level") or 1)
+	local xp = player:GetAttribute("XP") or 0
+	local xpNeeded = math.max(1, player:GetAttribute("XPNeeded") or 1)
+	TweenService:Create(xpFill, TweenInfo.new(0.25), { Size = UDim2.new(math.min(xp / xpNeeded, 1), 0, 1, 0) }):Play()
 
 	local stamina = player:GetAttribute("Stamina") or 0
 	local staminaMax = math.max(1, player:GetAttribute("StaminaMax") or 1)

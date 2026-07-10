@@ -100,6 +100,8 @@ local sessions: { [Player]: {
 	nextChestAt: number,  -- os.time() następnej skrzynki czasowej
 	plotIndex: number,    -- miejsce stojaka z półkami w bazie
 	pendingOfflineBonus: number, -- druga połowa zarobku offline (×2 za Robux)
+	comboCount: number,   -- aktualna seria ścięć
+	comboLastAt: number,  -- os.clock() ostatniego ścięcia
 } } = {}
 
 local plotCounter = 0
@@ -324,6 +326,11 @@ local function syncAttributes(player: Player)
 	end
 	player:SetAttribute("CarriedSummary", table.concat(lines, "\n"))
 
+	player:SetAttribute("Level", data.level)
+	player:SetAttribute("XP", math.floor(data.xp))
+	player:SetAttribute("XPNeeded", Config.xpForLevel(data.level))
+	player:SetAttribute("ComboCount", s.comboCount)
+	player:SetAttribute("StreakDay", data.streakDay)
 	player:SetAttribute("TutorialStep", s.tutorialStep)
 	player:SetAttribute("ChestIn", math.max(0, s.nextChestAt - os.time()))
 	player:SetAttribute("JournalCount", journalCount(data))
@@ -360,6 +367,61 @@ local function journalAdd(player: Player, item: Carried)
 			end
 		end
 	end
+end
+
+-- Przyznaje XP; obsługuje wejścia na poziom (kaskadowo) z nagrodami i fanfarą.
+local function awardXp(player: Player, amount: number)
+	local s = sessions[player]
+	if not s then return end
+	local data = s.data
+	if data.level >= Config.XP.maxLevel then return end
+
+	data.xp += amount
+	while data.level < Config.XP.maxLevel and data.xp >= Config.xpForLevel(data.level) do
+		data.xp -= Config.xpForLevel(data.level)
+		data.level += 1
+
+		local reward = Config.XP.cashRewardBase * Config.XP.cashRewardGrowth ^ data.level
+		local isMilestone = data.level % Config.XP.milestoneEvery == 0
+		if isMilestone then
+			reward *= Config.XP.milestoneMult
+		end
+		data.cash += reward
+
+		notifyRemote:FireClient(player, ("⬆️ POZIOM %d! Nagroda: %d 💰%s"):format(
+			data.level, math.floor(reward),
+			isMilestone and " (kamień milowy ×5!)" or ""))
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root then
+			burstAt(root.Position, Color3.fromRGB(255, 220, 120))
+			floatingText(root.Position + Vector3.new(0, 3, 0),
+				("POZIOM %d!"):format(data.level), Color3.fromRGB(255, 220, 120))
+		end
+		if isMilestone then
+			notifyRemote:FireAllClients(("🏆 %s osiągnął poziom %d!"):format(player.DisplayName, data.level))
+		end
+	end
+end
+
+-- Seria logowań dzień po dniu: przerwiesz — wracasz do dnia 1.
+local function grantDailyStreak(player: Player)
+	local s = sessions[player]
+	if not s then return end
+	local data = s.data
+	local today = os.date("!%Y-%m-%d")
+	if data.lastLoginDate == today then
+		return
+	end
+	local yesterday = os.date("!%Y-%m-%d", os.time() - 86400)
+	data.streakDay = (data.lastLoginDate == yesterday) and data.streakDay + 1 or 1
+	data.lastLoginDate = today
+
+	local base = Config.Streak.baseRewards[math.min(data.streakDay, #Config.Streak.baseRewards)]
+	local reward = math.floor(base * (1 + data.level * Config.Streak.levelScale))
+	data.cash += reward
+	notifyRemote:FireClient(player, ("🔥 Seria dzienna: dzień %d — +%d 💰! Wróć jutro po więcej.")
+		:format(data.streakDay, reward))
 end
 
 -- Aktualizuje postęp dziennych zadań o danym typie statystyki.
@@ -495,12 +557,13 @@ local function rollRarity(ringIndex: number): number
 end
 
 -- Od najrzadszej: pierwsza wylosowana wygrywa. 0 = czysty grzyb.
--- Eventy podbijają szanse (Złoty Deszcz ×3, Tęcza otwiera Rainbow 1/150).
-local function rollMutation(): number
-	local eventMult = EventService.mutationChanceMult()
+-- Eventy podbijają szanse (Złoty Deszcz ×3, Tęcza otwiera Rainbow 1/150),
+-- a każdy poziom gracza daje trwałe +0,5% szczęścia.
+local function rollMutation(playerLevel: number): number
+	local luckMult = EventService.mutationChanceMult() * (1 + playerLevel * Config.XP.luckPerLevel)
 	for index = #Config.Mutations, 1, -1 do
 		local mutation = Config.Mutations[index]
-		local chance = eventMult / mutation.oneIn
+		local chance = luckMult / mutation.oneIn
 		if mutation.id == "Rainbow" and EventService.rainbowActive() then
 			chance = 1 / EventService.rainbowOneIn()
 		end
@@ -559,10 +622,33 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 		worldIdx = worldIdx,
 		speciesIdx = math.random(#world.species),
 		rarityIdx = rarityIdx,
-		mutationIdx = rollMutation(),
+		mutationIdx = rollMutation(s.data.level),
 		freshness = Config.Freshness.startPercent,
 	}
 	table.insert(s.carried, item)
+
+	-- COMBO: kolejne ścięcie w oknie czasu podbija serię i mnożnik XP
+	local now = os.clock()
+	if now - s.comboLastAt <= Config.Combo.windowSeconds then
+		s.comboCount += 1
+	else
+		s.comboCount = 1
+	end
+	s.comboLastAt = now
+	local comboMult = math.min(1 + (s.comboCount - 1) * Config.Combo.xpMultPerStack, Config.Combo.maxMult)
+	awardXp(player, Config.XP.perCutByRarity[rarityIdx] * comboMult)
+
+	-- kamienie milowe combo sypią kasą (w sekundach dochodu z półek)
+	local milestoneSeconds = Config.Combo.milestones[s.comboCount]
+	if milestoneSeconds then
+		local bonus = math.max(50, math.floor(shelfIncomePerSec(s.data) * milestoneSeconds))
+		s.data.cash += bonus
+		notifyRemote:FireClient(player, ("🔥 COMBO ×%d! Bonus: %d 💰"):format(s.comboCount, bonus))
+		if cutPosition then
+			floatingText(cutPosition + Vector3.new(0, 2, 0),
+				("COMBO ×%d!"):format(s.comboCount), Color3.fromRGB(255, 140, 60))
+		end
+	end
 
 	-- pływający napis nad miejscem ścięcia, w kolorze rzadkości
 	if cutPosition then
@@ -970,6 +1056,11 @@ task.spawn(function()
 				notifyRemote:FireClient(player, ("🎁 Skrzynka czasowa: +%d 💰!"):format(reward))
 			end
 
+			-- combo wygasa po oknie bez ścięcia
+			if s.comboCount > 0 and os.clock() - s.comboLastAt > Config.Combo.windowSeconds then
+				s.comboCount = 0
+			end
+
 			-- nowy dzień = nowe zadania (dla siedzących w grze przez północ UTC)
 			ensureDaily(data)
 
@@ -1012,7 +1103,11 @@ Players.PlayerAdded:Connect(function(player)
 		nextChestAt = os.time() + Config.Chest.intervalSeconds,
 		plotIndex = (plotCounter - 1) % 9,
 		pendingOfflineBonus = offlineBonus,
+		comboCount = 0,
+		comboLastAt = 0,
 	}
+
+	grantDailyStreak(player)
 
 	-- leaderboard Roblox (lista graczy po prawej)
 	local leaderstats = Instance.new("Folder")
