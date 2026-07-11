@@ -32,6 +32,7 @@ wklejasz skrypt, klikasz Run, model stoi w scenie.
 | `15-gniazdo-jajo.py` | **stanowisko gachy**: kamienny podest, gniazdo z gałązek z mchem, fasetowane jajo w cętki, WIRUJĄCY magiczny krąg z runami, latarnie z kulami światła, dryfujące iskry — jeden model, akcenty (Cetki/Krag/Drobiny/Kule) przemalowywane na kolor świata | gniazdo petów w każdej bazie |
 | `16-pety-swiat1.py` | **5 petów Świata 1** (kolejność = rzadkość z jaja): Grzybek Skoczek na nóżkach, Ślimak Zamszowy ze spiralną muszlą, Jeżozwierzyk z mini-grzybkiem między kolcami, Biedronix ze złotą obwódką i świecącymi czułkami, **SEKRETNY Wiewiór Rudzik** — lewitujący ogon-warkocz, złoty żołądź, wirująca aureolka, dryfujące iskry | pety lewitujące przy graczu |
 | `17-pety-swiat2.py` | **5 petów Świata 2**: pulchna Sowa Mgielna z czubkami, Szyszkostwór z piętrami łusek i listkiem, Lisek Borowy ze świecącym koniuszkiem ogona, Mroźny Puszek z lodowymi kryształami i wirującą obręczą mrozu, **SEKRETNY Dzięciołek** — złoty świecący dziób, lewitujący ognisty czub-warkocz, aureolka, dryfujące iskry | pety lewitujące przy graczu |
+| `18-pety-swiat3.py` | **5 petów Świata 3**: Bagienny Glut z kapkami i bańką, Świetlik Bzyk ze świecącym odwłokiem-latarnią, Neonowy Żabol w świecące pasy, Ropuch Królewski ze złotą koroną i wirującym pierścieniem, **SEKRETNY Mglisty Duszek** — świecąca zjawa z dryfującym welonem mgły, aureolką i kulami mgły | pety lewitujące przy graczu |
 
 ## Jak uruchomić skrypt (2 minuty)
 
