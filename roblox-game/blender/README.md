@@ -8,7 +8,8 @@ wklejasz skrypt, klikasz Run, model stoi w scenie.
 
 | Skrypt | Co generuje | Gdzie trafi w grze |
 |--------|-------------|--------------------|
-| `01-grzyby.py` | 4 warianty grzyba (klasyk z kropkami, szeroki talerz, smukły stożek, kulka) | miejscówki w lesie, mini-grzybki na półkach i skrzynkach |
+| `05-grzyby-swiat1.py` | **10 gatunków Świata 1** — po jednym modelu na gatunek, im cenniejszy tym efektowniejszy (Kurka-lejek → Muchomor Cesarski ze złotymi kropkami, pierścieniem i koroną) | miejscówki w lesie, mini na półkach, dziennik |
+| `01-grzyby.py` | 4 ogólne warianty grzyba (klasyk z kropkami, szeroki talerz, smukły stożek, kulka) | placeholdery / dekoracje |
 | `02-drzewa.py` | drzewo liściaste, świerk, krzywe drzewo bagienne | dekoracje biomów (MapBuilder) |
 | `03-stragan.py` | stragan: konstrukcja, dwuspadowy daszek, białe pasy, skrzynki | centrum każdej bazy |
 | `04-sprzedawca.py` | NPC-sprzedawca z grzybowym kapeluszem (ręka uniesiona do machania) | za ladą straganu |
