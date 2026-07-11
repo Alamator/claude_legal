@@ -17,7 +17,8 @@
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "ClientMain": { "$path": "src/ClientMain.client.luau" }
+        "ClientMain": { "$path": "src/ClientMain.client.luau" },
+        "FxClient": { "$path": "src/FxClient.client.luau" }
       }
     }
   }

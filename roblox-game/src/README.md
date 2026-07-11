@@ -44,6 +44,7 @@ panel dropów z szansami (uwzględnia passy szczęścia); klik w peta zaznacza
 | `MapBuilder.server.luau` | **Script** | `ServerScriptService` | `MapBuilder` |
 | `GameServer.server.luau` | **Script** | `ServerScriptService` | `GameServer` |
 | `ClientMain.client.luau` | **LocalScript** | `StarterPlayer → StarterPlayerScripts` | `ClientMain` |
+| `FxClient.client.luau` | **LocalScript** | `StarterPlayer → StarterPlayerScripts` | `FxClient` |
 
 (Końcówki `.server`/`.client` w nazwach plików mówią tylko, jakiego TYPU
 skrypt utworzyć — w Studio nazwa jest bez nich.)
@@ -134,6 +135,14 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
   wylatuje w kolorze rzadkości, „+N 🍄" nad graczem przy dostawie.
 - **Stojaki w bazie**: mini-grzybki w kolorach rzadkości (mutacje świecą),
   najlepszy okaz jest większy i sypie złotymi iskrami.
+- **FxClient — animacje sterowane nazwą części** (zero konfiguracji):
+  `Pierscien/Halo/Dysk/Orbita/Fala` w nazwie = część się obraca;
+  `TrzonSeg/Skalki/FloatingRock/Drobiny/Materia/Ksiezyc/Warkocz` = lewituje;
+  portale pulsują; wszystko z `Glow` sypie iskrami (Rdzen = mocniej).
+  Działa od razu na mapie proceduralnej (lewitujące skały Księżyca,
+  pulsujące portale), a modele importowane z `blender/` ożyją automatycznie,
+  bo ich części nazwane są według tej konwencji. Animacje liczy klient
+  z LOD (tylko w pobliżu kamery) — zero kosztu sieci.
 
 ## Najczęstsza usterka: „nic się nie pojawia"
 

@@ -57,6 +57,22 @@ funkcje w `MapBuilder`/`GameServer` z budowania z klocków na klonowanie
 modeli (`model:Clone()`), z zachowaniem kolorowania palety świata przez
 `GameConfig`. Kod jest na to gotowy: każda dekoracja to jedna funkcja.
 
+## Nazwy części = automatyczne animacje w grze
+
+Skrypt `src/FxClient.client.luau` ożywia części po nazwach, więc modele
+z tego katalogu **animują się same** po imporcie — niczego nie ustawiasz:
+
+- `…Pierscien… / …Halo… / …Dysk… / …Orbita… / …Fala…` → obraca się
+  w swojej płaszczyźnie (halo Lunarka, pierścienie Orbitalnego Borowika,
+  dysk akrecyjny Czarnej Dziury…);
+- `…TrzonSeg… / …Skalki… / …Drobiny… / …Materia… / …Ksiezyc… / …Warkocz…`
+  → lewituje (segmenty Antygrawika, wciągana materia, księżyc na orbicie);
+- `…Glow…` → sypie iskrami w kolorze części (pamiętaj: Material = Neon).
+
+Dlatego **nie zmieniaj nazw części przy imporcie** — nazwa to instrukcja.
+(Animacji nie robimy w Blenderze celowo: FBX i tak nie przenosi do Roblox
+ani animacji obiektów, ani particli — silnik gry robi to lepiej i za darmo.)
+
 ## Uwaga o wersjach
 
 Skrypty używają tylko stabilnego API (`bpy.ops.mesh.primitive_*`) —
