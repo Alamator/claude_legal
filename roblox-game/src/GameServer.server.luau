@@ -94,6 +94,7 @@ type Carried = {
 	mutationIdx: number,
 	mutationIdx2: number, -- druga mutacja (0 = brak; event „podwójne mutacje")
 	freshness: number,
+	earned: number?,      -- urobek na polu (tylko grzyby zasadzone na grządce)
 }
 
 local sessions: { [Player]: {
@@ -106,7 +107,8 @@ local sessions: { [Player]: {
 	carried: { Carried },
 	tutorialStep: number, -- 1..3 = aktywny krok, 0 = ukończony
 	nextChestAt: number,  -- os.time() następnej skrzynki czasowej
-	plotIndex: number,    -- miejsce stojaka z półkami w bazie
+	plotIndex: number,    -- slot działki gracza w pasie bazy
+	plotLabels: any,      -- liczniki urobku na zielonych polach ([index] = TextLabel)
 	pendingOfflineBonus: number, -- druga połowa zarobku offline (×2 za Robux)
 	comboCount: number,   -- aktualna seria ścięć
 	comboLastAt: number,  -- os.clock() ostatniego ścięcia
@@ -134,10 +136,17 @@ local function loadPasses(player: Player, s)
 	end)
 end
 
+local rebuildHook = nil -- ustawiane niżej na refreshShelfDisplay (kolejność definicji)
+
 MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, _passId, purchased)
 	local s = sessions[player]
 	if purchased and s then
 		loadPasses(player, s) -- odśwież po zakupie, efekt działa od razu
+		task.delay(1, function()
+			if sessions[player] and rebuildHook then
+				rebuildHook(player) -- np. pass +5 grządek = działka rośnie od razu
+			end
+		end)
 	end
 end)
 
@@ -165,6 +174,12 @@ end
 local function carryCapacity(s): number
 	return Config.Carry.baseSlots
 		+ (s.passes.CarrySlots and Config.GamePasses.CarrySlots.effect.extraCarry or 0)
+end
+
+-- pojemność działki: kupione grządki (10→20 za kasę) + pass „Grzybowa Grządka +5"
+local function plotCapacity(s): number
+	return s.data.plotsOwned
+		+ (s.passes.ExtraPlots and Config.GamePasses.ExtraPlots.effect.extraPlots or 0)
 end
 
 -- sumaryczne bonusy z założonych petów: (+% dochodu, +% szczęścia)
@@ -383,7 +398,8 @@ local function syncAttributes(player: Player)
 	player:SetAttribute("StaminaMax", staminaMax(data))
 	player:SetAttribute("StaminaLevel", data.staminaLevel)
 	player:SetAttribute("ThermosLevel", data.thermosLevel)
-	player:SetAttribute("ShelvesOwned", data.shelvesOwned)
+	player:SetAttribute("PlotsBought", data.plotsOwned)
+	player:SetAttribute("PlotCapacity", plotCapacity(s))
 	player:SetAttribute("ShelfCount", #data.shelf)
 	player:SetAttribute("CarriedCount", #s.carried)
 	player:SetAttribute("CarrySlots", carryCapacity(s))
@@ -531,36 +547,38 @@ end
 -- Wizualne półki w bazie (GDD §6 — grzyby widoczne dla wszystkich)
 -- ============================================================================
 
+-- DZIAŁKA GRZĄDEK: każdy grzyb ZASADZONY w ziemi (rzędy po 5, „po 5 na
+-- stronę"), a pod grządką zielone pole zliczające urobek — wejście na nie
+-- zbiera kasę (dźwięk + particlesy). Odbudowywana przy każdej zmianie.
+local COLLECT_DEBOUNCE = 0.35
+
 local function refreshShelfDisplay(player: Player)
 	local s = sessions[player]
 	if not s then return end
 
-	local old = workspace:FindFirstChild("ShelfDisplay_" .. player.UserId)
+	local old = workspace:FindFirstChild("PlotArea_" .. player.UserId)
 	if old then old:Destroy() end
+	s.plotLabels = {}
 
 	local pad = basePads[s.data.currentWorld]
 	if not pad then return end
+	-- siatka 5 kolumn × do 5 rzędów, rzędy rosną w głąb bazy (-z)
+	local origin = pad.Position + Vector3.new(-58 + s.plotIndex * 17, 0, -8)
 
-	local origin = pad.Position + Vector3.new(-50 + s.plotIndex * 12, 0, -14)
+	local area = Instance.new("Model")
+	area.Name = "PlotArea_" .. player.UserId
 
-	local model = Instance.new("Model")
-	model.Name = "ShelfDisplay_" .. player.UserId
-
-	local stand = Instance.new("Part")
-	stand.Name = "Stand"
-	stand.Size = Vector3.new(9, 1, 3)
-	stand.CFrame = CFrame.new(origin + Vector3.new(0, 1.5, 0))
-	stand.Color = Color3.fromRGB(120, 84, 50)
-	stand.Material = Enum.Material.WoodPlanks
-	stand.Anchored = true
-	stand.Parent = model
-
-	-- tabliczka z nickiem i dochodem
+	-- tabliczka z nickiem nad działką
+	local signAnchor = Instance.new("Part")
+	signAnchor.Transparency = 1
+	signAnchor.CanCollide = false
+	signAnchor.Anchored = true
+	signAnchor.Size = Vector3.new(1, 1, 1)
+	signAnchor.CFrame = CFrame.new(origin + Vector3.new(6.6, 5, 2))
+	signAnchor.Parent = area
 	local tag = Instance.new("BillboardGui")
-	tag.Size = UDim2.new(0, 160, 0, 40)
-	tag.StudsOffset = Vector3.new(0, 6, 0)
-	tag.AlwaysOnTop = false
-	tag.Parent = stand
+	tag.Size = UDim2.new(0, 170, 0, 36)
+	tag.Parent = signAnchor
 	local tagLabel = Instance.new("TextLabel")
 	tagLabel.Size = UDim2.fromScale(1, 1)
 	tagLabel.BackgroundTransparency = 0.4
@@ -568,10 +586,10 @@ local function refreshShelfDisplay(player: Player)
 	tagLabel.TextColor3 = Color3.new(1, 1, 1)
 	tagLabel.Font = Enum.Font.FredokaOne
 	tagLabel.TextScaled = true
-	tagLabel.Text = ("🍄 %s  +%d/s"):format(player.DisplayName, math.floor(shelfIncomePerSec(s.data)))
+	tagLabel.Text = ("🌱 Działka: %s"):format(player.DisplayName)
 	tagLabel.Parent = tag
 
-	-- najlepszy okaz dostaje piedestał i iskierki (flex!)
+	-- najlepszy okaz sypie złotymi iskrami (flex)
 	local bestIdx, bestIncome = 0, -1
 	for index, item in s.data.shelf do
 		local income = itemIncome(item, s.data)
@@ -580,42 +598,112 @@ local function refreshShelfDisplay(player: Player)
 		end
 	end
 
-	-- grzyby na stojaku jako mini-grzybki: kapelusz = kolor rzadkości, mutacje świecą
-	for index, item in s.data.shelf do
-		local column = (index - 1) % 4
-		local row = (index - 1) // 4
-		local isBest = index == bestIdx
-		local scale = isBest and 1.5 or 1
-		local position = origin + Vector3.new(column * 2.2 - 3.3, 2.5 + row * 2, 0)
+	for index = 1, plotCapacity(s) do
+		local column = (index - 1) % 5
+		local row = (index - 1) // 5
+		local soilX = origin.X + column * 3.3
+		local soilZ = origin.Z - row * 4.6
+		local groundY = pad.Position.Y
 
-		local miniStem = Instance.new("Part")
-		miniStem.Shape = Enum.PartType.Cylinder
-		miniStem.Size = Vector3.new(0.9, 0.45, 0.45) * scale
-		miniStem.Color = Color3.fromRGB(240, 232, 210)
-		miniStem.Material = Enum.Material.SmoothPlastic
-		miniStem.Anchored = true
-		miniStem.CanCollide = false
-		miniStem.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
-		miniStem.Parent = model
+		local item = s.data.shelf[index]
 
-		local miniCap = Instance.new("Part")
-		miniCap.Shape = Enum.PartType.Ball
-		miniCap.Size = Vector3.new(1.3, 0.9, 1.3) * scale
-		miniCap.Color = Config.Rarities[item.rarityIdx].color
-		miniCap.Material = (item.mutationIdx > 0 or (item.mutationIdx2 or 0) > 0)
-			and Enum.Material.Neon or Enum.Material.SmoothPlastic
-		miniCap.Anchored = true
-		miniCap.CanCollide = false
-		miniCap.CFrame = CFrame.new(position + Vector3.new(0, 0.55 * scale, 0))
-		miniCap.Parent = model
+		-- grządka (kopczyk ziemi); pusta = jaśniejsza, zachęca do zasadzenia
+		local soil = Instance.new("Part")
+		soil.Name = "Soil"
+		soil.Size = Vector3.new(2.8, 0.5, 2.4)
+		soil.Position = Vector3.new(soilX, groundY, soilZ)
+		soil.Color = item and Color3.fromRGB(86, 60, 38) or Color3.fromRGB(120, 92, 62)
+		soil.Material = Enum.Material.Ground
+		soil.Anchored = true
+		soil.Parent = area
 
-		if isBest and bestIncome > 0 then
-			addSparkle(miniCap, Color3.fromRGB(255, 220, 120), 3)
+		if item then
+			-- zasadzony grzyb: trzonek wystaje Z ZIEMI, kapelusz = kolor rzadkości
+			local isBest = index == bestIdx
+			local scale = isBest and 1.5 or 1.1
+			local miniStem = Instance.new("Part")
+			miniStem.Shape = Enum.PartType.Cylinder
+			miniStem.Size = Vector3.new(1.0, 0.5, 0.5) * scale
+			miniStem.Color = Color3.fromRGB(240, 232, 210)
+			miniStem.Material = Enum.Material.SmoothPlastic
+			miniStem.Anchored = true
+			miniStem.CanCollide = false
+			miniStem.CFrame = CFrame.new(soilX, groundY + 0.7 * scale, soilZ)
+				* CFrame.Angles(0, 0, math.rad(90))
+			miniStem.Parent = area
+
+			local miniCap = Instance.new("Part")
+			miniCap.Shape = Enum.PartType.Ball
+			miniCap.Size = Vector3.new(1.5, 1.0, 1.5) * scale
+			miniCap.Color = Config.Rarities[item.rarityIdx].color
+			miniCap.Material = (item.mutationIdx > 0 or (item.mutationIdx2 or 0) > 0)
+				and Enum.Material.Neon or Enum.Material.SmoothPlastic
+			miniCap.Anchored = true
+			miniCap.CanCollide = false
+			miniCap.CFrame = CFrame.new(soilX, groundY + 1.2 * scale, soilZ)
+			miniCap.Parent = area
+			if isBest and bestIncome > 0 then
+				addSparkle(miniCap, Color3.fromRGB(255, 220, 120), 3)
+			end
+
+			-- ZIELONE POLE ZBIORU przed grządką: licznik urobku + zbiór wejściem
+			local collect = Instance.new("Part")
+			collect.Name = "CollectPad"
+			collect.Size = Vector3.new(2.8, 0.22, 1.7)
+			collect.Position = Vector3.new(soilX, groundY - 0.1, soilZ + 2.15)
+			collect.Color = Color3.fromRGB(90, 220, 110)
+			collect.Material = Enum.Material.Neon
+			collect.Transparency = 0.15
+			collect.Anchored = true
+			collect.CanCollide = false
+			collect.Parent = area
+
+			local gui = Instance.new("SurfaceGui")
+			gui.Face = Enum.NormalId.Top
+			gui.Parent = collect
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.fromScale(1, 1)
+			label.BackgroundTransparency = 1
+			label.Font = Enum.Font.FredokaOne
+			label.TextScaled = true
+			label.TextColor3 = Color3.fromRGB(14, 60, 24)
+			label.Text = "💰 " .. math.floor(item.earned or 0)
+			label.Parent = gui
+			s.plotLabels[index] = label
+
+			local sound = Instance.new("Sound")
+			sound.SoundId = Config.Base.collectSoundId
+			sound.Volume = 0.5
+			sound.Parent = collect
+
+			local lastCollect = 0
+			collect.Touched:Connect(function(hit)
+				local character = hit.Parent
+				local who = character and Players:GetPlayerFromCharacter(character)
+				if who ~= player then return end -- zbiera tylko właściciel
+				if os.clock() - lastCollect < COLLECT_DEBOUNCE then return end
+				lastCollect = os.clock()
+				local planted = s.data.shelf[index]
+				if not planted then return end
+				local earned = math.floor(planted.earned or 0)
+				if earned < 1 then return end
+				planted.earned = (planted.earned or 0) - earned
+				s.data.cash += earned
+				label.Text = "💰 0"
+				sound.PlaybackSpeed = 1 + math.random() * 0.25
+				sound:Play()
+				burstAt(collect.Position + Vector3.new(0, 1, 0), Color3.fromRGB(120, 235, 130))
+				floatingText(collect.Position + Vector3.new(0, 1.5, 0),
+					("+%d 💰"):format(earned), Color3.fromRGB(140, 235, 140))
+				syncAttributes(player)
+			end)
 		end
 	end
 
-	model.Parent = workspace
+	area.Parent = workspace
 end
+
+rebuildHook = refreshShelfDisplay
 
 -- ============================================================================
 -- Losowanie (serce gry — GDD §4)
@@ -905,8 +993,9 @@ local function deliver(player: Player)
 
 	local shelved, sold, soldValue = 0, 0, 0
 	for _, item in s.carried do
-		if #s.data.shelf < s.data.shelvesOwned then
-			table.insert(s.data.shelf, item) -- świeżość zamrożona w chwili dostawy
+		if #s.data.shelf < plotCapacity(s) then
+			item.earned = 0 -- świeżość zamrożona; urobek zbiera się na polu
+			table.insert(s.data.shelf, item)
 			shelved += 1
 		else
 			-- brak miejsca: natychmiastowa sprzedaż (= 60 s dochodu, GDD §6)
@@ -918,9 +1007,9 @@ local function deliver(player: Player)
 	end
 	s.carried = {}
 
-	local message = ("📦 Odłożono %d na półki"):format(shelved)
+	local message = ("🌱 Zasadzono %d na grządkach"):format(shelved)
 	if sold > 0 then
-		message ..= (", sprzedano %d za %d 💰 (brak półek!)"):format(sold, math.floor(soldValue))
+		message ..= (", sprzedano %d za %d 💰 (brak grządek!)"):format(sold, math.floor(soldValue))
 	end
 	notifyRemote:FireClient(player, message)
 
@@ -1238,7 +1327,7 @@ rebirthRemote.OnServerEvent:Connect(function(player)
 	data.cash = 0
 	data.staminaLevel = 0
 	data.thermosLevel = 0
-	data.shelvesOwned = Config.Base.startShelves
+	data.plotsOwned = Config.Base.basePlots
 	data.shelf = {}
 	data.shortcuts = {}
 	data.currentWorld = 1
@@ -1275,7 +1364,7 @@ buyRemote.OnServerEvent:Connect(function(player, upgradeName)
 	if not s then return end
 	local data = s.data
 
-	local totalBefore = data.staminaLevel + data.thermosLevel + data.shelvesOwned
+	local totalBefore = data.staminaLevel + data.thermosLevel + data.plotsOwned
 
 	local cost: number? = nil
 	if upgradeName == "Stamina" and data.staminaLevel < Config.Stats.Stamina.maxLevel then
@@ -1290,16 +1379,17 @@ buyRemote.OnServerEvent:Connect(function(player, upgradeName)
 			data.cash -= cost
 			data.thermosLevel += 1
 		end
-	elseif upgradeName == "Shelf" and data.shelvesOwned < Config.Base.maxShelves then
-		cost = math.floor(Config.Base.shelfBaseCost * Config.Base.shelfCostGrowth ^ (data.shelvesOwned - Config.Base.startShelves))
+	elseif upgradeName == "Shelf" and data.plotsOwned < Config.Base.maxPlotsBuyable then
+		cost = math.floor(Config.Base.plotBaseCost * Config.Base.plotCostGrowth ^ (data.plotsOwned - Config.Base.basePlots))
 		if data.cash >= cost then
 			data.cash -= cost
-			data.shelvesOwned += 1
+			data.plotsOwned += 1
+			refreshShelfDisplay(player) -- nowa grządka od razu widoczna
 		end
 	end
 
 	-- ostatni krok samouczka: pierwszy udany zakup
-	if s.tutorialStep == 3 and data.staminaLevel + data.thermosLevel + data.shelvesOwned > totalBefore then
+	if s.tutorialStep == 3 and data.staminaLevel + data.thermosLevel + data.plotsOwned > totalBefore then
 		s.tutorialStep = 0
 		data.tutorialDone = true
 		data.cash += Config.Tutorial.reward
@@ -1374,8 +1464,15 @@ task.spawn(function()
 				item.freshness = math.max(0, item.freshness - decayPerSec(data, item) * eventDecayMult)
 			end
 
-			-- dochód z półek
-			data.cash += shelfIncomePerSec(data)
+			-- produkcja grządek: urobek odkłada się na zielonym polu grzyba
+			-- (kasa wpada dopiero, gdy właściciel wejdzie na pole i zbierze)
+			for index, item in data.shelf do
+				item.earned = (item.earned or 0) + itemIncome(item, data)
+				local label = s.plotLabels[index]
+				if label then
+					label.Text = "💰 " .. math.floor(item.earned)
+				end
+			end
 
 			-- skrzynka czasowa (co 20 min online — GDD §7)
 			if os.time() >= s.nextChestAt then
@@ -1450,7 +1547,8 @@ Players.PlayerAdded:Connect(function(player)
 		carried = {},
 		tutorialStep = data.tutorialDone and 0 or 1,
 		nextChestAt = os.time() + Config.Chest.intervalSeconds,
-		plotIndex = (plotCounter - 1) % 9,
+		plotIndex = (plotCounter - 1) % 8,
+		plotLabels = {},
 		pendingOfflineBonus = offlineBonus,
 		comboCount = 0,
 		comboLastAt = 0,
@@ -1503,7 +1601,7 @@ Players.PlayerRemoving:Connect(function(player)
 	if folder then
 		folder:Destroy()
 	end
-	local display = workspace:FindFirstChild("ShelfDisplay_" .. player.UserId)
+	local display = workspace:FindFirstChild("PlotArea_" .. player.UserId)
 	if display then
 		display:Destroy()
 	end

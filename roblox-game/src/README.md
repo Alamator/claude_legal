@@ -75,8 +75,14 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
       koszyka (2 miejsca!), jego świeżość tyka w dół.
 - [ ] Przy pełnym koszyku: słabszy roll = „💸 sprzedany na miejscu",
       lepszy = „🔁 wypycha najsłabszego"; panel kosza pokazuje 🎒 2/2.
-- [ ] Wróć na drewniany **BasePad** w bazie → przytrzymaj **E** → grzyby idą
-      na półki i kasa rośnie co sekundę.
+- [ ] Wróć na drewniany **BasePad** w bazie → przytrzymaj **E** → grzyby
+      SADZĄ SIĘ na Twojej działce (rzędy grządek za straganem).
+- [ ] Pod każdym zasadzonym grzybem zielone pole zlicza urobek („💰 N"
+      rośnie co sekundę); wejście na pole = zbiór z dźwiękiem, zielonymi
+      particlesami i „+X 💰"; licznik wraca do zera. Cudzych pól nie
+      da się zbierać.
+- [ ] Przycisk „🌱 Grządka [10/20]" dokupuje po jednej (cena ×2,2);
+      nowa grządka pojawia się na działce od razu.
 - [ ] Kupujesz ulepszenia; po **Stop i ponownym Play** kasa/poziomy wracają
       (zapis działa).
 - [ ] Po 4–6 minutach gry pojawia się baner eventu (⚡) z odliczaniem.
@@ -133,8 +139,10 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
   białe kropki, iskierki; w pierścieniach 4-5 świecą własnym światłem.
 - **Efekty**: rozbryzg w kolorze kapelusza przy ścięciu, nazwa znaleziska
   wylatuje w kolorze rzadkości, „+N 🍄" nad graczem przy dostawie.
-- **Stojaki w bazie**: mini-grzybki w kolorach rzadkości (mutacje świecą),
-  najlepszy okaz jest większy i sypie złotymi iskrami.
+- **Działka z grządkami**: grzyby zasadzone w kopczykach ziemi (rzędy po 5),
+  kapelusze w kolorach rzadkości (mutacje świecą), najlepszy okaz sypie
+  złotymi iskrami; przed każdą grządką neonowe zielone pole z licznikiem
+  urobku do zbierania stopą.
 - **FxClient — animacje sterowane nazwą części** (zero konfiguracji):
   `Pierscien/Halo/Dysk/Orbita/Fala` w nazwie = część się obraca;
   `TrzonSeg/Skalki/FloatingRock/Drobiny/Materia/Ksiezyc/Warkocz` = lewituje;

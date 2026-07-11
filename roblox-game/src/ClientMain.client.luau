@@ -970,11 +970,11 @@ local function refresh()
 	local carriedCount = player:GetAttribute("CarriedCount") or 0
 	local carrySlots = player:GetAttribute("CarrySlots") or 2
 	local shelfCount = player:GetAttribute("ShelfCount") or 0
-	local shelves = player:GetAttribute("ShelvesOwned") or 0
-	basketBody.Text = ("🎒 Miejsca: %d/%d\n%s\n\n🪵 Półki: %d/%d")
+	local plotCap = player:GetAttribute("PlotCapacity") or 10
+	basketBody.Text = ("🎒 Miejsca: %d/%d\n%s\n\n🌱 Grządki: %d/%d (zbieraj z zielonych pól!)")
 		:format(carriedCount, carrySlots,
 			carried == "" and "— pusto — (słabsze rolle sprzedają się same)" or carried,
-			shelfCount, shelves)
+			shelfCount, plotCap)
 
 	-- przyciski ulepszeń z aktualnymi cenami (te same wzory co na serwerze)
 	local staminaLevel = player:GetAttribute("StaminaLevel") or 0
@@ -983,10 +983,11 @@ local function refresh()
 		:format(staminaLevel, fmt(Config.statCost(Config.Stats.Stamina, staminaLevel)))
 	upgradeButtons.Thermos.Text = ("❄️ Termos [%d] — %s 💰")
 		:format(thermosLevel, fmt(Config.statCost(Config.Stats.Thermos, thermosLevel)))
-	local shelfCost = Config.Base.shelfBaseCost * Config.Base.shelfCostGrowth ^ math.max(0, shelves - Config.Base.startShelves)
-	upgradeButtons.Shelf.Text = shelves >= Config.Base.maxShelves
-		and "🪵 Półki: MAX"
-		or ("🪵 Półka [%d/%d] — %s 💰"):format(shelves, Config.Base.maxShelves, fmt(shelfCost))
+	local plotsBought = player:GetAttribute("PlotsBought") or Config.Base.basePlots
+	local plotCost = Config.Base.plotBaseCost * Config.Base.plotCostGrowth ^ math.max(0, plotsBought - Config.Base.basePlots)
+	upgradeButtons.Shelf.Text = plotsBought >= Config.Base.maxPlotsBuyable
+		and "🌱 Grządki: MAX (pass daje +5)"
+		or ("🌱 Grządka [%d/%d] — %s 💰"):format(plotsBought, Config.Base.maxPlotsBuyable, fmt(plotCost))
 
 	-- dzienne zadania + skrzynka czasowa
 	local chestIn = player:GetAttribute("ChestIn") or 0

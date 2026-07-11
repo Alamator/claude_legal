@@ -89,7 +89,7 @@ z doświadczeń tego formatu):
 
 | Zakup | Cena rosnąca | Efekt |
 |-------|--------------|-------|
-| 🪵 **Półka w bazie** (start: 4, max 16) | ×2,2 za każdą | +1 slot na pracującego grzyba = wyższy dochód pasywny |
+| 🌱 **Grządka na działce** (start: 10 — dwa rządki po 5; dokupowanie PO JEDNEJ do 20) | ×2,2 za każdą | +1 zasadzony grzyb = wyższa produkcja; pass „Grzybowa Grządka +5" podnosi limit do 25 |
 | ⚡ **Skróty powrotne** (zjeżdżalnia, trampolina, tyrolka — po 1 na pierścień) | średnie | powrót z głębi w 10 s zamiast 40+ s i BEZ zużywania kondycji; kupione = widoczne na mapie |
 | 🌍 **Portal do świata** | bardzo wysokie progi | nowy świat (patrz §5) |
 
@@ -185,12 +185,16 @@ niska grawitacja = dłuższe skoki (kondycja „starcza na więcej") — darmowy
 „wow" bez nowych mechanik. Światy 6+ (Cukierkowy? Głębiny?) to gotowy plan
 aktualizacji po premierze.
 
-## 6. Baza gracza
+## 6. Baza gracza — DZIAŁKA Z GRZĄDKAMI
 
-- Działka przy spawnie każdego świata; półki z grzybami WIDOCZNE dla innych
-  (spacer po cudzych bazach = darmowy flex i motywacja).
-- Grzyb na półce = animowany, z etykietą dochodu („+320/s"); najlepszy okaz
-  na podświetlonym piedestale.
+- Każdy gracz ma działkę przy bazie świata: grzyby są **ZASADZONE W ZIEMI**
+  na grządkach (start: 10 — dwa rządki po 5, „po 5 na stronę"; dokupowanie
+  po jednej do 20; pass +5 → max 25). Widoczne dla innych = flex.
+- **Pod każdą grządką zielone pole**, na którym zlicza się urobek grzyba
+  („💰 1 240"). Kasa NIE wpada sama — **wchodzisz na pole i zbierasz**
+  (dźwięk + delikatne particlesy + wyskakujące „+X 💰"). Przebiegnięcie
+  wzdłuż rządka i zgarnięcie wszystkich pól to codzienna mikro-frajda.
+- Najlepszy okaz na działce sypie złotymi iskrami.
 - **Dziennik Grzybiarza**: kolekcja wszystkich gatunków × rzadkości ×
   mutacji z nagrodami za skompletowanie stron (retencja długoterminowa).
 - Sprzedaż grzyba z półki możliwa zawsze (jednorazowa kasa zamiast dochodu) —
@@ -247,7 +251,7 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 |------|-------------:|-------|
 | 💰 Podwójna Kasa | 399 | dochód ×2 |
 | 🧊 Lodówka Turystyczna | 299 | świeżość spada dodatkowe 20% wolniej (mnoży się z Termosem, dno 30% dalej obowiązuje) |
-| 🪵 Druga Ściana Półek | 349 | +6 slotów w każdej bazie |
+| 🌱 Grzybowa Grządka +5 | 199 | +5 grządek na działce (20 → 25) |
 | 🌙 Nocny Marek | 249 | offline: 100% stawki i cap 8 h |
 | ⚡ Teleport do Pierścieni | 249 | szybka podróż do pierścieni, do których już dobiegłeś o własnych siłach |
 | 👑 VIP | 449 | +10% szczęścia, złoty nick, aura, tytuł w bazie |

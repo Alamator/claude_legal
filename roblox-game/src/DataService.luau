@@ -21,8 +21,9 @@ function DataService.defaultData()
 		cash = 0,
 		staminaLevel = 0,
 		thermosLevel = 0,
-		shelvesOwned = Config.Base.startShelves,
-		-- grzyby na półkach: { {speciesIdx, rarityIdx, mutationIdx, freshness}, ... }
+		plotsOwned = Config.Base.basePlots,
+		-- grzyby zasadzone na grządkach:
+		-- { {worldIdx, speciesIdx, rarityIdx, mutationIdx, freshness, earned}, ... }
 		shelf = {},
 		-- kupione skróty powrotne: { ["2"] = true, ... } (klucze-stringi dla DataStore)
 		shortcuts = {},

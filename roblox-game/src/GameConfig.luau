@@ -276,12 +276,17 @@ Config.Worlds = {
 -- BAZA I ZAKUPY JEDNORAZOWE (GDD §3, §6)
 -- ===========================================================================
 
+-- GRZĄDKI: grzyby są ZASADZONE w ziemi na działce gracza. Start: 10 grządek
+-- (2 rządki po 5, po 5 na stronę). Dokupowanie PO JEDNEJ do 20 (cena rośnie
+-- wykładniczo — nie psuje ekonomii). Game Pass „+5 Grządek" → max 25.
+-- Pod każdą grządką zielone pole zlicza urobek; wejście na nie zbiera kasę.
 Config.Base = {
-	startShelves = 4,
-	maxShelves = 16,
-	shelfBaseCost = 500,
-	shelfCostGrowth = 2.2, -- cena = shelfBaseCost * shelfCostGrowth^(kupione)
-	sellFromShelfMult = 60, -- sprzedaż z półki = 60 s dochodu jednorazowo
+	basePlots = 10,
+	maxPlotsBuyable = 20,   -- limit dokupowania za kasę
+	plotBaseCost = 500,
+	plotCostGrowth = 2.2,   -- cena = plotBaseCost * growth^(dokupione)
+	sellFromShelfMult = 60, -- sprzedaż grzyba z grządki = 60 s jego dochodu
+	collectSoundId = "rbxasset://sounds/electronicpingshort.wav",
 }
 
 Config.Shortcuts = {
@@ -395,7 +400,7 @@ Config.Daily = {
 		{ id = "Rare5",     text = "Zetnij 5 Rzadkich lub lepszych", target = 5,  reward = 600, stat = "rareCuts" },
 		{ id = "Deliver15", text = "Dostarcz 8 grzybów do bazy",     target = 8,  reward = 500, stat = "delivered" },
 		{ id = "Deep3",     text = "Zetnij grzyba w pierścieniu 3+", target = 1,  reward = 300, stat = "deepCut" },
-		{ id = "Shelf8",    text = "Miej 8 grzybów na półkach",      target = 8,  reward = 500, stat = "shelfCount" },
+		{ id = "Shelf8",    text = "Miej 8 grzybów na grządkach",    target = 8,  reward = 500, stat = "shelfCount" },
 	},
 }
 
@@ -448,7 +453,7 @@ Config.Events = {
 Config.GamePasses = {
 	DoubleCash    = { name = "Podwójna Kasa",        priceRobux = 399, id = 0, effect = { incomeMult = 2 } },
 	CoolerBox     = { name = "Lodówka Turystyczna",  priceRobux = 299, id = 0, effect = { freshnessDecayMult = 0.8 } },
-	ExtraShelves  = { name = "Druga Ściana Półek",   priceRobux = 349, id = 0, effect = { extraShelves = 6 } },
+	ExtraPlots    = { name = "Grzybowa Grządka +5",  priceRobux = 199, id = 0, effect = { extraPlots = 5 } },
 	NightOwl      = { name = "Nocny Marek",          priceRobux = 249, id = 0, effect = { offlinePass = true } },
 	RingTeleport  = { name = "Teleport do Pierścieni", priceRobux = 249, id = 0, effect = { ringTeleport = true } },
 	VIP           = { name = "VIP",                  priceRobux = 449, id = 0, effect = { luckMult = 1.1, chatTag = "VIP" } },
