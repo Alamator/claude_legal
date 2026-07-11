@@ -175,10 +175,10 @@ i mechaniki są identyczne (jeden zestaw kodu, różne dane — tanie w produkcj
 | # | Świat | Klimat | Mnożnik | Przykładowe gatunki (po 10 na świat) |
 |---|-------|--------|--------:|---------------------------------------|
 | 1 | **Las Liściasty** | ciepły, słoneczny | ×1 | Kurka, Podgrzybek, Borowik… |
-| 2 | **Bór Iglasty** | mgła, chłód | ×8 | Rydz, Maślak, Muchomor Królewski… |
-| 3 | **Mokradła** | bagno, bioluminescencja | ×50 | Błotnik, Zgniłek, Świetlik Bagienny… |
-| 4 | **Kryształowa Grota** | podziemia, kryształy | ×300 | Kryształak, Ametystówka… |
-| 5 | **Grzyboksiężyc** 🚀 | kosmos, niska grawitacja | ×2000 | Lunark, Nebulon, Czarna Dziura (sekretny) |
+| 2 | **Bór Iglasty** | mgła, chłód | ×12 | Rydz, Maślak, Muchomor Królewski… |
+| 3 | **Mokradła** | bagno, bioluminescencja | ×250 | Błotnik, Zgniłek, Świetlik Bagienny… |
+| 4 | **Kryształowa Grota** | podziemia, kryształy | ×6 000 | Kryształak, Ametystówka… |
+| 5 | **Grzyboksiężyc** 🚀 | kosmos, niska grawitacja | ×200 000 | Lunark, Nebulon, Czarna Dziura (sekretny) |
 
 Portal do świata n+1 kupuje się za kasę (jednorazowo). Na Grzyboksiężycu
 niska grawitacja = dłuższe skoki (kondycja „starcza na więcej") — darmowy
@@ -199,7 +199,7 @@ aktualizacji po premierze.
   przytrzymując E na kapeluszu. Dochód ×1,05/poziom (lvl 100 ≈ ×125),
   koszt ×1,10/poziom skalowany z wartością własną grzyba — zwrot rośnie
   z ~60 s do ~1,5 h, więc początek to dopamina, a setka to prestiż.
-  Grzyb ROŚNIE z poziomem (lvl 100 ≈ ×3 — kolos nad działką); wymaksowanie
+  Grzyb ROŚNIE z poziomem (lvl 100 ≈ ×6,5 — kolos-drzewo, pod kapeluszem się przechodzi); wymaksowanie
   ogłaszane serwerowi. To główny zlew na kasę w late game.
 - **Dziennik Grzybiarza**: kolekcja wszystkich gatunków × rzadkości ×
   mutacji z nagrodami za skompletowanie stron (retencja długoterminowa).
@@ -244,6 +244,11 @@ rosnące liczby.
 - **Offline**: półki zarabiają 50% stawki, cap 2 h (Game Pass: 100% i 8 h).
 - **Cel balansu**: pierwszy portal (Bór) po ~2–3 h gry; Grzyboksiężyc po
   ~30–40 h.
+- **Filozofia wielkich liczb:** simy Roblox żyją absurdalnymi sumami
+  (10Qt, 100Sx) — gracze je kochają, bo nigdy nie zobaczą ich w życiu.
+  Ekonomia celowo puchnie z każdym światem (mnożniki ×1 → ×200 000,
+  jajo na Grzyboksiężycu = 1.5T), a wspólny formatter (K, M, B, T, Qa,
+  Qt, Sx, Sp, Oc, No, Dc) obsługuje całą drabinkę na HUD i w świecie.
 - Wszystkie liczby w JEDNYM ModuleScripcie konfiguracyjnym
   ([`src/GameConfig.luau`](src/GameConfig.luau)) — strojenie bez grzebania
   w logice.

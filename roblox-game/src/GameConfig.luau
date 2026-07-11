@@ -39,6 +39,33 @@ Config.Stats = {
 	},
 }
 
+-- ===========================================================================
+-- FORMATOWANIE KASY — simy Roblox żyją absurdalnymi sumami (10Qt, 100Sx…),
+-- gracze je KOCHAJĄ. Wspólna drabinka sufiksów dla klienta i serwera;
+-- ekonomia świadomie puchnie z każdym światem, żeby te liczby osiągać.
+-- ===========================================================================
+
+local NUMBER_SUFFIXES = { "K", "M", "B", "T", "Qa", "Qt", "Sx", "Sp", "Oc", "No", "Dc" }
+
+function Config.fmtNumber(n: number): string
+	n = math.floor(n)
+	if n < 1000 then
+		return tostring(n)
+	end
+	local value = n
+	local index = 0
+	while value >= 1000 and index < #NUMBER_SUFFIXES do
+		value /= 1000
+		index += 1
+	end
+	if value >= 100 then
+		return string.format("%d%s", math.floor(value), NUMBER_SUFFIXES[index])
+	elseif value >= 10 then
+		return string.format("%.1f%s", value, NUMBER_SUFFIXES[index])
+	end
+	return string.format("%.2f%s", value, NUMBER_SUFFIXES[index])
+end
+
 -- Prędkości poruszania (używane przez serwer — klient ich nie ustawia!)
 Config.Movement = {
 	walkSpeed = 16,
@@ -72,7 +99,8 @@ Config.MushroomLevels = {
 	incomeMultPerLevel = 1.05,
 	costBaseSeconds = 3,   -- koszt lvl 1→2 = 3 s bazowego dochodu grzyba
 	costGrowth = 1.10,
-	sizePerLevel = 0.019,  -- skala modelu: lvl 100 ≈ ×2,9
+	sizePerLevel = 0.055,  -- skala modelu: lvl 100 ≈ ×6,5 — KOLOS-drzewo,
+	                       -- pod którego kapeluszem się przechodzi
 }
 
 function Config.mushroomLevelMult(lvl: number?): number
@@ -185,7 +213,7 @@ Config.Worlds = {
 	{
 		id = "Coniferous",
 		name = "Bór Iglasty",
-		incomeMult = 8,
+		incomeMult = 12,
 		freshnessDecayPerSec = 1.6,
 		portalCost = 25_000, -- cel: osiągalny po ~2-3 h gry (GDD §8)
 		theme = {
@@ -212,9 +240,9 @@ Config.Worlds = {
 	{
 		id = "Swamp",
 		name = "Mokradła",
-		incomeMult = 50,
+		incomeMult = 250,
 		freshnessDecayPerSec = 2.2,
-		portalCost = 400_000,
+		portalCost = 3_000_000,
 		theme = {
 			style = "swamp", -- karłowate drzewa + świecące kałuże
 			trunk = Color3.fromRGB(72, 82, 56),
@@ -239,9 +267,9 @@ Config.Worlds = {
 	{
 		id = "CrystalCave",
 		name = "Kryształowa Grota",
-		incomeMult = 300,
+		incomeMult = 6_000,
 		freshnessDecayPerSec = 3.0,
-		portalCost = 6_000_000,
+		portalCost = 250_000_000,
 		theme = {
 			style = "crystal", -- świecące kryształy zamiast drzew
 			trunk = Color3.fromRGB(70, 70, 90),
@@ -266,9 +294,9 @@ Config.Worlds = {
 	{
 		id = "Mushmoon",
 		name = "Grzyboksiężyc",
-		incomeMult = 2000,
+		incomeMult = 200_000,
 		freshnessDecayPerSec = 4.0,
-		portalCost = 90_000_000,
+		portalCost = 25_000_000_000,
 		theme = {
 			style = "moon", -- kratery i lewitujące skały
 			trunk = Color3.fromRGB(120, 120, 130),
@@ -354,7 +382,7 @@ Config.Combo = {
 Config.Pets = {
 	maxEquipped = 3,  -- 4. slot = przyszły Game Pass
 	maxOwned = 50,
-	eggCostByWorld = { 5_000, 150_000, 2_000_000, 30_000_000, 500_000_000 },
+	eggCostByWorld = { 5_000, 400_000, 50_000_000, 8_000_000_000, 1_500_000_000_000 },
 	-- pozycja w puli świata = rzadkość: pet nr 1 jest Zwykły … nr 5 Legendarny
 	hatchWeights = { 60, 25, 10, 4, 1 }, -- Zwykły..Legendarny (pety bez Mitycznych)
 	luckAffectsFrom = 3,      -- passy szczęścia mnożą wagi od Rzadkiego wzwyż

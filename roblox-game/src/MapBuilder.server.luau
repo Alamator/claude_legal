@@ -525,7 +525,7 @@ for worldIdx, worldConfig in Config.Worlds do
 	egg:SetAttribute("WorldIndex", worldIdx)
 	addSparkles(egg, theme.accent, 2)
 	makePrompt(egg, "Wyklnij peta",
-		("🥚 Jajo: %s — %d 💰"):format(worldConfig.name, Config.Pets.eggCostByWorld[worldIdx]))
+		("🥚 Jajo: %s — %s 💰"):format(worldConfig.name, Config.fmtNumber(Config.Pets.eggCostByWorld[worldIdx])))
 
 	-- === Portale podróży między światami ===
 	local nextWorld = Config.Worlds[worldIdx + 1]
@@ -533,7 +533,7 @@ for worldIdx, worldConfig in Config.Worlds do
 		buildTravelPortal(worldFolder, "PortalNext",
 			Vector3.new(offsetX + MAP_WIDTH / 2 - 10, 5, -BASE_LENGTH / 2),
 			Color3.fromRGB(180, 120, 255), worldIdx + 1,
-			("→ %s (odblokowanie: %d 💰)"):format(nextWorld.name, nextWorld.portalCost))
+			("→ %s (odblokowanie: %s 💰)"):format(nextWorld.name, Config.fmtNumber(nextWorld.portalCost)))
 	end
 	if worldIdx > 1 then
 		buildTravelPortal(worldFolder, "PortalPrev",
@@ -614,7 +614,7 @@ for worldIdx, worldConfig in Config.Worlds do
 			portal:SetAttribute("WorldIndex", worldIdx)
 			addSparkles(portal, Color3.fromRGB(150, 210, 255), 4)
 			makePrompt(portal, "Skrót do bazy",
-				("%s — %d 💰 (raz)"):format(shortcutConfig.name, shortcutConfig.cost))
+				("%s — %s 💰 (raz)"):format(shortcutConfig.name, Config.fmtNumber(shortcutConfig.cost)))
 		end
 
 		prevEndZ = endZ

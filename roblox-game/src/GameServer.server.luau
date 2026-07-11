@@ -474,8 +474,8 @@ local function journalAdd(player: Player, item: Carried)
 		for _, milestone in Config.Journal.milestones do
 			if milestone.count == count then
 				data.cash += milestone.reward
-				notifyRemote:FireAllClients(("📖 %s ma już %d wpisów w Dzienniku Grzybiarza! (+%d 💰)")
-					:format(player.DisplayName, count, milestone.reward))
+				notifyRemote:FireAllClients(("📖 %s ma już %d wpisów w Dzienniku Grzybiarza! (+%s 💰)")
+					:format(player.DisplayName, count, Config.fmtNumber(milestone.reward)))
 			end
 		end
 	end
@@ -500,8 +500,8 @@ local function awardXp(player: Player, amount: number)
 		end
 		data.cash += reward
 
-		notifyRemote:FireClient(player, ("⬆️ POZIOM %d! Nagroda: %d 💰%s"):format(
-			data.level, math.floor(reward),
+		notifyRemote:FireClient(player, ("⬆️ POZIOM %d! Nagroda: %s 💰%s"):format(
+			data.level, Config.fmtNumber(reward),
 			isMilestone and " (kamień milowy ×5!)" or ""))
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -532,8 +532,8 @@ local function grantDailyStreak(player: Player)
 	local base = Config.Streak.baseRewards[math.min(data.streakDay, #Config.Streak.baseRewards)]
 	local reward = math.floor(base * (1 + data.level * Config.Streak.levelScale))
 	data.cash += reward
-	notifyRemote:FireClient(player, ("🔥 Seria dzienna: dzień %d — +%d 💰! Wróć jutro po więcej.")
-		:format(data.streakDay, reward))
+	notifyRemote:FireClient(player, ("🔥 Seria dzienna: dzień %d — +%s 💰! Wróć jutro po więcej.")
+		:format(data.streakDay, Config.fmtNumber(reward)))
 end
 
 -- Aktualizuje postęp dziennych zadań o danym typie statystyki.
@@ -552,8 +552,8 @@ local function questProgress(player: Player, stat: string, amount: number, absol
 			if quest.progress >= template.target then
 				quest.done = true
 				s.data.cash += template.reward
-				notifyRemote:FireClient(player, ("✅ Zadanie wykonane: %s! Nagroda %d 💰")
-					:format(template.text, template.reward))
+				notifyRemote:FireClient(player, ("✅ Zadanie wykonane: %s! Nagroda %s 💰")
+					:format(template.text, Config.fmtNumber(template.reward)))
 			end
 		end
 	end
@@ -669,8 +669,8 @@ local function refreshShelfDisplay(player: Player)
 			if lvl < Config.MushroomLevels.maxLevel then
 				local upPrompt = Instance.new("ProximityPrompt")
 				upPrompt.ActionText = "Ulepsz grzyba"
-				upPrompt.ObjectText = ("lvl %d/%d — %d 💰"):format(
-					lvl, Config.MushroomLevels.maxLevel, mushroomUpgradeCost(item))
+				upPrompt.ObjectText = ("lvl %d/%d — %s 💰"):format(
+					lvl, Config.MushroomLevels.maxLevel, Config.fmtNumber(mushroomUpgradeCost(item)))
 				upPrompt.HoldDuration = 0.35
 				upPrompt.MaxActivationDistance = 9
 				upPrompt.RequiresLineOfSight = false
@@ -683,7 +683,7 @@ local function refreshShelfDisplay(player: Player)
 					end
 					local cost = mushroomUpgradeCost(planted)
 					if s.data.cash < cost then
-						notifyRemote:FireClient(player, ("❌ Ulepszenie kosztuje %d 💰 — za mało kasy."):format(cost))
+						notifyRemote:FireClient(player, ("❌ Ulepszenie kosztuje %s 💰 — za mało kasy."):format(Config.fmtNumber(cost)))
 						return
 					end
 					s.data.cash -= cost
@@ -725,7 +725,7 @@ local function refreshShelfDisplay(player: Player)
 			label.Font = Enum.Font.FredokaOne
 			label.TextScaled = true
 			label.TextColor3 = Color3.fromRGB(14, 60, 24)
-			label.Text = "💰 " .. math.floor(item.earned or 0)
+			label.Text = "💰 " .. Config.fmtNumber(item.earned or 0)
 			label.Parent = gui
 			s.plotLabels[index] = label
 
@@ -752,7 +752,7 @@ local function refreshShelfDisplay(player: Player)
 				sound:Play()
 				burstAt(collect.Position + Vector3.new(0, 1, 0), Color3.fromRGB(120, 235, 130))
 				floatingText(collect.Position + Vector3.new(0, 1.5, 0),
-					("+%d 💰"):format(earned), Color3.fromRGB(140, 235, 140))
+					("+%s 💰"):format(Config.fmtNumber(earned)), Color3.fromRGB(140, 235, 140))
 				syncAttributes(player)
 			end)
 		end
@@ -885,14 +885,14 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 			local scrapValue = math.max(1, math.floor(worstValue * Config.Carry.scrapSeconds))
 			s.data.cash += scrapValue
 			s.carried[worstIdx] = item
-			notifyRemote:FireClient(player, ("🔁 %s wypycha z koszyka: %s (+%d 💰)")
-				:format(itemLabel(item), itemLabel(scrapped), scrapValue))
+			notifyRemote:FireClient(player, ("🔁 %s wypycha z koszyka: %s (+%s 💰)")
+				:format(itemLabel(item), itemLabel(scrapped), Config.fmtNumber(scrapValue)))
 		else
 			-- słabszy niż wszystko w koszyku: sprzedaż na miejscu
 			local scrapValue = math.max(1, math.floor(newValue * Config.Carry.scrapSeconds))
 			s.data.cash += scrapValue
-			notifyRemote:FireClient(player, ("💸 %s za słaby na koszyk — sprzedany za %d 💰")
-				:format(itemLabel(item), scrapValue))
+			notifyRemote:FireClient(player, ("💸 %s za słaby na koszyk — sprzedany za %s 💰")
+				:format(itemLabel(item), Config.fmtNumber(scrapValue)))
 		end
 	end
 
@@ -912,7 +912,7 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 	if milestoneSeconds then
 		local bonus = math.max(50, math.floor(shelfIncomePerSec(s.data) * milestoneSeconds))
 		s.data.cash += bonus
-		notifyRemote:FireClient(player, ("🔥 COMBO ×%d! Bonus: %d 💰"):format(s.comboCount, bonus))
+		notifyRemote:FireClient(player, ("🔥 COMBO ×%d! Bonus: %s 💰"):format(s.comboCount, Config.fmtNumber(bonus)))
 		if cutPosition then
 			floatingText(cutPosition + Vector3.new(0, 2, 0),
 				("COMBO ×%d!"):format(s.comboCount), Color3.fromRGB(255, 140, 60))
@@ -1067,7 +1067,7 @@ local function deliver(player: Player)
 
 	local message = ("🌱 Zasadzono %d na grządkach"):format(shelved)
 	if sold > 0 then
-		message ..= (", sprzedano %d za %d 💰 (brak grządek!)"):format(sold, math.floor(soldValue))
+		message ..= (", sprzedano %d za %s 💰 (brak grządek!)"):format(sold, Config.fmtNumber(soldValue))
 	end
 	notifyRemote:FireClient(player, message)
 
@@ -1076,7 +1076,7 @@ local function deliver(player: Player)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root then
 		local rewardText = sold > 0
-			and ("+%d 🍄  +%d 💰"):format(shelved, math.floor(soldValue))
+			and ("+%d 🍄  +%s 💰"):format(shelved, Config.fmtNumber(soldValue))
 			or ("+%d 🍄"):format(shelved)
 		floatingText(root.Position + Vector3.new(0, 2, 0), rewardText, Color3.fromRGB(140, 235, 140))
 	end
@@ -1125,8 +1125,8 @@ local function travelTo(player: Player, worldIdx: number)
 			s.data.worldsUnlocked[key] = true
 			notifyRemote:FireAllClients(("🌍 %s odblokował świat: %s!"):format(player.DisplayName, world.name))
 		else
-			notifyRemote:FireClient(player, ("❌ Portal do „%s" kosztuje %d 💰 — za mało kasy.")
-				:format(world.name, world.portalCost))
+			notifyRemote:FireClient(player, ("❌ Portal do „%s" kosztuje %s 💰 — za mało kasy.")
+				:format(world.name, Config.fmtNumber(world.portalCost)))
 			return
 		end
 	end
@@ -1178,7 +1178,7 @@ for _, worldFolder in worldsFolder:GetChildren() do
 				s.data.shortcuts[key] = true
 				notifyRemote:FireClient(player, ("✅ Kupiono: %s! Od teraz teleportuje cię do bazy."):format(shortcut.name))
 			else
-				notifyRemote:FireClient(player, ("❌ %s kosztuje %d 💰 — za mało kasy."):format(shortcut.name, shortcut.cost))
+				notifyRemote:FireClient(player, ("❌ %s kosztuje %s 💰 — za mało kasy."):format(shortcut.name, Config.fmtNumber(shortcut.cost)))
 			end
 			syncAttributes(player)
 		end)
@@ -1204,7 +1204,7 @@ sellRemote.OnServerEvent:Connect(function(player)
 	local value = worstIncome * Config.Base.sellFromShelfMult
 	table.remove(s.data.shelf, worstIdx)
 	s.data.cash += value
-	notifyRemote:FireClient(player, ("💸 Sprzedano najsłabszy grzyb za %d 💰 (slot wolny)."):format(math.floor(value)))
+	notifyRemote:FireClient(player, ("💸 Sprzedano najsłabszy grzyb za %s 💰 (slot wolny)."):format(Config.fmtNumber(value)))
 	refreshShelfDisplay(player)
 	syncAttributes(player)
 end)
@@ -1251,7 +1251,7 @@ local function hatchOnce(player: Player, worldIdx: number, quiet: boolean): bool
 	end
 	if data.cash < cost then
 		if not quiet then
-			notifyRemote:FireClient(player, ("❌ Jajo kosztuje %d 💰 — za mało kasy."):format(cost))
+			notifyRemote:FireClient(player, ("❌ Jajo kosztuje %s 💰 — za mało kasy."):format(Config.fmtNumber(cost)))
 		end
 		return false
 	end
@@ -1377,7 +1377,7 @@ rebirthRemote.OnServerEvent:Connect(function(player)
 
 	local cost = Config.rebirthCost(data.rebirths)
 	if data.cash < cost then
-		notifyRemote:FireClient(player, ("❌ Rebirth kosztuje %d 💰 — za mało kasy."):format(cost))
+		notifyRemote:FireClient(player, ("❌ Rebirth kosztuje %s 💰 — za mało kasy."):format(Config.fmtNumber(cost)))
 		return
 	end
 
@@ -1451,8 +1451,8 @@ buyRemote.OnServerEvent:Connect(function(player, upgradeName)
 		s.tutorialStep = 0
 		data.tutorialDone = true
 		data.cash += Config.Tutorial.reward
-		notifyRemote:FireClient(player, ("🎓 Samouczek ukończony! +%d 💰 — powodzenia, grzybiarzu!")
-			:format(Config.Tutorial.reward))
+		notifyRemote:FireClient(player, ("🎓 Samouczek ukończony! +%s 💰 — powodzenia, grzybiarzu!")
+			:format(Config.fmtNumber(Config.Tutorial.reward)))
 	end
 	syncAttributes(player)
 end)
@@ -1528,7 +1528,7 @@ task.spawn(function()
 				item.earned = (item.earned or 0) + itemIncome(item, data)
 				local label = s.plotLabels[index]
 				if label then
-					label.Text = "💰 " .. math.floor(item.earned)
+					label.Text = "💰 " .. Config.fmtNumber(item.earned)
 				end
 			end
 
@@ -1540,7 +1540,7 @@ task.spawn(function()
 					math.floor(shelfIncomePerSec(data) * Config.Chest.incomeSeconds)
 				)
 				data.cash += reward
-				notifyRemote:FireClient(player, ("🎁 Skrzynka czasowa: +%d 💰!"):format(reward))
+				notifyRemote:FireClient(player, ("🎁 Skrzynka czasowa: +%s 💰!"):format(Config.fmtNumber(reward)))
 			end
 
 			-- combo wygasa po oknie bez ścięcia
@@ -1704,12 +1704,12 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 	if receiptInfo.ProductId == Config.DevProducts.OfflineDouble.id then
 		if s.pendingOfflineBonus > 0 then
 			s.data.cash += s.pendingOfflineBonus
-			notifyRemote:FireClient(player, ("🌙 Podwójny Zbiór Nocny: +%d 💰!"):format(math.floor(s.pendingOfflineBonus)))
+			notifyRemote:FireClient(player, ("🌙 Podwójny Zbiór Nocny: +%s 💰!"):format(Config.fmtNumber(s.pendingOfflineBonus)))
 			local character = player.Character
 			local root = character and character:FindFirstChild("HumanoidRootPart")
 			if root then
 				floatingText(root.Position + Vector3.new(0, 2, 0),
-					("+%d 💰"):format(math.floor(s.pendingOfflineBonus)), Color3.fromRGB(255, 220, 120))
+					("+%s 💰"):format(Config.fmtNumber(s.pendingOfflineBonus)), Color3.fromRGB(255, 220, 120))
 			end
 			s.pendingOfflineBonus = 0
 			syncAttributes(player)
