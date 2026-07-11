@@ -44,6 +44,9 @@ def finish(obj, name, material, coll, scale=None):
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # styl Roblox: płaskie cieniowanie — każda ścianka łapie światło osobno
+    for poly in obj.data.polygons:
+        poly.use_smooth = False
     obj.data.materials.clear()
     obj.data.materials.append(material)
     move_to_collection(obj, coll)
@@ -58,6 +61,8 @@ def join_as(objs, name, material, coll):
     bpy.ops.object.join()
     joined = bpy.context.active_object
     joined.name = name
+    for poly in joined.data.polygons:
+        poly.use_smooth = False
     joined.data.materials.clear()
     joined.data.materials.append(material)
     move_to_collection(joined, coll)
@@ -106,7 +111,7 @@ make_trunk(6, 2.2, 0.42, 0.3, "Drzewo2_Pien")
 stozki = []
 for i, (r, h, z) in enumerate([(1.9, 2.2, 3.0), (1.45, 1.9, 4.4), (0.95, 1.7, 5.7)]):
     bpy.ops.mesh.primitive_cone_add(
-        vertices=9, radius1=r, radius2=0.03, depth=h, location=(6, 0, z)
+        vertices=8, radius1=r, radius2=0.03, depth=h, location=(6, 0, z)
     )
     stozki.append(bpy.context.active_object)
 join_as(stozki, "Drzewo2_Igly", MAT_IGLY, coll)

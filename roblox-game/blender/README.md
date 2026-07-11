@@ -1,5 +1,12 @@
 # Modele 3D — skrypty do Blendera
 
+**Zasada stylu (obowiązuje wszystkie modele):** klockowato-uroczy Roblox
+low-poly — mało segmentów (wyraźne, „kwadratowe" fasety), **płaskie
+cieniowanie** (każda ścianka łapie światło osobno), pełne soczyste kolory,
+przysadziste proporcje. Ma być ślicznie, ale po robloxowemu — a drabinka
+rzadkości ma budzić ciekawość: „skoro ten jest taki, to jak wygląda
+najrzadszy?"
+
 Gotowe skrypty generujące modele gry w Blenderze (darmowy,
 [blender.org](https://www.blender.org)). Nie musisz umieć modelować —
 wklejasz skrypt, klikasz Run, model stoi w scenie.

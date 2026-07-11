@@ -68,6 +68,9 @@ def finish(obj, name, material, scale=None):
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # styl Roblox: płaskie cieniowanie — każda ścianka łapie światło osobno
+    for poly in obj.data.polygons:
+        poly.use_smooth = False
     obj.data.materials.clear()
     obj.data.materials.append(material)
     move_to_collection(obj, coll)
@@ -85,14 +88,14 @@ def join_group(parts, name, material):
 
 
 def stem(x, height, r_bottom, r_top, name, material, z0=0.0):
-    bpy.ops.mesh.primitive_cone_add(vertices=10, radius1=r_bottom,
+    bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=r_bottom,
                                     radius2=r_top, depth=height,
                                     location=(x, 0, z0 + height / 2))
     return finish(bpy.context.active_object, name, material)
 
 
 def dome(x, z, radius, squash, name, material):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8,
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=5,
                                          radius=radius, location=(x, 0, z))
     return finish(bpy.context.active_object, name, material,
                   scale=(1.0, 1.0, squash))
@@ -106,7 +109,7 @@ def sphere(x, y, z, r, segments=10):
 
 def torus(x, z, major, minor, name, material, rot=(0, 0, 0)):
     bpy.ops.mesh.primitive_torus_add(major_radius=major, minor_radius=minor,
-                                     major_segments=24, minor_segments=6,
+                                     major_segments=16, minor_segments=6,
                                      location=(x, 0, z),
                                      rotation=(math.radians(rot[0]),
                                                math.radians(rot[1]),
@@ -170,11 +173,11 @@ torus(X, 1.35, 1.35, 0.05, "K02_Lunark_HaloGlow", M_HALO, rot=(18, 8, 0))
 # 3) KOMETKA (3) — przechylony lodowy grzyb z WARKOCZEM z malejących kul
 # ===========================================================================
 X = 10
-bpy.ops.mesh.primitive_cone_add(vertices=10, radius1=0.28, radius2=0.2,
+bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.28, radius2=0.2,
                                 depth=1.0, location=(X, 0, 0.5),
                                 rotation=(0, math.radians(14), 0))
 finish(bpy.context.active_object, "K03_Kometka_Trzon", M_TRZON)
-bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.75,
+bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=5, radius=0.75,
                                      location=(X + 0.15, 0, 1.15))
 kometa_kap = bpy.context.active_object
 kometa_kap.scale = (1.0, 1.0, 0.62)

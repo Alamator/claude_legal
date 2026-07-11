@@ -57,6 +57,9 @@ def finish(obj, name, material, scale=None):
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # styl Roblox: płaskie cieniowanie — każda ścianka łapie światło osobno
+    for poly in obj.data.polygons:
+        poly.use_smooth = False
     obj.data.materials.clear()
     obj.data.materials.append(material)
     move_to_collection(obj, coll)
@@ -73,14 +76,14 @@ def join_as(objs, name, material):
 
 
 def stem(x, height, r_bottom, r_top, name, material):
-    bpy.ops.mesh.primitive_cone_add(vertices=10, radius1=r_bottom,
+    bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=r_bottom,
                                     radius2=r_top, depth=height,
                                     location=(x, 0, height / 2))
     return finish(bpy.context.active_object, name, material)
 
 
 def dome(x, z, radius, squash, name, material):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8,
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=5,
                                          radius=radius, location=(x, 0, z))
     return finish(bpy.context.active_object, name, material,
                   scale=(1.0, 1.0, squash))
@@ -94,7 +97,7 @@ def dots_on_dome(x, cap_z, cap_r, squash, name, material, pattern, dot_squash=0.
         d = cap_r * dist_frac
         dz = squash * math.sqrt(max(cap_r * cap_r - d * d, 0.0))
         bpy.ops.mesh.primitive_uv_sphere_add(
-            segments=8, ring_count=6, radius=size,
+            segments=6, ring_count=4, radius=size,
             location=(x + math.cos(a) * d, math.sin(a) * d, cap_z + dz))
         p = bpy.context.active_object
         p.scale = (1.0, 1.0, dot_squash)
@@ -113,7 +116,7 @@ def ring_on_cap(x, cap_z, cap_r, squash, ring_frac, name, material, minor=0.05):
     d = cap_r * ring_frac
     dz = squash * math.sqrt(max(cap_r * cap_r - d * d, 0.0))
     bpy.ops.mesh.primitive_torus_add(major_radius=d, minor_radius=minor,
-                                     major_segments=20, minor_segments=6,
+                                     major_segments=14, minor_segments=6,
                                      location=(x, 0, cap_z + dz))
     return finish(bpy.context.active_object, name, material)
 
@@ -140,7 +143,7 @@ M_ZLOTO = make_material("S1_Zloto", (0.91, 0.76, 0.35), roughness=0.35)
 # ===========================================================================
 X = 0
 stem(X, 0.7, 0.28, 0.22, "G01_Kurka_Trzon", M_KURKA)
-bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=0.22, radius2=0.95,
+bpy.ops.mesh.primitive_cone_add(vertices=9, radius1=0.22, radius2=0.95,
                                 depth=0.8, location=(X, 0, 1.05))
 finish(bpy.context.active_object, "G01_Kurka_Lejek", M_KURKA)
 

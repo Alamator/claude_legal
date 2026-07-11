@@ -49,6 +49,9 @@ def finish(obj, name, material, coll, scale=None):
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # styl Roblox: płaskie cieniowanie — każda ścianka łapie światło osobno
+    for poly in obj.data.polygons:
+        poly.use_smooth = False
     obj.data.materials.clear()
     obj.data.materials.append(material)
     move_to_collection(obj, coll)
@@ -68,7 +71,7 @@ MAT_KROPKI = make_material("GrzybKropki", (0.98, 0.97, 0.94))
 def make_stem(x, height, r_bottom, r_top, name):
     """Trzon: lekko zbieżny walec (stożek ścięty), 10 boków = low-poly."""
     bpy.ops.mesh.primitive_cone_add(
-        vertices=10,
+        vertices=8,
         radius1=r_bottom,
         radius2=r_top,
         depth=height,
@@ -80,7 +83,7 @@ def make_stem(x, height, r_bottom, r_top, name):
 def make_cap_dome(x, z, radius, squash, name):
     """Kapelusz-kopuła: spłaszczona kula (12 segmentów = low-poly)."""
     bpy.ops.mesh.primitive_uv_sphere_add(
-        segments=12, ring_count=8, radius=radius, location=(x, 0, z)
+        segments=8, ring_count=5, radius=radius, location=(x, 0, z)
     )
     return finish(
         bpy.context.active_object, name, MAT_KAPELUSZ, coll,
@@ -91,7 +94,7 @@ def make_cap_dome(x, z, radius, squash, name):
 def make_cap_cone(x, z, radius, height, name):
     """Kapelusz-stożek (smukły, bajkowy)."""
     bpy.ops.mesh.primitive_cone_add(
-        vertices=12, radius1=radius, radius2=0.02, depth=height,
+        vertices=9, radius1=radius, radius2=0.02, depth=height,
         location=(x, 0, z + height / 2),
     )
     return finish(bpy.context.active_object, name, MAT_KAPELUSZ, coll)
@@ -108,7 +111,7 @@ def make_dots(x, cap_z, cap_r, squash, name, pattern):
         d = cap_r * dist_frac
         dz = squash * math.sqrt(max(cap_r * cap_r - d * d, 0.0))
         bpy.ops.mesh.primitive_uv_sphere_add(
-            segments=8, ring_count=6, radius=size,
+            segments=6, ring_count=4, radius=size,
             location=(x + dx, dy, cap_z + dz),
         )
         dot = bpy.context.active_object
@@ -122,6 +125,8 @@ def make_dots(x, cap_z, cap_r, squash, name, pattern):
     bpy.ops.object.join()
     joined = bpy.context.active_object
     joined.name = name
+    for poly in joined.data.polygons:
+        poly.use_smooth = False
     joined.data.materials.clear()
     joined.data.materials.append(MAT_KROPKI)
     move_to_collection(joined, coll)
