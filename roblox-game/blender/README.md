@@ -9,6 +9,7 @@ wklejasz skrypt, klikasz Run, model stoi w scenie.
 | Skrypt | Co generuje | Gdzie trafi w grze |
 |--------|-------------|--------------------|
 | `05-grzyby-swiat1.py` | **10 gatunków Świata 1** — po jednym modelu na gatunek, im cenniejszy tym efektowniejszy (Kurka-lejek → Muchomor Cesarski ze złotymi kropkami, pierścieniem i koroną) | miejscówki w lesie, mini na półkach, dziennik |
+| `06-grzyby-swiat5.py` | **10 gatunków Grzyboksiężyca (endgame)** — kratery, świetliste halo, warkocz komety, gwiezdny pył, pierścienie orbitalne z księżycem, plazma z rdzeniem, mgławica, antygrawitacyjny rozerwany trzon, supernowa, czarna dziura z dyskiem akrecyjnym. Części z `Glow` w nazwie → w Roblox ustaw Material = **Neon** | świat 5 |
 | `01-grzyby.py` | 4 ogólne warianty grzyba (klasyk z kropkami, szeroki talerz, smukły stożek, kulka) | placeholdery / dekoracje |
 | `02-drzewa.py` | drzewo liściaste, świerk, krzywe drzewo bagienne | dekoracje biomów (MapBuilder) |
 | `03-stragan.py` | stragan: konstrukcja, dwuspadowy daszek, białe pasy, skrzynki | centrum każdej bazy |
