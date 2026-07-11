@@ -67,8 +67,10 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] Widzisz HUD: kasa u góry, pasek kondycji na dole, kosz po prawej,
       3 przyciski ulepszeń po lewej.
 - [ ] **Shift** = sprint; pasek spada; po wyzerowaniu wleczesz się chwilę.
-- [ ] W lesie stoją grzybki — przytrzymaj **E** przy grzybku, trafia do kosza,
-      jego świeżość tyka w dół.
+- [ ] W lesie stoją grzybki — przytrzymaj **E** przy grzybku, trafia do
+      koszyka (2 miejsca!), jego świeżość tyka w dół.
+- [ ] Przy pełnym koszyku: słabszy roll = „💸 sprzedany na miejscu",
+      lepszy = „🔁 wypycha najsłabszego"; panel kosza pokazuje 🎒 2/2.
 - [ ] Wróć na drewniany **BasePad** w bazie → przytrzymaj **E** → grzyby idą
       na półki i kasa rośnie co sekundę.
 - [ ] Kupujesz ulepszenia; po **Stop i ponownym Play** kasa/poziomy wracają

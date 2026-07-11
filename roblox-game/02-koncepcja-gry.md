@@ -27,14 +27,21 @@ kolekcjonerskie (Steal a Brainrot).
 ```
 BAZA → sprint w głąb lasu (pasek kondycji topnieje; głębiej = lepsza pula)
      → ścinasz grzyby (każde ścięcie = LOSOWANIE rzadkości + mutacji)
-     → świeżość ściętych grzybów zaczyna spadać co sekundę
-     → DECYZJA: wracam z tym, co mam, czy pcham się głębiej po lepszy los?
-       (uwaga: na powrót TEŻ trzeba kondycji — pusty pasek = wleczesz się,
-        a świeżość leci w dół!)
+     → KOSZYK MA TYLKO 2 MIEJSCA (4 z passem): trzyma najlepsze okazy —
+       słabszy roll sprzedaje się na miejscu za grosze, lepszy wypycha
+       najsłabszego z koszyka (ścinasz dalej, „łowisz" lepsze rolle)
+     → świeżość niesionych grzybów spada co sekundę
+     → DECYZJA: wracam z tymi dwoma perłami, czy łowię głębiej lepszy los?
+       (na powrót TEŻ trzeba kondycji — pusty pasek = wleczesz się!)
      → powrót do bazy (skróty ratują życie)
      → grzyby lądują na półkach i ZARABIAJĄ kasę co sekundę
      → kasa → ulepszenia → głębiej/nowy świat → powtórz
 ```
+
+*Dlaczego mały koszyk:* pojedynczy grzyb ma znaczenie (przynosisz do bazy
+2 okazy, nie wór), półki (4→16) zapełniają się decyzjami zamiast jednym
+kursem, a ścinanie pozostaje nielimitowane — combo, XP i pity działają,
+bo każde ścięcie to nadal los na loterii.
 
 ### Pętla wolna — „imperium" (minuty/godziny/offline)
 
@@ -244,6 +251,7 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 | 🌙 Nocny Marek | 249 | offline: 100% stawki i cap 8 h |
 | ⚡ Teleport do Pierścieni | 249 | szybka podróż do pierścieni, do których już dobiegłeś o własnych siłach |
 | 👑 VIP | 449 | +10% szczęścia, złoty nick, aura, tytuł w bazie |
+| 🎒 Głęboki Koszyk | 249 | +2 miejsca w koszyku wypraw (2 → 4) |
 | 🥚 Otwórz ×3 | 199 | każde podejście do jaja otwiera 3 naraz (każde płatne) |
 | 🤖 Auto-Otwieranie | 99 | przełącznik AUTO przy jajku — otwiera co 3 s, gdy stoisz obok |
 | 🍀 Szczęście Jaj ×3 | 199 | wagi Rzadki+ w jajach ×3 |

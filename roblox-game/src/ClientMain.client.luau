@@ -963,10 +963,14 @@ local function refresh()
 	pityPill.Text = ("🍀 Gwarancja Rzadkiego: %d/%d"):format(pity, Config.Pity.cutsForGuaranteedRare)
 
 	local carried = player:GetAttribute("CarriedSummary") or ""
+	local carriedCount = player:GetAttribute("CarriedCount") or 0
+	local carrySlots = player:GetAttribute("CarrySlots") or 2
 	local shelfCount = player:GetAttribute("ShelfCount") or 0
 	local shelves = player:GetAttribute("ShelvesOwned") or 0
-	basketBody.Text = ("%s\n\n🪵 Półki: %d/%d")
-		:format(carried == "" and "— pusty —\n(odłóż grzyby w bazie!)" or carried, shelfCount, shelves)
+	basketBody.Text = ("🎒 Miejsca: %d/%d\n%s\n\n🪵 Półki: %d/%d")
+		:format(carriedCount, carrySlots,
+			carried == "" and "— pusto — (słabsze rolle sprzedają się same)" or carried,
+			shelfCount, shelves)
 
 	-- przyciski ulepszeń z aktualnymi cenami (te same wzory co na serwerze)
 	local staminaLevel = player:GetAttribute("StaminaLevel") or 0

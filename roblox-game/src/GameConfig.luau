@@ -44,6 +44,18 @@ Config.Movement = {
 }
 
 -- ===========================================================================
+-- KOSZYK — mało miejsc: do bazy niesiesz tylko najlepsze okazy.
+-- Ścinasz bez limitu (combo/XP/pity działają), ale koszyk trzyma tylko
+-- najcenniejsze: słabszy roll sprzedaje się na miejscu za grosze,
+-- lepszy wypycha najsłabszego z koszyka.
+-- ===========================================================================
+
+Config.Carry = {
+	baseSlots = 2,     -- bazowa pojemność koszyka
+	scrapSeconds = 8,  -- „sprzedaż na miejscu" = tyle sekund dochodu grzyba
+}
+
+-- ===========================================================================
 -- ŚWIEŻOŚĆ (GDD §4)
 -- ===========================================================================
 
@@ -378,7 +390,7 @@ Config.Daily = {
 	templates = {
 		{ id = "Cut20",     text = "Zetnij 20 grzybów",             target = 20, reward = 400, stat = "cuts" },
 		{ id = "Rare5",     text = "Zetnij 5 Rzadkich lub lepszych", target = 5,  reward = 600, stat = "rareCuts" },
-		{ id = "Deliver15", text = "Dostarcz 15 grzybów do bazy",    target = 15, reward = 500, stat = "delivered" },
+		{ id = "Deliver15", text = "Dostarcz 8 grzybów do bazy",     target = 8,  reward = 500, stat = "delivered" },
 		{ id = "Deep3",     text = "Zetnij grzyba w pierścieniu 3+", target = 1,  reward = 300, stat = "deepCut" },
 		{ id = "Shelf8",    text = "Miej 8 grzybów na półkach",      target = 8,  reward = 500, stat = "shelfCount" },
 	},
@@ -437,6 +449,7 @@ Config.GamePasses = {
 	NightOwl      = { name = "Nocny Marek",          priceRobux = 249, id = 0, effect = { offlinePass = true } },
 	RingTeleport  = { name = "Teleport do Pierścieni", priceRobux = 249, id = 0, effect = { ringTeleport = true } },
 	VIP           = { name = "VIP",                  priceRobux = 449, id = 0, effect = { luckMult = 1.1, chatTag = "VIP" } },
+	CarrySlots    = { name = "Głęboki Koszyk +2",    priceRobux = 249, id = 0, effect = { extraCarry = 2 } },
 	-- passy jaj/petów
 	TripleHatch   = { name = "Otwórz ×3",            priceRobux = 199, id = 0, effect = { tripleHatch = true } },
 	AutoHatch     = { name = "Auto-Otwieranie",      priceRobux = 99,  id = 0, effect = { autoHatch = true } },

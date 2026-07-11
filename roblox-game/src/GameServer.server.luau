@@ -160,6 +160,12 @@ local function rebirthMult(data): number
 	return 1 + (data.rebirths or 0) * Config.Rebirth.incomeBonusPerRebirth
 end
 
+-- pojemność koszyka: 2 bazowo, +2 z passem „Głęboki Koszyk"
+local function carryCapacity(s): number
+	return Config.Carry.baseSlots
+		+ (s.passes.CarrySlots and Config.GamePasses.CarrySlots.effect.extraCarry or 0)
+end
+
 -- sumaryczne bonusy z założonych petów: (+% dochodu, +% szczęścia)
 local function petBonuses(data): (number, number)
 	local income, luck = 0, 0
@@ -378,6 +384,8 @@ local function syncAttributes(player: Player)
 	player:SetAttribute("ThermosLevel", data.thermosLevel)
 	player:SetAttribute("ShelvesOwned", data.shelvesOwned)
 	player:SetAttribute("ShelfCount", #data.shelf)
+	player:SetAttribute("CarriedCount", #s.carried)
+	player:SetAttribute("CarrySlots", carryCapacity(s))
 	player:SetAttribute("IncomePerSec", math.floor(shelfIncomePerSec(data)))
 	player:SetAttribute("Pity", data.pity)
 	player:SetAttribute("WorldName", currentWorld(s).name)
@@ -709,7 +717,37 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 		mutationIdx2 = mutationIdx2,
 		freshness = Config.Freshness.startPercent,
 	}
-	table.insert(s.carried, item)
+
+	-- KOSZYK z limitem miejsc: trzymamy tylko najlepsze okazy (GDD §2)
+	local capacity = carryCapacity(s)
+	local newValue = itemIncome(item, s.data)
+	if #s.carried < capacity then
+		table.insert(s.carried, item)
+		notifyRemote:FireClient(player, ("🍄 %s  (koszyk %d/%d)"):format(itemLabel(item), #s.carried, capacity))
+	else
+		local worstIdx, worstValue = 1, math.huge
+		for index, carried in s.carried do
+			local value = itemIncome(carried, s.data)
+			if value < worstValue then
+				worstIdx, worstValue = index, value
+			end
+		end
+		if newValue > worstValue then
+			-- lepszy okaz wypycha najsłabszy; wypchnięty idzie na skup za grosze
+			local scrapped = s.carried[worstIdx]
+			local scrapValue = math.max(1, math.floor(worstValue * Config.Carry.scrapSeconds))
+			s.data.cash += scrapValue
+			s.carried[worstIdx] = item
+			notifyRemote:FireClient(player, ("🔁 %s wypycha z koszyka: %s (+%d 💰)")
+				:format(itemLabel(item), itemLabel(scrapped), scrapValue))
+		else
+			-- słabszy niż wszystko w koszyku: sprzedaż na miejscu
+			local scrapValue = math.max(1, math.floor(newValue * Config.Carry.scrapSeconds))
+			s.data.cash += scrapValue
+			notifyRemote:FireClient(player, ("💸 %s za słaby na koszyk — sprzedany za %d 💰")
+				:format(itemLabel(item), scrapValue))
+		end
+	end
 
 	-- COMBO: kolejne ścięcie w oknie czasu podbija serię i mnożnik XP
 	local now = os.clock()
@@ -742,10 +780,9 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 
 	-- rzadkie trafienia ogłaszamy całemu serwerowi (GDD §4): Legendarny+,
 	-- mutacja Frost lub rzadsza, każda podwójna mutacja
+	-- (osobisty toast wysyła już logika koszyka wyżej)
 	if item.rarityIdx >= 5 or item.mutationIdx >= 5 or item.mutationIdx2 > 0 then
 		notifyRemote:FireAllClients(("🎉 %s znalazł: %s!"):format(player.DisplayName, itemLabel(item)))
-	else
-		notifyRemote:FireClient(player, "🍄 " .. itemLabel(item))
 	end
 
 	journalAdd(player, item)
