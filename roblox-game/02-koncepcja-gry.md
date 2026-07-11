@@ -195,6 +195,12 @@ aktualizacji po premierze.
   (dźwięk + delikatne particlesy + wyskakujące „+X 💰"). Przebiegnięcie
   wzdłuż rządka i zgarnięcie wszystkich pól to codzienna mikro-frajda.
 - Najlepszy okaz na działce sypie złotymi iskrami.
+- **Poziomy grzybów (lvl 1→100):** każdy zasadzony grzyb ulepszasz
+  przytrzymując E na kapeluszu. Dochód ×1,05/poziom (lvl 100 ≈ ×125),
+  koszt ×1,10/poziom skalowany z wartością własną grzyba — zwrot rośnie
+  z ~60 s do ~1,5 h, więc początek to dopamina, a setka to prestiż.
+  Grzyb ROŚNIE z poziomem (lvl 100 ≈ ×3 — kolos nad działką); wymaksowanie
+  ogłaszane serwerowi. To główny zlew na kasę w late game.
 - **Dziennik Grzybiarza**: kolekcja wszystkich gatunków × rzadkości ×
   mutacji z nagrodami za skompletowanie stron (retencja długoterminowa).
 - Sprzedaż grzyba z półki możliwa zawsze (jednorazowa kasa zamiast dochodu) —

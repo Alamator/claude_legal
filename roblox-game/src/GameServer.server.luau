@@ -95,6 +95,7 @@ type Carried = {
 	mutationIdx2: number, -- druga mutacja (0 = brak; event „podwójne mutacje")
 	freshness: number,
 	earned: number?,      -- urobek na polu (tylko grzyby zasadzone na grządce)
+	lvl: number?,         -- poziom grzyba 1..100 (tylko zasadzone)
 }
 
 local sessions: { [Player]: {
@@ -194,7 +195,9 @@ local function petBonuses(data): (number, number)
 	return income, luck
 end
 
-local function itemIncome(item: Carried, data): number
+-- wartość WŁASNA grzyba: gatunek × rzadkość × mutacje × świeżość × świat
+-- (bez mnożników konta — używana też do wyceny ulepszeń poziomu)
+local function itemBaseIncome(item: Carried): number
 	local world = Config.Worlds[item.worldIdx or 1]
 	local species = world.species[item.speciesIdx]
 	local rarity = Config.Rarities[item.rarityIdx]
@@ -203,9 +206,21 @@ local function itemIncome(item: Carried, data): number
 	if mutation2Idx > 0 then
 		mutationMult *= Config.Mutations[mutation2Idx].incomeMult
 	end
-	local petIncome = petBonuses(data)
 	return Config.shelfIncome(species.baseIncome, rarity.incomeMult, mutationMult, item.freshness, world.incomeMult)
+end
+
+local function itemIncome(item: Carried, data): number
+	local petIncome = petBonuses(data)
+	return itemBaseIncome(item) * Config.mushroomLevelMult(item.lvl)
 		* rebirthMult(data) * (1 + petIncome)
+end
+
+-- koszt ulepszenia grzyba o 1 poziom (rośnie ×1,10 za poziom)
+local function mushroomUpgradeCost(item: Carried): number
+	local lvl = item.lvl or 1
+	return math.max(5, math.floor(itemBaseIncome(item)
+		* Config.MushroomLevels.costBaseSeconds
+		* Config.MushroomLevels.costGrowth ^ (lvl - 1)))
 end
 
 local function shelfIncomePerSec(data): number
@@ -225,7 +240,8 @@ local function itemLabel(item: Carried): string
 	if mutation2Idx > 0 then
 		mutation ..= " [" .. Config.Mutations[mutation2Idx].name .. "]"
 	end
-	return ("%s (%s)%s %d%%"):format(species.name, rarity.name, mutation, math.floor(item.freshness))
+	local levelSuffix = (item.lvl or 1) > 1 and (" L%d"):format(item.lvl) or ""
+	return ("%s (%s)%s%s %d%%"):format(species.name, rarity.name, mutation, levelSuffix, math.floor(item.freshness))
 end
 
 -- ============================================================================
@@ -618,9 +634,12 @@ local function refreshShelfDisplay(player: Player)
 		soil.Parent = area
 
 		if item then
-			-- zasadzony grzyb: trzonek wystaje Z ZIEMI, kapelusz = kolor rzadkości
+			-- zasadzony grzyb: trzonek wystaje Z ZIEMI, kapelusz = kolor rzadkości;
+			-- rośnie z poziomem (lvl 100 ≈ ×3 — OGROMNY)
 			local isBest = index == bestIdx
-			local scale = isBest and 1.5 or 1.1
+			local lvl = item.lvl or 1
+			local lvlScale = 1 + (lvl - 1) * Config.MushroomLevels.sizePerLevel
+			local scale = (isBest and 1.4 or 1.1) * lvlScale
 			local miniStem = Instance.new("Part")
 			miniStem.Shape = Enum.PartType.Cylinder
 			miniStem.Size = Vector3.new(1.0, 0.5, 0.5) * scale
@@ -644,6 +663,45 @@ local function refreshShelfDisplay(player: Player)
 			miniCap.Parent = area
 			if isBest and bestIncome > 0 then
 				addSparkle(miniCap, Color3.fromRGB(255, 220, 120), 3)
+			end
+
+			-- ULEPSZANIE GRZYBA (lvl 1→100): przytrzymaj E na kapeluszu
+			if lvl < Config.MushroomLevels.maxLevel then
+				local upPrompt = Instance.new("ProximityPrompt")
+				upPrompt.ActionText = "Ulepsz grzyba"
+				upPrompt.ObjectText = ("lvl %d/%d — %d 💰"):format(
+					lvl, Config.MushroomLevels.maxLevel, mushroomUpgradeCost(item))
+				upPrompt.HoldDuration = 0.35
+				upPrompt.MaxActivationDistance = 9
+				upPrompt.RequiresLineOfSight = false
+				upPrompt.Parent = miniCap
+				upPrompt.Triggered:Connect(function(who)
+					if who ~= player then return end
+					local planted = s.data.shelf[index]
+					if not planted or (planted.lvl or 1) >= Config.MushroomLevels.maxLevel then
+						return
+					end
+					local cost = mushroomUpgradeCost(planted)
+					if s.data.cash < cost then
+						notifyRemote:FireClient(player, ("❌ Ulepszenie kosztuje %d 💰 — za mało kasy."):format(cost))
+						return
+					end
+					s.data.cash -= cost
+					planted.lvl = (planted.lvl or 1) + 1
+					burstAt(miniCap.Position, miniCap.Color)
+					floatingText(miniCap.Position + Vector3.new(0, 1.5, 0),
+						("⬆️ LVL %d!"):format(planted.lvl),
+						Config.Rarities[planted.rarityIdx].color)
+					if planted.lvl == Config.MushroomLevels.maxLevel then
+						notifyRemote:FireAllClients(("🍄👑 %s wymaksował grzyba: %s (lvl 100)!")
+							:format(player.DisplayName, itemLabel(planted)))
+					end
+					refreshShelfDisplay(player) -- grzyb rośnie + świeży prompt/cena
+					syncAttributes(player)
+				end)
+			else
+				-- lvl 100: kolos świeci własną chwałą zamiast prompta
+				addSparkle(miniCap, Color3.fromRGB(255, 235, 160), 4)
 			end
 
 			-- ZIELONE POLE ZBIORU przed grządką: licznik urobku + zbiór wejściem

@@ -59,6 +59,27 @@ Config.Carry = {
 }
 
 -- ===========================================================================
+-- POZIOMY GRZYBÓW — każdy zasadzony grzyb ulepszasz lvl 1→100.
+-- Matematyka: dochód ×1,05/poziom (lvl 100 ≈ ×125), koszt ×1,10/poziom —
+-- zwrot ulepszenia wydłuża się z ~60 s (lvl 1) do ~1,5 h (lvl 99→100),
+-- więc początek to czysta dopamina, a setka to prestiżowy zlew na kasę.
+-- Koszt skaluje się z wartością WŁASNĄ grzyba (bez rebirtha/petów).
+-- Grzyb rośnie z poziomem — na lvl 100 jest ~3× większy (OGROMNY).
+-- ===========================================================================
+
+Config.MushroomLevels = {
+	maxLevel = 100,
+	incomeMultPerLevel = 1.05,
+	costBaseSeconds = 3,   -- koszt lvl 1→2 = 3 s bazowego dochodu grzyba
+	costGrowth = 1.10,
+	sizePerLevel = 0.019,  -- skala modelu: lvl 100 ≈ ×2,9
+}
+
+function Config.mushroomLevelMult(lvl: number?): number
+	return Config.MushroomLevels.incomeMultPerLevel ^ ((lvl or 1) - 1)
+end
+
+-- ===========================================================================
 -- ŚWIEŻOŚĆ (GDD §4)
 -- ===========================================================================
 

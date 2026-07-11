@@ -83,6 +83,9 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
       da się zbierać.
 - [ ] Przycisk „🌱 Grządka [10/20]" dokupuje po jednej (cena ×2,2);
       nowa grządka pojawia się na działce od razu.
+- [ ] Przytrzymanie **E** na zasadzonym grzybie ulepsza go (prompt pokazuje
+      lvl i cenę); grzyb wyraźnie ROŚNIE, wylatuje „⬆️ LVL N!", licznik
+      na polu tyka szybciej; przy braku kasy — odmowa.
 - [ ] Kupujesz ulepszenia; po **Stop i ponownym Play** kasa/poziomy wracają
       (zapis działa).
 - [ ] Po 4–6 minutach gry pojawia się baner eventu (⚡) z odliczaniem.
