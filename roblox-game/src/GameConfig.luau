@@ -383,12 +383,23 @@ Config.Pets = {
 	maxEquipped = 3,  -- 4. slot = przyszły Game Pass
 	maxOwned = 50,
 	eggCostByWorld = { 5_000, 400_000, 50_000_000, 8_000_000_000, 1_500_000_000_000 },
-	-- pozycja w puli świata = rzadkość: pet nr 1 jest Zwykły … nr 5 Legendarny
-	hatchWeights = { 60, 25, 10, 4, 1 }, -- Zwykły..Legendarny (pety bez Mitycznych)
-	luckAffectsFrom = 3,      -- passy szczęścia mnożą wagi od Rzadkiego wzwyż
+	-- pozycja w puli świata = rzadkość peta (WŁASNA drabinka, nie grzybowa):
+	-- głównie lecą dwa pierwsze, Epicki/Legendarny dużo rzadziej,
+	-- a SEKRET to twarde 0,1% — passy szczęścia GO NIE RUSZAJĄ
+	hatchWeights = { 55, 34, 7.5, 3.4, 0.1 },
+	luckAffectsFrom = 3,      -- passy mnożą wagi Epickiego i Legendarnego
+	luckSkipsLast = true,     -- ...ale NIGDY Sekreta (zawsze 0,1%)
 	autoHatchIntervalSec = 3, -- tempo auto-otwierania (pass)
-	incomeBonusByRarity = { 0.05, 0.10, 0.20, 0.35, 0.60 },
-	luckBonusByRarity = { 0.02, 0.05, 0.10, 0.18, 0.30 },
+	incomeBonusByRarity = { 0.08, 0.15, 0.30, 0.55, 1.50 }, -- SEKRET = potwór
+	luckBonusByRarity = { 0.03, 0.06, 0.14, 0.25, 0.60 },
+	-- rzadkości petów (SEKRET renderowany tęczowym, świecącym fontem w UI)
+	rarities = {
+		{ id = "Rare",      name = "Rzadki",        color = Color3.fromRGB(80, 140, 255) },
+		{ id = "VeryRare",  name = "Bardzo Rzadki", color = Color3.fromRGB(96, 220, 200) },
+		{ id = "Epic",      name = "Epicki",        color = Color3.fromRGB(180, 80, 255) },
+		{ id = "Legendary", name = "Legendarny",    color = Color3.fromRGB(255, 170, 0) },
+		{ id = "Secret",    name = "SEKRET",        color = Color3.fromRGB(255, 90, 200), secret = true },
+	},
 	poolsByWorld = {
 		{ "Grzybek Skoczek", "Ślimak Zamszowy", "Jeżozwierzyk", "Biedronix", "Wiewiór Rudzik" },
 		{ "Sowa Mgielna", "Szyszkostwór", "Lisek Borowy", "Mroźny Puszek", "Dzięciołek" },

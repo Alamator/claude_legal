@@ -1220,9 +1220,13 @@ end
 
 local function rollEggRarity(s): number
 	local luck = eggLuck(s)
+	local lastIndex = #Config.Pets.hatchWeights
 	local weights, total = {}, 0
 	for index, weight in Config.Pets.hatchWeights do
-		local adjusted = index >= Config.Pets.luckAffectsFrom and weight * luck or weight
+		-- szczęście podbija Epickiego/Legendarnego, ale NIGDY Sekreta (0,1% na twardo)
+		local boosted = index >= Config.Pets.luckAffectsFrom
+			and not (Config.Pets.luckSkipsLast and index == lastIndex)
+		local adjusted = boosted and weight * luck or weight
 		weights[index] = adjusted
 		total += adjusted
 	end
@@ -1277,13 +1281,16 @@ local function hatchOnce(player: Player, worldIdx: number, quiet: boolean): bool
 	table.insert(data.pets, pet)
 
 	hatchRemote:FireClient(player, petName, rarityIdx, pet.eq)
-	if rarityIdx >= 5 then
+	if rarityIdx == 5 then
+		notifyRemote:FireAllClients(("✨🥚✨ %s wykluł SEKRETNEGO peta: %s!!! (1 na 1000)")
+			:format(player.DisplayName, petName))
+	elseif rarityIdx == 4 then
 		notifyRemote:FireAllClients(("🥚 %s wykluł LEGENDARNEGO peta: %s!"):format(player.DisplayName, petName))
 	end
 	local worldFolder = worldsFolder:FindFirstChild("World" .. worldIdx)
 	local egg = worldFolder and worldFolder:FindFirstChild("WorldEgg")
 	if egg then
-		burstAt(egg.Position, Config.Rarities[rarityIdx].color)
+		burstAt(egg.Position, Config.Pets.rarities[rarityIdx].color)
 	end
 	syncAttributes(player)
 	return true
@@ -1356,7 +1363,7 @@ autoDeleteRemote.OnServerEvent:Connect(function(player, worldIdx, petIdx, enable
 	local pool = Config.Pets.poolsByWorld[worldIdx]
 	if not pool or petIdx < 1 or petIdx > #pool then return end
 	if petIdx >= 5 then
-		notifyRemote:FireClient(player, "🔒 Legendarnych petów nie można auto-usuwać.")
+		notifyRemote:FireClient(player, "🔒 SEKRETÓW nie można auto-usuwać.")
 		return
 	end
 	s.data.autoDelete[worldIdx .. ":" .. petIdx] = (enabled == true) and true or nil

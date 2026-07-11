@@ -31,18 +31,30 @@ local player = Players.LocalPlayer
 
 local FONT = Enum.Font.FredokaOne
 
--- „12345" → „12.3k" (czytelne liczby na HUD)
+-- „12345" → „12.3K" … „1.5Qt" (wspólna drabinka sufiksów z GameConfig,
+-- żeby HUD pokazywał te same absurdalne liczby co serwer)
 local function fmt(n: number): string
-	if n >= 1_000_000_000 then return string.format("%.1fB", n / 1_000_000_000) end
-	if n >= 1_000_000 then return string.format("%.1fM", n / 1_000_000) end
-	if n >= 10_000 then return string.format("%.1fk", n / 1_000) end
-	return tostring(math.floor(n))
+	return Config.fmtNumber(n)
 end
 
 -- sekundy → „12:34"
 local function fmtTime(seconds: number): string
 	seconds = math.max(0, math.floor(seconds))
 	return string.format("%d:%02d", seconds // 60, seconds % 60)
+end
+
+-- ============================================================================
+-- Tęczowy, świecący font SEKRETÓW — zarejestrowane etykiety cyklują barwę.
+-- (pętla renderująca jest niżej, przy fanfarze — potrzebuje jej elementów)
+-- ============================================================================
+
+local rainbowLabels: { [TextLabel]: number } = {}
+local secretFanfareUntil = 0
+
+local function markRainbow(label: TextLabel)
+	if rainbowLabels[label] == nil then
+		rainbowLabels[label] = math.random()
+	end
 end
 
 -- ============================================================================
@@ -547,7 +559,7 @@ local function rebuildPetList()
 	local pets = decodePets()
 	petsHeader.Text = ("🐾 PETY (%d/%d)"):format(#pets, Config.Pets.maxOwned)
 	for index, pet in pets do
-		local rarity = Config.Rarities[pet.r]
+		local rarity = Config.Pets.rarities[pet.r]
 		local name = Config.Pets.poolsByWorld[pet.w][pet.p]
 		local row = Instance.new("TextButton")
 		row.Size = UDim2.new(1, -8, 0, 52)
@@ -562,7 +574,12 @@ local function rebuildPetList()
 		row.Parent = petsScroll
 		addCorner(row, 10)
 		styleText(row, 14)
-		row.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
+		if rarity.secret then
+			row.Text = "✨ " .. row.Text
+			markRainbow(row) -- SEKRET: tęczowy świecący font
+		else
+			row.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
+		end
 		row.Activated:Connect(function()
 			equipRemote:FireServer(index)
 		end)
@@ -618,7 +635,7 @@ for i = 1, 5 do
 	styleText(row, 13)
 	row.Activated:Connect(function()
 		if i >= 5 then
-			showToast("🔒 Legendarnych petów nie można auto-usuwać.")
+			showToast("🔒 SEKRETÓW nie można auto-usuwać.")
 			return
 		end
 		local worldIdx = player:GetAttribute("CurrentWorld") or 1
@@ -660,23 +677,32 @@ local function refreshEggPanel()
 	local luck = player:GetAttribute("EggLuck") or 1
 	eggHeader.Text = ("🥚 JAJO — %s 💰"):format(fmt(Config.Pets.eggCostByWorld[worldIdx]))
 
-	-- szanse z uwzględnieniem szczęścia (te same wagi co na serwerze)
+	-- szanse z uwzględnieniem szczęścia (te same wagi co na serwerze;
+	-- SEKRET nigdy nie jest podbijany — twarde 0,1%)
+	local lastIndex = #Config.Pets.hatchWeights
 	local weights, total = {}, 0
 	for i, weight in Config.Pets.hatchWeights do
-		local adjusted = i >= Config.Pets.luckAffectsFrom and weight * luck or weight
+		local boosted = i >= Config.Pets.luckAffectsFrom
+			and not (Config.Pets.luckSkipsLast and i == lastIndex)
+		local adjusted = boosted and weight * luck or weight
 		weights[i] = adjusted
 		total += adjusted
 	end
 
 	local autoDelete = decodeAutoDelete()
 	for i, row in eggRows do
-		local rarity = Config.Rarities[i]
+		local rarity = Config.Pets.rarities[i]
 		local chance = weights[i] / total * 100
 		local marked = autoDelete[worldIdx .. ":" .. i] == true
-		row.Text = ("%s%.1f%%  %s  (+%d%% 💰)"):format(
-			marked and "🗑️ " or "", chance, pool[i],
+		row.Text = ("%s%s%.1f%%  %s (%s)  +%d%% 💰"):format(
+			marked and "🗑️ " or "", rarity.secret and "✨ " or "",
+			chance, pool[i], rarity.name,
 			math.floor((Config.Pets.incomeBonusByRarity[i] or 0) * 100))
-		row.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
+		if rarity.secret then
+			markRainbow(row) -- tęczowy świecący wiersz Sekreta
+		else
+			row.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
+		end
 		row.BackgroundTransparency = marked and 0.6 or 0.1
 	end
 
@@ -874,6 +900,24 @@ player:GetAttributeChangedSignal("Level"):Connect(function()
 		end
 	end
 	lastLevel = level
+end)
+
+-- pętla tęczowego fontu SEKRETÓW (wiersze paneli, podpisy petów, fanfara)
+task.spawn(function()
+	while true do
+		local now = os.clock()
+		for label, offset in rainbowLabels do
+			if label.Parent then
+				label.TextColor3 = Color3.fromHSV((now * 0.6 + offset) % 1, 0.85, 1)
+			else
+				rainbowLabels[label] = nil -- sprzątanie po zniszczonych etykietach
+			end
+		end
+		if now < secretFanfareUntil then
+			levelUpLabel.TextColor3 = Color3.fromHSV((now * 0.9) % 1, 0.9, 1)
+		end
+		task.wait(0.08)
+	end
 end)
 
 local marker = Instance.new("BillboardGui")
@@ -1076,7 +1120,10 @@ end)
 -- ============================================================================
 
 hatchRemote.OnClientEvent:Connect(function(petName: string, rarityIdx: number, equipped: boolean)
-	local rarity = Config.Rarities[rarityIdx]
+	local rarity = Config.Pets.rarities[rarityIdx]
+	if rarity.secret then
+		secretFanfareUntil = os.clock() + 2.2 -- napis fanfary cykluje tęczą
+	end
 	levelFlash.BackgroundColor3 = rarity.color
 	levelFlash.BackgroundTransparency = 0.55
 	TweenService:Create(levelFlash, TweenInfo.new(0.7), { BackgroundTransparency = 1 }):Play()
@@ -1137,7 +1184,7 @@ local function buildPetModels(owner: Player)
 	local models = {}
 	for _, pet in pets do
 		if pet.eq and #models < #PET_OFFSETS then
-			local rarity = Config.Rarities[pet.r]
+			local rarity = Config.Pets.rarities[pet.r]
 			local model = Instance.new("Model")
 			model.Name = ("Pet_%d_%d"):format(owner.UserId, #models + 1)
 
@@ -1178,6 +1225,22 @@ local function buildPetModels(owner: Player)
 			tagLabel.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
 			tagLabel.Text = Config.Pets.poolsByWorld[pet.w][pet.p]
 			tagLabel.Parent = tag
+			if rarity.secret then
+				-- SEKRET: tęczowy podpis + smuga iskier za petem
+				markRainbow(tagLabel)
+				local emitter = Instance.new("ParticleEmitter")
+				emitter.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+				emitter.LightEmission = 1
+				emitter.Rate = 6
+				emitter.Lifetime = NumberRange.new(0.6, 1.2)
+				emitter.Speed = NumberRange.new(0.3, 0.8)
+				emitter.Size = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.18),
+					NumberSequenceKeypoint.new(1, 0),
+				})
+				emitter.SpreadAngle = Vector2.new(180, 180)
+				emitter.Parent = body
+			end
 
 			model.PrimaryPart = body
 			model.Parent = petFolder

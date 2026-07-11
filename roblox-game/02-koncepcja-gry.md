@@ -269,8 +269,8 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 | 🎒 Głęboki Koszyk | 249 | +2 miejsca w koszyku wypraw (2 → 4) |
 | 🥚 Otwórz ×3 | 199 | każde podejście do jaja otwiera 3 naraz (każde płatne) |
 | 🤖 Auto-Otwieranie | 99 | przełącznik AUTO przy jajku — otwiera co 3 s, gdy stoisz obok |
-| 🍀 Szczęście Jaj ×3 | 199 | wagi Rzadki+ w jajach ×3 |
-| 🍀 Szczęście Jaj ×6 | 499 | wagi Rzadki+ w jajach ×6 (zastępuje ×3) |
+| 🍀 Szczęście Jaj ×3 | 199 | wagi Epicki+Legendarny w jajach ×3 (SEKRET zawsze 0,1%) |
+| 🍀 Szczęście Jaj ×6 | 499 | wagi Epicki+Legendarny ×6 (zastępuje ×3; SEKRET zawsze 0,1%) |
 
 ### Developer Products (wielokrotne — główny przychód w tym formacie)
 - 🌙 **Podwójny Zbiór Nocny** (19 Robux) — przycisk „×2" w modalu
@@ -294,14 +294,25 @@ Do premiery NIE robimy: handlu między graczami, kradzieży z cudzych baz
 wpływającej na ruch.
 
 **Pety — przeniesione do v1.0 (gacha):** każda baza ma gniazdo z jajem
-(5k → 500M wg świata); pozycja w puli świata = rzadkość (pet nr 1 Zwykły
-60% … nr 5 Legendarny 1%), więc podgląd przy jajku uczciwie pokazuje
-szanse. Przy podejściu do gniazda wyświetla się panel dropów; klik w peta
-zaznacza go do auto-usuwania po wylosowaniu (Legendarnych nie można). Założone pety (max 3;
-4. slot = przyszły pass) dają +5–60% dochodu i +2–30% szczęścia. Pety
-lewitują przy graczu (widoczne dla wszystkich = flex), przeżywają rebirth
-jak dziennik. Fanfara wyklucia w kolorze rzadkości; Legendarny ogłaszany
-serwerowi. Fuzje/złote pety = content na update'y.
+(5k → 1,5T wg świata); pozycja w puli świata = rzadkość. Drabinka
+(inna niż grzybowa, celowo top-heavy):
+
+| Pet nr | Rzadkość | Szansa | Uwagi |
+|-------:|----------|-------:|-------|
+| 1 | Rzadki | 55% | |
+| 2 | Bardzo Rzadki | 34% | razem z nr 1 to ~90% dropów |
+| 3 | Epicki | 7,5% | |
+| 4 | Legendarny | 3,4% | ogłaszany serwerowi |
+| 5 | **SEKRET** | **0,1%** | twardy sufit — passy szczęścia go NIE podbijają; nazwa wszędzie tęczowym, świecącym fontem; ogłaszany serwerowi „1 na 1000" |
+
+Podgląd przy jajku uczciwie pokazuje szanse (z uwzględnieniem własnych
+passów szczęścia — te mnożą wagi Epicki+Legendarny, nigdy Sekreta). Klik
+w peta zaznacza go do auto-usuwania po wylosowaniu (Sekretów nie można).
+Założone pety (max 3; 4. slot = przyszły pass) dają +8–150% dochodu
+i +3–60% szczęścia. Pety lewitują przy graczu (widoczne dla wszystkich =
+flex), przeżywają rebirth jak dziennik. Fanfara wyklucia w kolorze
+rzadkości; Sekret dostaje dodatkowo tęczową fanfarę i białe iskry na
+modelu. Fuzje/złote pety = content na update'y.
 
 **Podwójne mutacje — zakodowane, wyłączone flagą** (`Config.DoubleMutations.
 enabled`): włączenie jednym `true` daje gotowy event „Weekend Podwójnych
