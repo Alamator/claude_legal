@@ -16,6 +16,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 
 local MAP_SCALE = 0.5     -- prototyp jest 2× krótszy niż docelowe dystanse
@@ -245,6 +246,101 @@ local DECOR_BY_STYLE = {
 	moon = makeMoonDecor,
 }
 
+-- drobny detal wypełniający świat: kępki trawy, świecące kwiatki, kamienie
+local function makeSmallDecor(theme, position: Vector3, parent: Instance)
+	local roll = math.random()
+	if roll < 0.45 then
+		local tuftColor = (theme.canopy[1] or theme.accent):Lerp(Color3.new(1, 1, 1), 0.15)
+		local tuft = makePart("Tuft",
+			Vector3.new(math.random(15, 25) / 10, 0.7, math.random(15, 25) / 10),
+			CFrame.new(position + Vector3.new(0, 0.35, 0)), tuftColor, parent)
+		tuft.Shape = Enum.PartType.Ball
+		tuft.CanCollide = false
+	elseif roll < 0.75 then
+		local stem = makePart("FlowerStem", Vector3.new(0.15, 1.2, 0.15),
+			CFrame.new(position + Vector3.new(0, 0.6, 0)), Color3.fromRGB(90, 140, 70), parent)
+		stem.CanCollide = false
+		local bloom = makePart("Flower", Vector3.new(0.5, 0.35, 0.5),
+			CFrame.new(position + Vector3.new(0, 1.25, 0)), theme.accent, parent)
+		bloom.Shape = Enum.PartType.Ball
+		bloom.Material = Enum.Material.Neon
+		bloom.CanCollide = false
+	else
+		local shade = math.random(115, 145)
+		local rock = makePart("Rock",
+			Vector3.new(math.random(8, 16) / 10, math.random(6, 12) / 10, math.random(8, 16) / 10),
+			CFrame.new(position + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, math.rad(math.random(0, 360)), 0),
+			Color3.fromRGB(shade, shade, shade + 8), parent)
+		rock.Shape = Enum.PartType.Ball
+		rock.Material = Enum.Material.Slate
+		rock.CanCollide = false
+	end
+end
+
+-- ============================================================================
+-- NPC-sprzedawca przy straganie: klockowy ludzik w grzybowym kapeluszu,
+-- macha ręką na powitanie i ma tabliczkę z imieniem
+-- ============================================================================
+
+local VENDOR_NAMES = { "Grzybór", "Szyszek", "Bagno-Bill", "Kryształt", "Astrogrzyb" }
+
+local function makeVendor(worldFolder: Instance, theme, worldIdx: number, position: Vector3)
+	local skin = Color3.fromRGB(245, 205, 160)
+
+	local function bodyPart(name: string, size: Vector3, cframe: CFrame, color: Color3): Part
+		local part = makePart(name, size, cframe, color, worldFolder)
+		part.Material = Enum.Material.SmoothPlastic
+		part.CanCollide = false
+		return part
+	end
+
+	bodyPart("VendorLegs", Vector3.new(1.6, 1.6, 0.9), CFrame.new(position + Vector3.new(0, 0.8, 0)), Color3.fromRGB(70, 60, 55))
+	bodyPart("VendorTorso", Vector3.new(1.8, 1.8, 1), CFrame.new(position + Vector3.new(0, 2.5, 0)), theme.accent)
+	bodyPart("VendorArmL", Vector3.new(0.5, 1.6, 0.5), CFrame.new(position + Vector3.new(-1.25, 2.5, 0)), skin)
+	local armR = bodyPart("VendorArmR", Vector3.new(0.5, 1.6, 0.5), CFrame.new(position + Vector3.new(1.25, 2.5, 0)), skin)
+
+	local head = bodyPart("VendorHead", Vector3.new(1.3, 1.3, 1.3), CFrame.new(position + Vector3.new(0, 4, 0)), skin)
+	head.Shape = Enum.PartType.Ball
+	for _, side in { -0.28, 0.28 } do
+		bodyPart("VendorEye", Vector3.new(0.18, 0.18, 0.18),
+			CFrame.new(position + Vector3.new(side, 4.15, -0.55)), Color3.fromRGB(25, 25, 35))
+	end
+	bodyPart("VendorSmile", Vector3.new(0.5, 0.1, 0.12),
+		CFrame.new(position + Vector3.new(0, 3.75, -0.6)), Color3.fromRGB(150, 70, 60))
+
+	-- grzybowy kapelusz z kropkami
+	local hat = bodyPart("VendorHat", Vector3.new(1.9, 1, 1.9), CFrame.new(position + Vector3.new(0, 4.75, 0)), theme.caps[1])
+	hat.Shape = Enum.PartType.Ball
+	for _, offset in { Vector3.new(0.45, 0.3, 0.2), Vector3.new(-0.35, 0.35, -0.25) } do
+		local dot = bodyPart("VendorHatDot", Vector3.new(0.3, 0.2, 0.3),
+			CFrame.new(position + Vector3.new(0, 4.75, 0) + offset), Color3.fromRGB(250, 248, 240))
+		dot.Shape = Enum.PartType.Ball
+	end
+
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.new(0, 180, 0, 40)
+	tag.StudsOffset = Vector3.new(0, 2.2, 0)
+	tag.Parent = head
+	local tagLabel = Instance.new("TextLabel")
+	tagLabel.Size = UDim2.fromScale(1, 1)
+	tagLabel.BackgroundTransparency = 0.35
+	tagLabel.BackgroundColor3 = Color3.fromRGB(25, 30, 25)
+	tagLabel.TextColor3 = Color3.new(1, 1, 1)
+	tagLabel.Font = Enum.Font.FredokaOne
+	tagLabel.TextScaled = true
+	tagLabel.Text = ("🍄 %s — skup grzybów"):format(VENDOR_NAMES[worldIdx] or "Grzybór")
+	tagLabel.Parent = tag
+	local tagCorner = Instance.new("UICorner")
+	tagCorner.CornerRadius = UDim.new(0, 10)
+	tagCorner.Parent = tagLabel
+
+	-- powitalne machanie ręką (pętla tam-i-z-powrotem w nieskończoność)
+	local raised = CFrame.new(position + Vector3.new(1.45, 3.4, 0)) * CFrame.Angles(0, 0, math.rad(-150))
+	TweenService:Create(armR,
+		TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ CFrame = raised }):Play()
+end
+
 -- ============================================================================
 -- Baza-obozowisko: stragan nad BasePadem, ognisko, lampy, flaga
 -- ============================================================================
@@ -260,6 +356,26 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 	roof.Material = Enum.Material.SmoothPlastic
 	local roofTrim = makePart("StallRoofTrim", Vector3.new(11.6, 0.5, 11.6), CFrame.new(offsetX, 7.4, -12), Color3.fromRGB(245, 240, 225), worldFolder)
 	roofTrim.Material = Enum.Material.SmoothPlastic
+	-- białe pasy na daszku (klasyczny stragan)
+	for _, stripeZ in { -3.4, 0, 3.4 } do
+		local stripe = makePart("StallRoofStripe", Vector3.new(11.2, 0.2, 1.5),
+			CFrame.new(offsetX, 8.15, -12 + stripeZ), Color3.fromRGB(245, 240, 225), worldFolder)
+		stripe.Material = Enum.Material.SmoothPlastic
+	end
+
+	-- lada od frontu i skrzynki z towarem
+	local counter = makePart("StallCounter", Vector3.new(9, 1, 1.2), CFrame.new(offsetX, 2.2, -7.4), Color3.fromRGB(150, 105, 65), worldFolder)
+	counter.Material = Enum.Material.WoodPlanks
+	for _, crateX in { -6.5, 6.5 } do
+		local crate = makePart("Crate", Vector3.new(2.2, 2.2, 2.2), CFrame.new(offsetX + crateX, 2.1, -10), Color3.fromRGB(170, 125, 80), worldFolder)
+		crate.Material = Enum.Material.WoodPlanks
+		-- mini-grzybek na skrzynce (towar na wystawie)
+		local displayCap = makePart("CrateShroom", Vector3.new(1.1, 0.8, 1.1),
+			CFrame.new(offsetX + crateX, 3.6, -10), theme.caps[math.random(#theme.caps)], worldFolder)
+		displayCap.Shape = Enum.PartType.Ball
+		displayCap.Material = Enum.Material.SmoothPlastic
+		displayCap.CanCollide = false
+	end
 
 	-- ognisko: skrzyżowane polana + ogień + ciepłe światło
 	local firePos = Vector3.new(offsetX - 22, 1, -20)
@@ -287,6 +403,14 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 	fireLight.Range = 18
 	fireLight.Brightness = 1.4
 	fireLight.Parent = fireCore
+
+	-- ławki-polana wokół ogniska (miejsce spotkań)
+	for _, seat in { { -4.5, 0, 20 }, { 3, 3.5, -35 } } do
+		local bench = makePart("Bench", Vector3.new(4.5, 1, 1),
+			CFrame.new(firePos + Vector3.new(seat[1], 0.2, seat[2])) * CFrame.Angles(0, math.rad(seat[3]), 0),
+			Color3.fromRGB(110, 78, 48), worldFolder)
+		bench.Material = Enum.Material.Wood
+	end
 
 	-- lampy przy wejściu do lasu
 	for _, side in { -1, 1 } do
@@ -383,6 +507,15 @@ for worldIdx, worldConfig in Config.Worlds do
 
 	buildBaseCamp(worldFolder, theme, offsetX)
 
+	-- sprzedawca za ladą straganu + motylki nad bazą + zieleń w bazie
+	makeVendor(worldFolder, theme, worldIdx, Vector3.new(offsetX, 1, -16.5))
+	makeFireflies(Color3.fromRGB(255, 215, 240), Vector3.new(offsetX - 30, 1, -25), worldFolder)
+	for _ = 1, 10 do
+		makeSmallDecor(theme, Vector3.new(
+			offsetX + (math.random() < 0.5 and -1 or 1) * math.random(12, MAP_WIDTH / 2 - 8),
+			1, -math.random(4, BASE_LENGTH - 6)), worldFolder)
+	end
+
 	-- gniazdo z jajem petów (GDD: gacha per świat)
 	local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 22, 1.2, -8), Color3.fromRGB(150, 110, 70), worldFolder)
 	nest.Material = Enum.Material.WoodPlanks
@@ -459,6 +592,12 @@ for worldIdx, worldConfig in Config.Worlds do
 				Vector3.new(offsetX + math.random(-40, 40), 1, prevEndZ + length / 2), worldFolder)
 		end
 
+		-- drobny detal (trawa/kwiatki/kamienie) — wypełnia pustkę między drzewami
+		for _ = 1, math.floor(length / 7) do
+			local x = (math.random() < 0.5 and -1 or 1) * math.random(6, MAP_WIDTH / 2 - 6)
+			makeSmallDecor(theme, Vector3.new(offsetX + x, 1, prevEndZ + math.random() * length), worldFolder)
+		end
+
 		-- świecący portal skrótu powrotnego (GDD §3)
 		local shortcutConfig = Config.Shortcuts[ringIndex]
 		if shortcutConfig then
@@ -480,6 +619,13 @@ for worldIdx, worldConfig in Config.Worlds do
 
 		prevEndZ = endZ
 	end
+
+	-- piaskowa ścieżka przez środek: prowadzi wzrok (i stopy) w głąb lasu
+	local path = makePart("Path", Vector3.new(8, 0.16, prevEndZ + BASE_LENGTH),
+		CFrame.new(offsetX, 1.06, (prevEndZ - BASE_LENGTH) / 2),
+		Color3.fromRGB(196, 172, 128), worldFolder)
+	path.Material = Enum.Material.Sand
+	path.CanCollide = false
 end
 
 print(("[MapBuilder] Mapa gotowa: %d światów po %d pierścieni"):format(#Config.Worlds, #Config.Rings))
