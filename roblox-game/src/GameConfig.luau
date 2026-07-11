@@ -77,12 +77,17 @@ Config.Pity = { cutsForGuaranteedRare = 15 }
 -- ===========================================================================
 
 Config.Mutations = {
-	{ id = "Gold",    name = "Gold",    oneIn = 20,    incomeMult = 3 },
-	{ id = "Diamond", name = "Diamond", oneIn = 100,   incomeMult = 8 },
-	{ id = "Candy",   name = "Candy",   oneIn = 250,   incomeMult = 15 },
-	{ id = "Neon",    name = "Neon",    oneIn = 500,   incomeMult = 25 },
-	{ id = "Glitch",  name = "Glitch",  oneIn = 2000,  incomeMult = 75 },
-	{ id = "Rainbow", name = "Rainbow", oneIn = 10000, incomeMult = 150 },
+	-- kolejność: od najczęstszej do najrzadszej (rollMutation iteruje od końca)
+	{ id = "Gold",    name = "Gold",    oneIn = 20,     incomeMult = 3 },
+	{ id = "Diamond", name = "Diamond", oneIn = 100,    incomeMult = 8 },
+	{ id = "Candy",   name = "Candy",   oneIn = 250,    incomeMult = 15 },
+	{ id = "Neon",    name = "Neon",    oneIn = 500,    incomeMult = 25 },
+	{ id = "Frost",   name = "Frost",   oneIn = 1_200,  incomeMult = 40 },
+	{ id = "Magma",   name = "Magma",   oneIn = 2_500,  incomeMult = 60 },
+	{ id = "Glitch",  name = "Glitch",  oneIn = 4_000,  incomeMult = 80 },
+	{ id = "Void",    name = "Void",    oneIn = 8_000,  incomeMult = 120 },
+	{ id = "Rainbow", name = "Rainbow", oneIn = 10_000, incomeMult = 150 }, -- event Tęcza: 1/150
+	{ id = "Galaxy",  name = "Galaxy",  oneIn = 25_000, incomeMult = 400 },
 }
 
 -- Podwójne mutacje: WYŁĄCZONE na premierę, włączane jednym `true` na event

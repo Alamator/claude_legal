@@ -740,9 +740,9 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 		floatingText(cutPosition, species.name, Config.Rarities[item.rarityIdx].color)
 	end
 
-	-- rzadkie trafienia ogłaszamy całemu serwerowi (GDD §4)
-	-- podwójna mutacja to zawsze widowisko — ogłaszamy każdą
-	if item.rarityIdx >= 5 or item.mutationIdx >= 4 or item.mutationIdx2 > 0 then
+	-- rzadkie trafienia ogłaszamy całemu serwerowi (GDD §4): Legendarny+,
+	-- mutacja Frost lub rzadsza, każda podwójna mutacja
+	if item.rarityIdx >= 5 or item.mutationIdx >= 5 or item.mutationIdx2 > 0 then
 		notifyRemote:FireAllClients(("🎉 %s znalazł: %s!"):format(player.DisplayName, itemLabel(item)))
 	else
 		notifyRemote:FireClient(player, "🍄 " .. itemLabel(item))

@@ -126,8 +126,12 @@ Sekretne istnieją głównie po to, żeby lądowały na TikToku.
 | 💎 Diamond | 1/100 | ×8 | krystaliczny, refleksy |
 | 🍬 Candy | 1/250 | ×15 | pasiasty, cukierkowy |
 | 🌟 Neon | 1/500 | ×25 | świeci w nocy |
-| 👾 Glitch | 1/2000 | ×75 | „rozjeżdżająca się" tekstura |
-| 🌈 Rainbow | 1/10000 | ×150 | tęczowy, animowany |
+| ❄️ Frost | 1/1200 | ×40 | oszroniony, zimna mgiełka |
+| 🌋 Magma | 1/2500 | ×60 | pęknięcia z żarem |
+| 👾 Glitch | 1/4000 | ×80 | „rozjeżdżająca się" tekstura |
+| 🕳️ Void | 1/8000 | ×120 | czarny, pochłania światło |
+| 🌈 Rainbow | 1/10000 | ×150 | tęczowy, animowany (event Tęcza: 1/150) |
+| 🌌 Galaxy | 1/25000 | ×400 | gwiazdy i mgławice na kapeluszu |
 
 Mnożniki rzadkości × mutacji się MNOŻĄ (Legendarny Glitch = ×120×75).
 Eventy pogodowe podbijają szanse mutacji (patrz §7). W v1 jedna mutacja na
