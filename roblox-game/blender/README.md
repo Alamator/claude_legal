@@ -29,6 +29,7 @@ wklejasz skrypt, klikasz Run, model stoi w scenie.
 | `07-natura-swiat1.py` | **komplet natury Świata 1**: liściak (dwukolorowa korona), brzoza z kreskami, krzak, pieniek z mini-grzybkami, omszała kłoda, kamień z mchem, stokrotka, dzwonek, kępka trawy, płat mchu | poszycie Lasu Liściastego; rozmiary losuje MapBuilder skalą klonów 0.8–1.4 |
 | `03-stragan.py` | stragan: konstrukcja, dwuspadowy daszek, białe pasy, skrzynki | centrum każdej bazy |
 | `04-sprzedawca.py` | NPC-sprzedawca z grzybowym kapeluszem (ręka uniesiona do machania) | za ladą straganu |
+| `15-gniazdo-jajo.py` | **stanowisko gachy**: kamienny podest, gniazdo z gałązek z mchem, fasetowane jajo w cętki, WIRUJĄCY magiczny krąg z runami, latarnie z kulami światła, dryfujące iskry — jeden model, akcenty (Cetki/Krag/Drobiny/Kule) przemalowywane na kolor świata | gniazdo petów w każdej bazie |
 
 ## Jak uruchomić skrypt (2 minuty)
 
