@@ -30,6 +30,7 @@ wklejasz skrypt, klikasz Run, model stoi w scenie.
 | `03-stragan.py` | stragan: konstrukcja, dwuspadowy daszek, białe pasy, skrzynki | centrum każdej bazy |
 | `04-sprzedawca.py` | NPC-sprzedawca z grzybowym kapeluszem (ręka uniesiona do machania) | za ladą straganu |
 | `15-gniazdo-jajo.py` | **stanowisko gachy**: kamienny podest, gniazdo z gałązek z mchem, fasetowane jajo w cętki, WIRUJĄCY magiczny krąg z runami, latarnie z kulami światła, dryfujące iskry — jeden model, akcenty (Cetki/Krag/Drobiny/Kule) przemalowywane na kolor świata | gniazdo petów w każdej bazie |
+| `16-pety-swiat1.py` | **5 petów Świata 1** (kolejność = rzadkość z jaja): Grzybek Skoczek na nóżkach, Ślimak Zamszowy ze spiralną muszlą, Jeżozwierzyk z mini-grzybkiem między kolcami, Biedronix ze złotą obwódką i świecącymi czułkami, **SEKRETNY Wiewiór Rudzik** — lewitujący ogon-warkocz, złoty żołądź, wirująca aureolka, dryfujące iskry | pety lewitujące przy graczu |
 
 ## Jak uruchomić skrypt (2 minuty)
 
