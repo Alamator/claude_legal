@@ -21,7 +21,11 @@ Config.Stats = {
 		maxLevel = 60,
 		sprintDrainPerSec = 10, -- zużycie punktów/s podczas sprintu
 		returnDrainMult = 0.5,  -- powrót zużywa 50% (otwarte pytanie GDD §12.2)
-		regenPerSec = 6,        -- odnawianie, gdy nie sprintujesz
+		-- pasek to BUDŻET wyprawy: odnawia się TYLKO w bazie — bez tego dałoby
+		-- się biegać w nieskończoność metodą „sprint-odpoczynek-sprint"
+		baseRegenPerSec = 25,   -- szybka regeneracja w strefie bazy
+		fieldRegenPerSec = 0,   -- w lesie: zero (Energetyk = jedyny ratunek)
+		exhaustedSeconds = 3,   -- „zadyszka" po wyzerowaniu paska
 		baseCost = 40,          -- cena poziomu 1
 		costGrowth = 1.35,      -- cena = baseCost * costGrowth^poziom
 	},
@@ -39,8 +43,7 @@ Config.Stats = {
 Config.Movement = {
 	walkSpeed = 16,
 	sprintSpeed = 26,
-	exhaustedSpeed = 9,      -- „wleczenie się" po wyczerpaniu kondycji
-	exhaustedRecoverAt = 20, -- tyle punktów paska musi się odnowić, by wstać
+	exhaustedSpeed = 9,      -- „wleczenie się" podczas zadyszki
 }
 
 -- ===========================================================================

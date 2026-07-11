@@ -49,10 +49,14 @@ end
 -- Sprint: LeftShift na PC + automatyczny przycisk dotykowy na telefonie
 -- ============================================================================
 
+local sprintingLocal = false
+
 local function onSprint(_actionName, inputState)
 	if inputState == Enum.UserInputState.Begin then
+		sprintingLocal = true
 		sprintRemote:FireServer(true)
 	elseif inputState == Enum.UserInputState.End then
+		sprintingLocal = false
 		sprintRemote:FireServer(false)
 	end
 	return Enum.ContextActionResult.Pass
@@ -1216,4 +1220,24 @@ RunService.Heartbeat:Connect(function()
 			end
 		end
 	end
+end)
+
+-- ============================================================================
+-- Delikatne trzęsienie kamery podczas sprintu (realizm biegu)
+-- Przez Humanoid.CameraOffset — bezpieczne, nie kłóci się z kamerą Roblox.
+-- ============================================================================
+
+RunService.RenderStepped:Connect(function()
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+	local stamina = player:GetAttribute("Stamina") or 0
+	local active = sprintingLocal and stamina > 0 and humanoid.MoveDirection.Magnitude > 0.1
+	local now = os.clock()
+	local target = active
+		and Vector3.new(math.sin(now * 13) * 0.1, math.abs(math.sin(now * 17)) * 0.16, 0)
+		or Vector3.zero
+	humanoid.CameraOffset = humanoid.CameraOffset:Lerp(target, active and 0.35 or 0.15)
 end)

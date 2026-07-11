@@ -66,7 +66,10 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] W konsoli Output: `[MapBuilder] Mapa gotowa…` i `[GameServer] …wystartował 🍄`.
 - [ ] Widzisz HUD: kasa u góry, pasek kondycji na dole, kosz po prawej,
       3 przyciski ulepszeń po lewej.
-- [ ] **Shift** = sprint; pasek spada; po wyzerowaniu wleczesz się chwilę.
+- [ ] **Shift** = sprint; pasek spada, a ekran delikatnie się trzęsie;
+      po wyzerowaniu 3 s zadyszki i zostaje tylko zwykły chód.
+- [ ] Kondycja NIE odnawia się w lesie — dopiero po powrocie do strefy
+      bazy pasek szybko rośnie (25 pkt/s).
 - [ ] W lesie stoją grzybki — przytrzymaj **E** przy grzybku, trafia do
       koszyka (2 miejsca!), jego świeżość tyka w dół.
 - [ ] Przy pełnym koszyku: słabszy roll = „💸 sprzedany na miejscu",

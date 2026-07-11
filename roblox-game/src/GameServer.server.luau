@@ -102,6 +102,7 @@ local sessions: { [Player]: {
 	stamina: number,
 	sprinting: boolean,
 	exhausted: boolean,
+	exhaustedUntil: number, -- os.clock() końca „zadyszki"
 	carried: { Carried },
 	tutorialStep: number, -- 1..3 = aktywny krok, 0 = ukończony
 	nextChestAt: number,  -- os.time() następnej skrzynki czasowej
@@ -1246,6 +1247,7 @@ rebirthRemote.OnServerEvent:Connect(function(player)
 	s.carried = {}
 	s.stamina = staminaMax(data)
 	s.exhausted = false
+	s.exhaustedUntil = 0
 	s.comboCount = 0
 
 	teleportToBase(player, 1)
@@ -1343,22 +1345,27 @@ task.spawn(function()
 		for player, s in sessions do
 			local data = s.data
 
-			-- kondycja
+			-- kondycja: pasek to BUDŻET wyprawy — odnawia się TYLKO w bazie.
+			-- Wyzerowanie = krótka zadyszka, potem zwykły chód; sprint wraca
+			-- dopiero po powrocie do bazy (albo po Energetyku).
 			local character = player.Character
 			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local root = character and character:FindFirstChild("HumanoidRootPart")
 			local moving = humanoid and humanoid.MoveDirection.Magnitude > 0.1
-			if s.sprinting and moving and not s.exhausted then
+			local inBase = root and root.Position.Z <= 2 -- strefy baz leżą przy z < 0
+
+			if s.sprinting and moving and not s.exhausted and s.stamina > 0 then
 				s.stamina = math.max(0, s.stamina - Config.Stats.Stamina.sprintDrainPerSec)
 				if s.stamina <= 0 then
-					s.exhausted = true
-					notifyRemote:FireClient(player, "😮‍💨 Wyczerpanie! Zwalniasz…")
+					s.exhaustedUntil = os.clock() + Config.Stats.Stamina.exhaustedSeconds
+					notifyRemote:FireClient(player, "😮‍💨 Zadyszka! Kondycja odnowi się dopiero w bazie.")
 				end
-			else
-				s.stamina = math.min(staminaMax(data), s.stamina + Config.Stats.Stamina.regenPerSec)
-				if s.exhausted and s.stamina >= Config.Movement.exhaustedRecoverAt then
-					s.exhausted = false
-				end
+			elseif inBase then
+				s.stamina = math.min(staminaMax(data), s.stamina + Config.Stats.Stamina.baseRegenPerSec)
+			elseif Config.Stats.Stamina.fieldRegenPerSec > 0 then
+				s.stamina = math.min(staminaMax(data), s.stamina + Config.Stats.Stamina.fieldRegenPerSec)
 			end
+			s.exhausted = os.clock() < s.exhaustedUntil
 			applySpeed(player)
 
 			-- świeżość niesionych grzybów (event „Przymrozek" spowalnia psucie)
@@ -1439,6 +1446,7 @@ Players.PlayerAdded:Connect(function(player)
 		stamina = staminaMax(data),
 		sprinting = false,
 		exhausted = false,
+		exhaustedUntil = 0,
 		carried = {},
 		tutorialStep = data.tutorialDone and 0 or 1,
 		nextChestAt = os.time() + Config.Chest.intervalSeconds,

@@ -71,7 +71,7 @@ opłaca się Termos.
 
 | Statystyka | Co daje | Liczby startowe (do strojenia w becie) |
 |------------|---------|----------------------------------------|
-| 🏃 **Kondycja** | dłuższy pasek sprintu = dalej w głąb lasu (i sprawny powrót) | pasek 100 pkt, sprint zużywa 10 pkt/s; +8 pkt paska za poziom; pierścień 5 wymaga ~90 s sprintu w jedną stronę |
+| 🏃 **Kondycja** | dłuższy pasek sprintu = dalej w głąb lasu (i sprawny powrót) | pasek 100 pkt, sprint zużywa 10 pkt/s; +8 pkt za poziom; pierścień 5 wymaga ~90 s sprintu w jedną stronę. **Pasek odnawia się TYLKO w bazie** (w lesie zero regeneracji) — to twardy budżet wyprawy: wyzerowanie = 3 s zadyszki, potem tylko zwykły chód do bazy |
 | ❄️ **Termos** | grzyby wolniej tracą świeżość | spadek świeżości ×0,975 za poziom (poz. 10 ≈ −22%, poz. 30 ≈ −53%); twarde dno: nigdy mniej niż 30% bazowego tempa świata |
 
 **Dwa warunki balansu, żeby ten duet nie zepsuł gry** (wpisane celowo,
