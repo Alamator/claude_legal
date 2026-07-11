@@ -240,6 +240,10 @@ Zasada: płaci się za **wygodę i tempo**, nigdy za dostęp do contentu.
 | 🌙 Nocny Marek | 249 | offline: 100% stawki i cap 8 h |
 | ⚡ Teleport do Pierścieni | 249 | szybka podróż do pierścieni, do których już dobiegłeś o własnych siłach |
 | 👑 VIP | 449 | +10% szczęścia, złoty nick, aura, tytuł w bazie |
+| 🥚 Otwórz ×3 | 199 | każde podejście do jaja otwiera 3 naraz (każde płatne) |
+| 🤖 Auto-Otwieranie | 99 | przełącznik AUTO przy jajku — otwiera co 3 s, gdy stoisz obok |
+| 🍀 Szczęście Jaj ×3 | 199 | wagi Rzadki+ w jajach ×3 |
+| 🍀 Szczęście Jaj ×6 | 499 | wagi Rzadki+ w jajach ×6 (zastępuje ×3) |
 
 ### Developer Products (wielokrotne — główny przychód w tym formacie)
 - 🌙 **Podwójny Zbiór Nocny** (19 Robux) — przycisk „×2" w modalu
@@ -263,8 +267,10 @@ Do premiery NIE robimy: handlu między graczami, kradzieży z cudzych baz
 wpływającej na ruch.
 
 **Pety — przeniesione do v1.0 (gacha):** każda baza ma gniazdo z jajem
-(5k → 500M wg świata); wyklucie losuje peta z puli świata (5 gatunków ×
-rzadkości Zwykły–Legendarny wg wag 60/25/10/4/1). Założone pety (max 3;
+(5k → 500M wg świata); pozycja w puli świata = rzadkość (pet nr 1 Zwykły
+60% … nr 5 Legendarny 1%), więc podgląd przy jajku uczciwie pokazuje
+szanse. Przy podejściu do gniazda wyświetla się panel dropów; klik w peta
+zaznacza go do auto-usuwania po wylosowaniu (Legendarnych nie można). Założone pety (max 3;
 4. slot = przyszły pass) dają +5–60% dochodu i +2–30% szczęścia. Pety
 lewitują przy graczu (widoczne dla wszystkich = flex), przeżywają rebirth
 jak dziennik. Fanfara wyklucia w kolorze rzadkości; Legendarny ogłaszany

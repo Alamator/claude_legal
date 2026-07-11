@@ -25,10 +25,14 @@ seria logowań dzień 1–7, **rebirth** (fioletowy przycisk 🌀 pod
 dziennikiem otwiera minimalistyczny modal („×1.5 → ×2.0", co zeruje / co
 zostaje, cena; przycisk szarzeje, gdy Cię nie stać) — reset daje trwały
 mnożnik dochodu i szczęścia, z fioletową fanfarą i ogłoszeniem serwerowym)
-oraz **pety (gacha)**: jajo w gnieździe każdej bazy, pule 5 petów na świat,
-wyklucie z fanfarą w kolorze rzadkości, panel 🐾 z listą (klik = załóż/
-zdejmij, max 3), bonusy % do dochodu i szczęścia, a założone pety lewitują
-przy graczach — widoczne dla całego serwera.
+oraz **pety (gacha)**: jajo w gnieździe każdej bazy, pule 5 petów na świat
+(pozycja = rzadkość), wyklucie z fanfarą w kolorze rzadkości, panel 🐾
+z listą (klik = załóż/zdejmij, max 3), bonusy % do dochodu i szczęścia,
+a założone pety lewitują przy graczach. **Przy podejściu do jaja** wyskakuje
+panel dropów z szansami (uwzględnia passy szczęścia); klik w peta zaznacza
+🗑️ auto-usuwanie po wylosowaniu. Cztery passy jaj gotowe w kodzie: Otwórz
+×3 (199 R$), Auto-Otwieranie (99 R$ — przycisk AUTO przy jajku), Szczęście
+×3/×6 (199/499 R$) — wystarczy wpisać ID z Creator Hub w GameConfig.
 
 ## Pliki i ich miejsca w Studio
 
@@ -91,6 +95,11 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 - [ ] Jajo przy bazie (5k 💰): wyklucie = błysk w kolorze rzadkości +
       „🐾 Nazwa!"; pet lewituje obok postaci z podpisem; panel 🐾 pozwala
       zakładać/zdejmować (max 3), a dochód/s rośnie o bonus peta.
+- [ ] Podejście do jaja pokazuje panel z 5 petami i szansami (60/25/10/4/1%);
+      klik w peta dodaje 🗑️ i przygasza wiersz; wylosowany zaznaczony pet
+      znika z komunikatem; klik w Legendarnego = odmowa.
+- [ ] Przycisk „🤖 AUTO" bez passa pokazuje cenę/ostrzeżenie o ID; z passem
+      (po wpisaniu ID i zakupie testowym) otwiera jajo co 3 s przy gnieździe.
 - [ ] Przy BasePadzie stoi stojak z twoim nickiem; po dostawie pojawiają się
       na nim kulki w kolorach rzadkości (mutacje świecą).
 - [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na

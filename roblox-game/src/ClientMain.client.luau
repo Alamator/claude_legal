@@ -21,6 +21,8 @@ local sellRemote = remotes:WaitForChild("SellWeakest")
 local rebirthRemote = remotes:WaitForChild("Rebirth")
 local equipRemote = remotes:WaitForChild("EquipPet")
 local hatchRemote = remotes:WaitForChild("HatchResult")
+local autoHatchRemote = remotes:WaitForChild("ToggleAutoHatch")
+local autoDeleteRemote = remotes:WaitForChild("SetAutoDelete")
 
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
@@ -581,6 +583,129 @@ local petsButton = makeButton(gui,
 		end
 	end)
 petsButton.Text = "🐾 Pety"
+
+-- ============================================================================
+-- Panel jaja: pokazuje się przy podejściu do gniazda — dropy z szansami
+-- (klik w peta = zaznacz auto-usuwanie), szczęście z passów, przycisk AUTO
+-- ============================================================================
+
+local function decodeAutoDelete(): { [string]: boolean }
+	local ok, result = pcall(function()
+		return HttpService:JSONDecode(player:GetAttribute("AutoDeleteJSON") or "{}")
+	end)
+	return ok and result or {}
+end
+
+local eggPanel = makeCard(gui, UDim2.new(0, 290, 0, 316), UDim2.new(0, 262, 0.5, 0), Vector2.new(0, 0.5))
+eggPanel.Visible = false
+local eggHeader = addHeader(eggPanel, "🥚 JAJO", Color3.fromRGB(245, 200, 110), Color3.fromRGB(205, 150, 60))
+
+local eggRows: { TextButton } = {}
+for i = 1, 5 do
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(1, -20, 0, 36)
+	row.Position = UDim2.new(0.5, 0, 0, 40 + (i - 1) * 40)
+	row.AnchorPoint = Vector2.new(0.5, 0)
+	row.BackgroundColor3 = Color3.fromRGB(40, 46, 66)
+	row.AutoButtonColor = true
+	row.Text = ""
+	row.Parent = eggPanel
+	addCorner(row, 8)
+	styleText(row, 13)
+	row.Activated:Connect(function()
+		if i >= 5 then
+			showToast("🔒 Legendarnych petów nie można auto-usuwać.")
+			return
+		end
+		local worldIdx = player:GetAttribute("CurrentWorld") or 1
+		local marked = decodeAutoDelete()[worldIdx .. ":" .. i] == true
+		autoDeleteRemote:FireServer(worldIdx, i, not marked)
+	end)
+	eggRows[i] = row
+end
+
+local eggLuckLine = Instance.new("TextLabel")
+eggLuckLine.Size = UDim2.new(1, -20, 0, 20)
+eggLuckLine.Position = UDim2.new(0.5, 0, 0, 242)
+eggLuckLine.AnchorPoint = Vector2.new(0.5, 0)
+eggLuckLine.BackgroundTransparency = 1
+eggLuckLine.Parent = eggPanel
+styleText(eggLuckLine, 13)
+
+local autoButton = makeButton(eggPanel,
+	UDim2.new(1, -20, 0, 36),
+	UDim2.new(0.5, 0, 1, -10),
+	Vector2.new(0.5, 1),
+	Color3.fromRGB(120, 200, 160), Color3.fromRGB(55, 140, 100), 14,
+	function()
+		if player:GetAttribute("OwnsAutoHatch") then
+			autoHatchRemote:FireServer()
+		else
+			local pass = Config.GamePasses.AutoHatch
+			if pass.id ~= 0 then
+				MarketplaceService:PromptGamePassPurchase(player, pass.id)
+			else
+				showToast("⚠️ Pass nieaktywny — uzupełnij ID w GameConfig (faza 8).")
+			end
+		end
+	end)
+
+local function refreshEggPanel()
+	local worldIdx = player:GetAttribute("CurrentWorld") or 1
+	local pool = Config.Pets.poolsByWorld[worldIdx]
+	local luck = player:GetAttribute("EggLuck") or 1
+	eggHeader.Text = ("🥚 JAJO — %s 💰"):format(fmt(Config.Pets.eggCostByWorld[worldIdx]))
+
+	-- szanse z uwzględnieniem szczęścia (te same wagi co na serwerze)
+	local weights, total = {}, 0
+	for i, weight in Config.Pets.hatchWeights do
+		local adjusted = i >= Config.Pets.luckAffectsFrom and weight * luck or weight
+		weights[i] = adjusted
+		total += adjusted
+	end
+
+	local autoDelete = decodeAutoDelete()
+	for i, row in eggRows do
+		local rarity = Config.Rarities[i]
+		local chance = weights[i] / total * 100
+		local marked = autoDelete[worldIdx .. ":" .. i] == true
+		row.Text = ("%s%.1f%%  %s  (+%d%% 💰)"):format(
+			marked and "🗑️ " or "", chance, pool[i],
+			math.floor((Config.Pets.incomeBonusByRarity[i] or 0) * 100))
+		row.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
+		row.BackgroundTransparency = marked and 0.6 or 0.1
+	end
+
+	eggLuckLine.Text = ("🍀 Szczęście jaja: ×%d%s"):format(luck,
+		player:GetAttribute("OwnsTripleHatch") and "   |   🥚×3 aktywne" or "")
+	if player:GetAttribute("OwnsAutoHatch") then
+		autoButton.Text = player:GetAttribute("AutoHatchOn")
+			and "🤖 AUTO: WŁĄCZONE (klik = stop)"
+			or "🤖 AUTO: wyłączone (klik = start)"
+	else
+		autoButton.Text = ("🤖 AUTO — pass %d R$"):format(Config.GamePasses.AutoHatch.priceRobux)
+	end
+end
+
+-- pokazuj panel tylko przy jajku bieżącego świata
+task.spawn(function()
+	while true do
+		local worldIdx = player:GetAttribute("CurrentWorld") or 1
+		local worlds = workspace:FindFirstChild("Worlds")
+		local worldFolder = worlds and worlds:FindFirstChild("World" .. worldIdx)
+		local egg = worldFolder and worldFolder:FindFirstChild("WorldEgg")
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local near = egg and root and (egg.Position - root.Position).Magnitude <= 16
+		if near then
+			eggPanel.Visible = true
+			refreshEggPanel()
+		else
+			eggPanel.Visible = false
+		end
+		task.wait(0.5)
+	end
+end)
 
 -- ============================================================================
 -- Dół: pasek kondycji + pity

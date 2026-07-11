@@ -48,6 +48,8 @@ local sellRemote = makeRemote("SellWeakest")    -- klient → serwer: sprzedaj n
 local rebirthRemote = makeRemote("Rebirth")     -- klient → serwer: prośba o rebirth
 local equipRemote = makeRemote("EquipPet")      -- klient → serwer: (indeks) załóż/zdejmij peta
 local hatchRemote = makeRemote("HatchResult")   -- serwer → klient: wynik wyklucia (do fanfary)
+local autoHatchRemote = makeRemote("ToggleAutoHatch") -- klient → serwer: włącz/wyłącz auto
+local autoDeleteRemote = makeRemote("SetAutoDelete")  -- klient → serwer: (świat, pet, bool)
 
 -- eventy globalne dla całego serwera; Deszcz meteorów (onlyWorld) czeka
 -- na porządną implementację wspólnych spawnów w fazie MVP
@@ -107,7 +109,36 @@ local sessions: { [Player]: {
 	pendingOfflineBonus: number, -- druga połowa zarobku offline (×2 za Robux)
 	comboCount: number,   -- aktualna seria ścięć
 	comboLastAt: number,  -- os.clock() ostatniego ścięcia
+	passes: { [string]: boolean }, -- posiadane Game Passy (cache)
+	autoHatch: boolean,   -- włączone auto-otwieranie jaj (wymaga passa)
+	nextAutoHatchAt: number,
 } } = {}
+
+-- właścicielstwo Game Passów: sprawdzane raz przy wejściu (i po zakupie)
+local function loadPasses(player: Player, s)
+	task.spawn(function()
+		for key, pass in Config.GamePasses do
+			local owns = false
+			if pass.id ~= 0 then
+				local ok, result = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.id)
+				end)
+				owns = ok and result == true
+			end
+			s.passes[key] = owns
+		end
+		player:SetAttribute("OwnsTripleHatch", s.passes.TripleHatch == true)
+		player:SetAttribute("OwnsAutoHatch", s.passes.AutoHatch == true)
+		player:SetAttribute("EggLuck", (s.passes.EggLuck6 and 6) or (s.passes.EggLuck3 and 3) or 1)
+	end)
+end
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, _passId, purchased)
+	local s = sessions[player]
+	if purchased and s then
+		loadPasses(player, s) -- odśwież po zakupie, efekt działa od razu
+	end
+end)
 
 local plotCounter = 0
 
@@ -359,6 +390,8 @@ local function syncAttributes(player: Player)
 	player:SetAttribute("CarriedSummary", table.concat(lines, "\n"))
 
 	player:SetAttribute("PetsJSON", HttpService:JSONEncode(data.pets or {}))
+	player:SetAttribute("AutoDeleteJSON", HttpService:JSONEncode(data.autoDelete or {}))
+	player:SetAttribute("AutoHatchOn", s.autoHatch)
 	player:SetAttribute("Rebirths", data.rebirths)
 	player:SetAttribute("RebirthCost", Config.rebirthCost(data.rebirths))
 	player:SetAttribute("RebirthMult", rebirthMult(data))
@@ -995,59 +1028,92 @@ end)
 -- Pety: wykluwanie z jaj (gacha per świat) i zakładanie
 -- ============================================================================
 
-local function hatchEgg(player: Player, worldIdx: number)
+-- szczęście jaj z passów (×6 wygrywa z ×3): mnoży wagi od Rzadkiego wzwyż
+local function eggLuck(s): number
+	return (s.passes.EggLuck6 and 6) or (s.passes.EggLuck3 and 3) or 1
+end
+
+local function rollEggRarity(s): number
+	local luck = eggLuck(s)
+	local weights, total = {}, 0
+	for index, weight in Config.Pets.hatchWeights do
+		local adjusted = index >= Config.Pets.luckAffectsFrom and weight * luck or weight
+		weights[index] = adjusted
+		total += adjusted
+	end
+	local pick = math.random() * total
+	for index, weight in weights do
+		pick -= weight
+		if pick <= 0 then
+			return index
+		end
+	end
+	return 1
+end
+
+-- jedno losowanie z jaja; false = brak kasy/miejsca (przerywa serię ×3)
+local function hatchOnce(player: Player, worldIdx: number, quiet: boolean): boolean
 	local s = sessions[player]
-	if not s then return end
+	if not s then return false end
 	local data = s.data
 	local cost = Config.Pets.eggCostByWorld[worldIdx]
 
 	if #data.pets >= Config.Pets.maxOwned then
-		notifyRemote:FireClient(player, "❌ Masz komplet petów! (max " .. Config.Pets.maxOwned .. ")")
-		return
+		if not quiet then
+			notifyRemote:FireClient(player, "❌ Masz komplet petów! (max " .. Config.Pets.maxOwned .. ")")
+		end
+		return false
 	end
 	if data.cash < cost then
-		notifyRemote:FireClient(player, ("❌ Jajo kosztuje %d 💰 — za mało kasy."):format(cost))
-		return
+		if not quiet then
+			notifyRemote:FireClient(player, ("❌ Jajo kosztuje %d 💰 — za mało kasy."):format(cost))
+		end
+		return false
 	end
 	data.cash -= cost
 
-	-- rzadkość z wag jaja (pety: Zwykły..Legendarny)
-	local total = 0
-	for _, weight in Config.Pets.hatchWeights do
-		total += weight
-	end
-	local pick = math.random() * total
-	local rarityIdx = 1
-	for index, weight in Config.Pets.hatchWeights do
-		pick -= weight
-		if pick <= 0 then
-			rarityIdx = index
-			break
-		end
-	end
-
+	local rarityIdx = rollEggRarity(s)
+	local petIdx = rarityIdx -- pozycja w puli = rzadkość (patrz GameConfig)
 	local pool = Config.Pets.poolsByWorld[worldIdx]
-	local petIdx = math.random(#pool)
+	local petName = pool[petIdx]
+
+	-- auto-usuwanie zaznaczonych dropów (Legendarny nigdy nie jest usuwany)
+	if data.autoDelete[worldIdx .. ":" .. petIdx] and rarityIdx < 5 then
+		notifyRemote:FireClient(player, ("🗑️ %s wykluty i usunięty automatycznie."):format(petName))
+		syncAttributes(player)
+		return true
+	end
 
 	local equippedCount = 0
 	for _, pet in data.pets do
 		if pet.eq then equippedCount += 1 end
 	end
-
 	local pet = { w = worldIdx, p = petIdx, r = rarityIdx, eq = equippedCount < Config.Pets.maxEquipped }
 	table.insert(data.pets, pet)
 
-	local petName = pool[petIdx]
 	hatchRemote:FireClient(player, petName, rarityIdx, pet.eq)
 	if rarityIdx >= 5 then
 		notifyRemote:FireAllClients(("🥚 %s wykluł LEGENDARNEGO peta: %s!"):format(player.DisplayName, petName))
 	end
-	local egg = worldsFolder:FindFirstChild("World" .. worldIdx)
-	egg = egg and egg:FindFirstChild("WorldEgg")
+	local worldFolder = worldsFolder:FindFirstChild("World" .. worldIdx)
+	local egg = worldFolder and worldFolder:FindFirstChild("WorldEgg")
 	if egg then
 		burstAt(egg.Position, Config.Rarities[rarityIdx].color)
 	end
 	syncAttributes(player)
+	return true
+end
+
+-- pass „Otwórz ×3": jedno podejście = trzy losowania (każde płatne osobno)
+local function hatchEgg(player: Player, worldIdx: number, quiet: boolean?)
+	local s = sessions[player]
+	if not s then return end
+	local rolls = s.passes.TripleHatch and 3 or 1
+	for roll = 1, rolls do
+		if not hatchOnce(player, worldIdx, quiet == true or roll > 1) then
+			break
+		end
+	end
 end
 
 for _, worldFolder in worldsFolder:GetChildren() do
@@ -1079,6 +1145,36 @@ equipRemote.OnServerEvent:Connect(function(player, index)
 		end
 		pet.eq = true
 	end
+	syncAttributes(player)
+end)
+
+-- auto-otwieranie (pass): przełącznik; samo otwieranie robi pętla gry
+autoHatchRemote.OnServerEvent:Connect(function(player)
+	local s = sessions[player]
+	if not s then return end
+	if not s.passes.AutoHatch then
+		notifyRemote:FireClient(player, "🔒 Auto-Otwieranie wymaga Game Passa.")
+		return
+	end
+	s.autoHatch = not s.autoHatch
+	s.nextAutoHatchAt = 0
+	notifyRemote:FireClient(player, s.autoHatch
+		and "🤖 Auto-otwieranie WŁĄCZONE — stań przy jajku."
+		or "🤖 Auto-otwieranie wyłączone.")
+	syncAttributes(player)
+end)
+
+-- zaznaczanie petów do auto-usuwania po wylosowaniu (klik w podglądzie jaja)
+autoDeleteRemote.OnServerEvent:Connect(function(player, worldIdx, petIdx, enabled)
+	local s = sessions[player]
+	if not s or type(worldIdx) ~= "number" or type(petIdx) ~= "number" then return end
+	local pool = Config.Pets.poolsByWorld[worldIdx]
+	if not pool or petIdx < 1 or petIdx > #pool then return end
+	if petIdx >= 5 then
+		notifyRemote:FireClient(player, "🔒 Legendarnych petów nie można auto-usuwać.")
+		return
+	end
+	s.data.autoDelete[worldIdx .. ":" .. petIdx] = (enabled == true) and true or nil
 	syncAttributes(player)
 end)
 
@@ -1253,6 +1349,22 @@ task.spawn(function()
 				s.comboCount = 0
 			end
 
+			-- auto-otwieranie jaj (pass): działa, gdy stoisz przy jajku
+			if s.autoHatch and os.time() >= s.nextAutoHatchAt then
+				s.nextAutoHatchAt = os.time() + Config.Pets.autoHatchIntervalSec
+				local worldFolder = worldsFolder:FindFirstChild("World" .. data.currentWorld)
+				local egg = worldFolder and worldFolder:FindFirstChild("WorldEgg")
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if egg and root and (egg.Position - root.Position).Magnitude <= 18 then
+					if data.cash >= Config.Pets.eggCostByWorld[data.currentWorld] then
+						hatchEgg(player, data.currentWorld, true)
+					else
+						s.autoHatch = false
+						notifyRemote:FireClient(player, "🤖 Auto-otwieranie wyłączone — brak kasy na jajo.")
+					end
+				end
+			end
+
 			-- nowy dzień = nowe zadania (dla siedzących w grze przez północ UTC)
 			ensureDaily(data)
 
@@ -1297,8 +1409,12 @@ Players.PlayerAdded:Connect(function(player)
 		pendingOfflineBonus = offlineBonus,
 		comboCount = 0,
 		comboLastAt = 0,
+		passes = {},
+		autoHatch = false,
+		nextAutoHatchAt = 0,
 	}
 
+	loadPasses(player, sessions[player])
 	grantDailyStreak(player)
 
 	-- leaderboard Roblox (lista graczy po prawej)

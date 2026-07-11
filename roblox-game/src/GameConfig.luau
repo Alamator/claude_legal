@@ -309,7 +309,10 @@ Config.Pets = {
 	maxEquipped = 3,  -- 4. slot = przyszły Game Pass
 	maxOwned = 50,
 	eggCostByWorld = { 5_000, 150_000, 2_000_000, 30_000_000, 500_000_000 },
+	-- pozycja w puli świata = rzadkość: pet nr 1 jest Zwykły … nr 5 Legendarny
 	hatchWeights = { 60, 25, 10, 4, 1 }, -- Zwykły..Legendarny (pety bez Mitycznych)
+	luckAffectsFrom = 3,      -- passy szczęścia mnożą wagi od Rzadkiego wzwyż
+	autoHatchIntervalSec = 3, -- tempo auto-otwierania (pass)
 	incomeBonusByRarity = { 0.05, 0.10, 0.20, 0.35, 0.60 },
 	luckBonusByRarity = { 0.02, 0.05, 0.10, 0.18, 0.30 },
 	poolsByWorld = {
@@ -429,6 +432,11 @@ Config.GamePasses = {
 	NightOwl      = { name = "Nocny Marek",          priceRobux = 249, id = 0, effect = { offlinePass = true } },
 	RingTeleport  = { name = "Teleport do Pierścieni", priceRobux = 249, id = 0, effect = { ringTeleport = true } },
 	VIP           = { name = "VIP",                  priceRobux = 449, id = 0, effect = { luckMult = 1.1, chatTag = "VIP" } },
+	-- passy jaj/petów
+	TripleHatch   = { name = "Otwórz ×3",            priceRobux = 199, id = 0, effect = { tripleHatch = true } },
+	AutoHatch     = { name = "Auto-Otwieranie",      priceRobux = 99,  id = 0, effect = { autoHatch = true } },
+	EggLuck3      = { name = "Szczęście Jaj ×3",     priceRobux = 199, id = 0, effect = { eggLuck = 3 } },
+	EggLuck6      = { name = "Szczęście Jaj ×6",     priceRobux = 499, id = 0, effect = { eggLuck = 6 } },
 }
 
 Config.DevProducts = {
