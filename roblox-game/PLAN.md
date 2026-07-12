@@ -25,8 +25,8 @@
 | 2 | Nauka podstaw Studio i Luau | 3–4 tygodnie | ⬜ |
 | 3 | Koncepcja i mini-GDD | 2–3 dni | ✅ szkic gotowy (do przeglądu po fazie 2) |
 | 4 | Prototyp pętli rozgrywki | 2–3 tygodnie | 🔶 kod gotowy — montaż wg `src/README.md` |
-| 5 | Produkcja MVP | 6–10 tygodni | 🔶 w toku (eventy, skróty, sprzedaż, dziennik, zadania, samouczek, 5 światów, wizualne półki — kod gotowy) |
-| 6 | Oprawa: grafika, dźwięk, UI | 2–3 tygodnie (równolegle z 5) | ⬜ |
+| 5 | Produkcja MVP | 6–10 tygodni | 🔶 kod gotowy (eventy, skróty, sprzedaż, dziennik, zadania, samouczek, 5 światów, grządki z ulepszaniem lvl 1–100, rebirth, pety-gacha z SEKRETAMI 0,1%, mutacje ×10, game passy, dev producty) — czeka na montaż i test w Studio |
+| 6 | Oprawa: grafika, dźwięk, UI | 2–3 tygodnie (równolegle z 5) | 🔶 GUI „bąbelkowe" + mapa proceduralna gotowe; 20 skryptów Blendera (50 grzybów, 25 petów, natura 5 światów, stragan, gniazdo gachy) czeka na eksport FBX — modele podpinają się AUTOMATYCZNIE (`blender/PODPIECIE-MODELI.md`) |
 | 7 | Testy i poprawki | 2 tygodnie | ⬜ |
 | 8 | Monetyzacja | 3–5 dni | ⬜ |
 | 9 | Publikacja | 2–3 dni | ⬜ |
