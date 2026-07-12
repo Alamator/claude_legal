@@ -1165,10 +1165,33 @@ local petFolder = Instance.new("Folder")
 petFolder.Name = "PetModels"
 petFolder.Parent = workspace
 
+-- MODELE Z BLENDERA: jeśli w ReplicatedStorage.Models.Pety leży model
+-- o nazwie peta (np. "Wiewiór Rudzik"), lewituje ON zamiast kulki.
+-- Części animujemy tu sami (FxClient celowo omija PetModels — pet jest
+-- w ciągłym ruchu): *Pierscien/Halo/Dysk/Orbita* wirują,
+-- *Warkocz/Drobiny/Materia/Ksiezyc/Skalki* falują.
+local PET_SPIN_KEYS = { "Pierscien", "Halo", "Dysk", "Orbita" }
+local PET_BOB_KEYS = { "Warkocz", "Drobiny", "Materia", "Ksiezyc", "Skalki" }
+local PET_TARGET_SIZE = 1.9 -- najdłuższy bok peta w studach
+
+type PetAnimPart = { part: BasePart, offset: CFrame, kind: string?, seed: number }
+
 local petModels: { [Player]: { Model } } = {}
+local importedAnim: { [Model]: { PetAnimPart } } = {}
+
+local function petPartKind(name: string): string?
+	for _, key in PET_SPIN_KEYS do
+		if string.find(name, key, 1, true) then return "spin" end
+	end
+	for _, key in PET_BOB_KEYS do
+		if string.find(name, key, 1, true) then return "bob" end
+	end
+	return nil
+end
 
 local function clearPetModels(owner: Player)
 	for _, model in petModels[owner] or {} do
+		importedAnim[model] = nil
 		model:Destroy()
 	end
 	petModels[owner] = nil
@@ -1185,32 +1208,82 @@ local function buildPetModels(owner: Player)
 	for _, pet in pets do
 		if pet.eq and #models < #PET_OFFSETS then
 			local rarity = Config.Pets.rarities[pet.r]
-			local model = Instance.new("Model")
-			model.Name = ("Pet_%d_%d"):format(owner.UserId, #models + 1)
+			local petName = Config.Pets.poolsByWorld[pet.w][pet.p]
 
-			local body = Instance.new("Part")
-			body.Name = "Body"
-			body.Shape = Enum.PartType.Ball
-			body.Size = Vector3.new(1.6, 1.6, 1.6)
-			body.Color = rarity.color
-			body.Material = pet.r >= 4 and Enum.Material.Neon or Enum.Material.SmoothPlastic
-			body.Anchored = true
-			body.CanCollide = false
-			body.CanQuery = false
-			body.Parent = model
+			local modelsRoot = ReplicatedStorage:FindFirstChild("Models")
+			local petsFolder = modelsRoot and modelsRoot:FindFirstChild("Pety")
+			local template = petsFolder and petsFolder:FindFirstChild(petName)
 
-			for _, side in { -0.35, 0.35 } do
-				local eye = Instance.new("Part")
-				eye.Shape = Enum.PartType.Ball
-				eye.Size = Vector3.new(0.3, 0.3, 0.3)
-				eye.Color = Color3.fromRGB(25, 25, 35)
-				eye.Anchored = true
-				eye.CanCollide = false
-				eye.CanQuery = false
-				eye.Name = "Eye"
-				eye.Parent = model
-				eye:SetAttribute("SideX", side)
+			local model: Model
+			local body: BasePart
+			if template and template:IsA("Model") then
+				-- MODEL PETA z Blendera: przygotuj, przeskaluj, spisz animacje
+				model = template:Clone()
+				local biggest: BasePart? = nil
+				local biggestVolume = 0
+				for _, part in model:GetDescendants() do
+					if part:IsA("BasePart") then
+						part.Anchored = true
+						part.CanCollide = false
+						part.CanQuery = false
+						if string.find(part.Name, "Glow", 1, true) then
+							part.Material = Enum.Material.Neon
+						end
+						local volume = part.Size.X * part.Size.Y * part.Size.Z
+						if volume > biggestVolume then
+							biggest, biggestVolume = part, volume
+						end
+					end
+				end
+				if not model.PrimaryPart then
+					model.PrimaryPart = biggest
+				end
+				local _, size = model:GetBoundingBox()
+				local longest = math.max(size.X, size.Y, size.Z)
+				if longest > 0 then
+					model:ScaleTo(model:GetScale() * PET_TARGET_SIZE / longest)
+				end
+				body = model.PrimaryPart :: BasePart
+				local animParts: { PetAnimPart } = {}
+				for _, part in model:GetDescendants() do
+					if part:IsA("BasePart") then
+						table.insert(animParts, {
+							part = part,
+							offset = body.CFrame:ToObjectSpace(part.CFrame),
+							kind = petPartKind(part.Name),
+							seed = math.random() * 10,
+						})
+					end
+				end
+				importedAnim[model] = animParts
+			else
+				-- fallback proceduralny: kulka w kolorze rzadkości + ślepka
+				model = Instance.new("Model")
+				body = Instance.new("Part")
+				body.Name = "Body"
+				body.Shape = Enum.PartType.Ball
+				body.Size = Vector3.new(1.6, 1.6, 1.6)
+				body.Color = rarity.color
+				body.Material = pet.r >= 4 and Enum.Material.Neon or Enum.Material.SmoothPlastic
+				body.Anchored = true
+				body.CanCollide = false
+				body.CanQuery = false
+				body.Parent = model
+
+				for _, side in { -0.35, 0.35 } do
+					local eye = Instance.new("Part")
+					eye.Shape = Enum.PartType.Ball
+					eye.Size = Vector3.new(0.3, 0.3, 0.3)
+					eye.Color = Color3.fromRGB(25, 25, 35)
+					eye.Anchored = true
+					eye.CanCollide = false
+					eye.CanQuery = false
+					eye.Name = "Eye"
+					eye.Parent = model
+					eye:SetAttribute("SideX", side)
+				end
 			end
+			model.Name = ("Pet_%d_%d"):format(owner.UserId, #models + 1)
 
 			local tag = Instance.new("BillboardGui")
 			tag.Size = UDim2.new(0, 110, 0, 22)
@@ -1223,7 +1296,7 @@ local function buildPetModels(owner: Player)
 			tagLabel.Font = Enum.Font.FredokaOne
 			tagLabel.TextScaled = true
 			tagLabel.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.5)
-			tagLabel.Text = Config.Pets.poolsByWorld[pet.w][pet.p]
+			tagLabel.Text = petName
 			tagLabel.Parent = tag
 			if rarity.secret then
 				-- SEKRET: tęczowy podpis + smuga iskier za petem
@@ -1276,10 +1349,25 @@ RunService.Heartbeat:Connect(function()
 			local bob = math.sin(now * 3 + index * 2) * 0.35
 			local target = root.CFrame * CFrame.new(offset.X, offset.Y + bob, offset.Z)
 			local newCFrame = body.CFrame:Lerp(target, 0.12)
-			body.CFrame = newCFrame
-			for _, part in model:GetChildren() do
-				if part.Name == "Eye" then
-					part.CFrame = newCFrame * CFrame.new(part:GetAttribute("SideX"), 0.15, -0.65)
+			local anim = importedAnim[model]
+			if anim then
+				-- model z Blendera: każda część jedzie za ciałem, a nazwane
+				-- części dostają własny ruch (pierścienie wirują, warkocze falują)
+				for _, info in anim do
+					local cf = newCFrame * info.offset
+					if info.kind == "spin" then
+						cf = cf * CFrame.Angles(0, (now + info.seed) * 1.4, 0)
+					elseif info.kind == "bob" then
+						cf = cf * CFrame.new(0, math.sin((now + info.seed * 10) * 1.8) * 0.14, 0)
+					end
+					info.part.CFrame = cf
+				end
+			else
+				body.CFrame = newCFrame
+				for _, part in model:GetChildren() do
+					if part.Name == "Eye" then
+						part.CFrame = newCFrame * CFrame.new(part:GetAttribute("SideX"), 0.15, -0.65)
+					end
 				end
 			end
 		end

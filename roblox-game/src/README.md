@@ -61,6 +61,9 @@ skrypt utworzyć — w Studio nazwa jest bez nich.)
 4. **Game Settings → Security → włącz „Enable Studio Access to API
    Services"** — bez tego zapis postępu (DataStore) nie działa w Studio.
 5. Wciśnij **Play** (F5).
+6. (Opcjonalnie, w dowolnym momencie) wgraj modele z Blendera do
+   `ReplicatedStorage/Models` — gra podmieni grzyby, pety i stanowisko jaja
+   automatycznie. Nazwy i szczegóły: `../blender/PODPIECIE-MODELI.md`.
 
 ## Jak sprawdzić, że wszystko działa (kryteria fazy 4)
 

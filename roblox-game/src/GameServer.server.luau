@@ -27,6 +27,69 @@ local NODE_RESPAWN_DELAY = 5   -- sekundy do wyrośnięcia nowej miejscówki
 local AUTOSAVE_INTERVAL = 120
 
 -- ============================================================================
+-- MODELE Z BLENDERA — auto-podpięcie. Jeśli w ReplicatedStorage.Models
+-- leży model o właściwej nazwie, gra klonuje GO zamiast budować z klocków.
+-- Niczego nie trzeba przełączać: brak folderu/modelu = wygląd proceduralny.
+-- Oczekiwana struktura (szczegóły: blender/PODPIECIE-MODELI.md):
+--   ReplicatedStorage/Models/Grzyby/<nazwa gatunku z GameConfig>
+-- ============================================================================
+
+local modelsRoot = ReplicatedStorage:FindFirstChild("Models")
+
+local function findTemplate(category: string?, name: string): Model?
+	if not modelsRoot then return nil end
+	local holder: Instance = modelsRoot
+	if category then
+		local sub = modelsRoot:FindFirstChild(category)
+		if not sub then return nil end
+		holder = sub
+	end
+	local template = holder:FindFirstChild(name)
+	if template and template:IsA("Model") then
+		return template
+	end
+	return nil
+end
+
+-- Klon gotowy do wstawienia: zakotwiczony, bez kolizji, *Glow → Neon
+-- (gdyby ktoś zapomniał ustawić przy imporcie), opcjonalnie przeskalowany.
+local function prepareClone(template: Model, scale: number?): Model
+	local clone = template:Clone()
+	local biggest: BasePart? = nil
+	local biggestVolume = 0
+	for _, part in clone:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			if string.find(part.Name, "Glow", 1, true) then
+				part.Material = Enum.Material.Neon
+			end
+			local volume = part.Size.X * part.Size.Y * part.Size.Z
+			if volume > biggestVolume then
+				biggest, biggestVolume = part, volume
+			end
+		end
+	end
+	if not clone.PrimaryPart then
+		clone.PrimaryPart = biggest
+	end
+	if scale and scale ~= 1 then
+		clone:ScaleTo(clone:GetScale() * scale)
+	end
+	return clone
+end
+
+-- Stawia klon tak, by DNO jego bounding boxa stało w punkcie (x, y, z).
+local function placeClone(clone: Model, x: number, y: number, z: number, yaw: number?)
+	local box, size = clone:GetBoundingBox()
+	local pivotToCenter = clone:GetPivot():ToObjectSpace(box)
+	local targetCenter = CFrame.new(x, y + size.Y / 2, z) * CFrame.Angles(0, yaw or 0, 0)
+	clone:PivotTo(targetCenter * pivotToCenter:Inverse())
+	return size
+end
+
+-- ============================================================================
 -- Remotes (tworzone przez serwer — klient robi WaitForChild)
 -- ============================================================================
 
@@ -829,6 +892,7 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 	local cap = node:FindFirstChild("Cap")
 	local cutPosition = cap and cap.Position or nil
 	local cutColor = cap and cap.Color or Color3.fromRGB(220, 220, 220)
+	local nodeSpecies = node:GetAttribute("SpeciesIdx") -- gatunek wylosowany przy spawnie
 	node:Destroy()
 	if cutPosition then
 		burstAt(cutPosition, cutColor)
@@ -858,7 +922,7 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 	end
 	local item: Carried = {
 		worldIdx = worldIdx,
-		speciesIdx = math.random(#world.species),
+		speciesIdx = nodeSpecies or math.random(#world.species),
 		rarityIdx = rarityIdx,
 		mutationIdx = mutationIdx,
 		mutationIdx2 = mutationIdx2,
@@ -966,6 +1030,11 @@ spawnNode = function(player: Player)
 	local node = Instance.new("Model")
 	node.Name = "MushroomNode"
 
+	-- gatunek losowany JUŻ TERAZ (nie przy ścięciu): wygląd = loot,
+	-- a jeśli gracz wgrał model gatunku z Blendera — stoi tu ten model
+	local speciesIdx = math.random(#world.species)
+	node:SetAttribute("SpeciesIdx", speciesIdx)
+
 	-- każdy grzyb wygląda inaczej: kolor z palety świata, losowy rozmiar
 	local scale = 0.8 + math.random() * 0.5
 	local capColor = world.theme.caps[math.random(#world.theme.caps)]
@@ -974,37 +1043,62 @@ spawnNode = function(player: Player)
 	local z = ring.Position.Z + (math.random() - 0.5) * (ring.Size.Z - 10)
 	local y = ring.Position.Y + ring.Size.Y / 2
 
-	local stem = Instance.new("Part")
-	stem.Name = "Stem"
-	stem.Shape = Enum.PartType.Cylinder
-	stem.Size = Vector3.new(1.6, 0.8, 0.8) * scale
-	stem.Color = Color3.fromRGB(240, 232, 210)
-	stem.Material = Enum.Material.SmoothPlastic
-	stem.Anchored = true
-	stem.CFrame = CFrame.new(x, y + 0.8 * scale, z) * CFrame.Angles(0, 0, math.rad(90))
-	stem.Parent = node
+	local cap -- kotwica prompta/rozbryzgu (widoczny kapelusz albo niewidzialny box)
+	local template = findTemplate("Grzyby", world.species[speciesIdx].name)
+	if template then
+		-- MODEL GATUNKU z Blendera zamiast klocków
+		local model = prepareClone(template, scale)
+		local size = placeClone(model, x, y, z, math.random() * 2 * math.pi)
+		model.Parent = node
+		-- kolor rozbryzgu = kolor kapelusza modelu (część z "Kapelusz" w nazwie)
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and string.find(part.Name, "Kapelusz", 1, true) then
+				capColor = part.Color
+				break
+			end
+		end
+		cap = Instance.new("Part")
+		cap.Name = "Cap"
+		cap.Transparency = 1
+		cap.Size = Vector3.new(2, 2, 2) * scale
+		cap.Color = capColor
+		cap.Anchored = true
+		cap.CanCollide = false
+		cap.CFrame = CFrame.new(x, y + size.Y * 0.7, z)
+		cap.Parent = node
+	else
+		local stem = Instance.new("Part")
+		stem.Name = "Stem"
+		stem.Shape = Enum.PartType.Cylinder
+		stem.Size = Vector3.new(1.6, 0.8, 0.8) * scale
+		stem.Color = Color3.fromRGB(240, 232, 210)
+		stem.Material = Enum.Material.SmoothPlastic
+		stem.Anchored = true
+		stem.CFrame = CFrame.new(x, y + 0.8 * scale, z) * CFrame.Angles(0, 0, math.rad(90))
+		stem.Parent = node
 
-	local cap = Instance.new("Part")
-	cap.Name = "Cap"
-	cap.Shape = Enum.PartType.Ball
-	cap.Size = Vector3.new(2, 1.4, 2) * scale
-	cap.Color = capColor
-	cap.Material = Enum.Material.SmoothPlastic
-	cap.Anchored = true
-	cap.CFrame = CFrame.new(x, y + 1.9 * scale, z)
-	cap.Parent = node
+		cap = Instance.new("Part")
+		cap.Name = "Cap"
+		cap.Shape = Enum.PartType.Ball
+		cap.Size = Vector3.new(2, 1.4, 2) * scale
+		cap.Color = capColor
+		cap.Material = Enum.Material.SmoothPlastic
+		cap.Anchored = true
+		cap.CFrame = CFrame.new(x, y + 1.9 * scale, z)
+		cap.Parent = node
 
-	-- białe kropki na kapeluszu (klasyka!)
-	for _, offset in { Vector3.new(0.5, 0.45, 0.25), Vector3.new(-0.45, 0.5, -0.3), Vector3.new(0.05, 0.55, 0.5) } do
-		local dot = Instance.new("Part")
-		dot.Shape = Enum.PartType.Ball
-		dot.Size = Vector3.new(0.4, 0.25, 0.4) * scale
-		dot.Color = Color3.fromRGB(250, 248, 240)
-		dot.Material = Enum.Material.SmoothPlastic
-		dot.Anchored = true
-		dot.CanCollide = false
-		dot.CFrame = CFrame.new(Vector3.new(x, y + 1.9 * scale, z) + offset * scale)
-		dot.Parent = node
+		-- białe kropki na kapeluszu (klasyka!)
+		for _, offset in { Vector3.new(0.5, 0.45, 0.25), Vector3.new(-0.45, 0.5, -0.3), Vector3.new(0.05, 0.55, 0.5) } do
+			local dot = Instance.new("Part")
+			dot.Shape = Enum.PartType.Ball
+			dot.Size = Vector3.new(0.4, 0.25, 0.4) * scale
+			dot.Color = Color3.fromRGB(250, 248, 240)
+			dot.Material = Enum.Material.SmoothPlastic
+			dot.Anchored = true
+			dot.CanCollide = false
+			dot.CFrame = CFrame.new(Vector3.new(x, y + 1.9 * scale, z) + offset * scale)
+			dot.Parent = node
+		end
 	end
 
 	-- delikatne iskierki przyciągają wzrok; w głębi (pierścienie 4-5) grzyby świecą
@@ -1019,7 +1113,7 @@ spawnNode = function(player: Player)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Zetnij"
-	prompt.ObjectText = "Grzyb (pierścień " .. ringIndex .. ")"
+	prompt.ObjectText = world.species[speciesIdx].name .. " (pierścień " .. ringIndex .. ")"
 	prompt.HoldDuration = 0.6
 	prompt.MaxActivationDistance = 8
 	prompt.RequiresLineOfSight = false
@@ -1125,7 +1219,7 @@ local function travelTo(player: Player, worldIdx: number)
 			s.data.worldsUnlocked[key] = true
 			notifyRemote:FireAllClients(("🌍 %s odblokował świat: %s!"):format(player.DisplayName, world.name))
 		else
-			notifyRemote:FireClient(player, ("❌ Portal do „%s" kosztuje %s 💰 — za mało kasy.")
+			notifyRemote:FireClient(player, ('❌ Portal do „%s" kosztuje %s 💰 — za mało kasy.')
 				:format(world.name, Config.fmtNumber(world.portalCost)))
 			return
 		end

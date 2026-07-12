@@ -70,6 +70,12 @@ local function register(part: BasePart)
 		addSparkle(part, string.find(name, "Rdzen", 1, true) and 6 or 2)
 	end
 
+	-- pety lewitujące przy graczach animuje ClientMain (są w ciągłym ruchu,
+	-- a my kotwiczymy animację w miejscu spawnu) — iskry zostają, ruch nie
+	if part:FindFirstAncestor("PetModels") then
+		return
+	end
+
 	local kind: string? = nil
 	if nameMatches(name, SPIN_KEYS) then
 		kind = "spin"

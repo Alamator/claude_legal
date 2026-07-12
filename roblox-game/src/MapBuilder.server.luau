@@ -516,14 +516,48 @@ for worldIdx, worldConfig in Config.Worlds do
 			1, -math.random(4, BASE_LENGTH - 6)), worldFolder)
 	end
 
-	-- gniazdo z jajem petów (GDD: gacha per świat)
-	local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 22, 1.2, -8), Color3.fromRGB(150, 110, 70), worldFolder)
-	nest.Material = Enum.Material.WoodPlanks
-	local egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4), CFrame.new(offsetX + 22, 3.2, -8), Color3.fromRGB(250, 245, 230), worldFolder)
-	egg.Shape = Enum.PartType.Ball
-	egg.Material = Enum.Material.SmoothPlastic
+	-- gniazdo z jajem petów (GDD: gacha per świat). Jeśli w ReplicatedStorage.
+	-- Models leży model "GniazdoJajo" (skrypt blender/15), stawiamy JEGO klon
+	-- z akcentami przemalowanymi na kolor świata; inaczej klocki jak dotąd.
+	local nestModelsRoot = ReplicatedStorage:FindFirstChild("Models")
+	local nestTemplate = nestModelsRoot and nestModelsRoot:FindFirstChild("GniazdoJajo")
+	local egg
+	if nestTemplate and nestTemplate:IsA("Model") then
+		local station = nestTemplate:Clone()
+		for _, part in station:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.Anchored = true
+				part.CanQuery = false
+				if string.find(part.Name, "Glow", 1, true) then
+					part.Material = Enum.Material.Neon
+				end
+				-- akcenty gachy w kolorze świata (README modeli: Cetki/Krag/Drobiny/Kule)
+				for _, accentKey in { "Cetki", "Krag", "Drobiny", "Kule" } do
+					if string.find(part.Name, accentKey, 1, true) then
+						part.Color = theme.accent
+						break
+					end
+				end
+			end
+		end
+		local box, size = station:GetBoundingBox()
+		local pivotToCenter = station:GetPivot():ToObjectSpace(box)
+		station:PivotTo(CFrame.new(offsetX + 22, 0.7 + size.Y / 2, -8) * pivotToCenter:Inverse())
+		station.Parent = worldFolder
+		-- niewidzialne "WorldEgg" zostaje kotwicą prompta/logiki GameServera
+		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4),
+			CFrame.new(offsetX + 22, 3.2, -8), Color3.fromRGB(250, 245, 230), worldFolder)
+		egg.Transparency = 1
+		egg.CanCollide = false
+	else
+		local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 22, 1.2, -8), Color3.fromRGB(150, 110, 70), worldFolder)
+		nest.Material = Enum.Material.WoodPlanks
+		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4), CFrame.new(offsetX + 22, 3.2, -8), Color3.fromRGB(250, 245, 230), worldFolder)
+		egg.Shape = Enum.PartType.Ball
+		egg.Material = Enum.Material.SmoothPlastic
+		addSparkles(egg, theme.accent, 2)
+	end
 	egg:SetAttribute("WorldIndex", worldIdx)
-	addSparkles(egg, theme.accent, 2)
 	makePrompt(egg, "Wyklnij peta",
 		("🥚 Jajo: %s — %s 💰"):format(worldConfig.name, Config.fmtNumber(Config.Pets.eggCostByWorld[worldIdx])))
 

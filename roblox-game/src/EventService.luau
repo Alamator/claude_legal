@@ -60,7 +60,7 @@ function EventService.init(notifyRemote: RemoteEvent, worldId: string)
 			currentEffect = {}
 			workspace:SetAttribute("EventName", nil)
 			workspace:SetAttribute("EventEndsAt", nil)
-			notifyRemote:FireAllClients(("⏹️ Event „%s" zakończony."):format(event.name))
+			notifyRemote:FireAllClients(('⏹️ Event „%s" zakończony.'):format(event.name))
 		end
 	end)
 end

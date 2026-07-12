@@ -71,12 +71,15 @@ zostaje w rękach `GameConfig`, jak dotąd). Nie łącz ich w Blenderze!
 4. **Ustaw każdemu MeshPartowi Anchored = true** i sprawdź skalę
    (1 jednostka Blendera ≈ 1 stud; grzyb ma ~2, drzewo ~6, stragan ~7).
 
-## Podpięcie do gry (zrobię ja)
+## Podpięcie do gry — AUTOMATYCZNE
 
-Gdy modele będą w `ReplicatedStorage.Models`, napisz do mnie — podmienię
-funkcje w `MapBuilder`/`GameServer` z budowania z klocków na klonowanie
-modeli (`model:Clone()`), z zachowaniem kolorowania palety świata przez
-`GameConfig`. Kod jest na to gotowy: każda dekoracja to jedna funkcja.
+Niczego nie trzeba przełączać w kodzie: gra sama wykrywa modele
+w `ReplicatedStorage/Models` i używa ich zamiast klocków (grzyby w lesie,
+pety, stanowisko jaja). Wystarczy właściwie nazwać wgrane modele —
+**pełna lista nazw i instrukcja: [`PODPIECIE-MODELI.md`](PODPIECIE-MODELI.md)**.
+Drzewa i dekoracje biomów na razie zostają proceduralne (wygląd map buduje
+`MapBuilder` z palety świata) — podmiana na modele to szybka zmiana, gdy
+będziesz gotowy.
 
 ## Nazwy części = automatyczne animacje w grze
 
