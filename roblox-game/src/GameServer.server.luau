@@ -1024,6 +1024,10 @@ local function refreshShelfDisplay(player: Player)
 
 			local gui = Instance.new("SurfaceGui")
 			gui.Face = Enum.NormalId.Top
+			-- canvas dopasowany do pada (domyślne 800×600 + limit fontu 100 px
+			-- dawały mikroskopijny napis)
+			gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			gui.PixelsPerStud = 40
 			gui.Parent = collect
 			local label = Instance.new("TextLabel")
 			label.Size = UDim2.fromScale(0.92, 0.8)
@@ -1090,6 +1094,8 @@ local function refreshShelfDisplay(player: Player)
 
 		local buyGui = Instance.new("SurfaceGui")
 		buyGui.Face = Enum.NormalId.Top
+		buyGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		buyGui.PixelsPerStud = 40
 		buyGui.Parent = buyPad
 		local buyLabel = Instance.new("TextLabel")
 		buyLabel.Size = UDim2.fromScale(0.92, 0.75)
@@ -2376,7 +2382,9 @@ task.spawn(function()
 			-- (kasa wpada dopiero, gdy właściciel wejdzie na pole i zbierze)
 			for index, item in data.shelf do
 				item.earned = (item.earned or 0) + itemIncome(item, data)
-				local label = s.plotLabels[index]
+				-- etykiety padów są kluczowane numerem GRZĄDKI (slot),
+				-- nie pozycją w tablicy!
+				local label = s.plotLabels[item.slot or index]
 				if label then
 					label.Text = "$" .. Config.fmtNumber(item.earned)
 				end
