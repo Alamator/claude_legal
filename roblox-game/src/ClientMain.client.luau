@@ -1698,7 +1698,17 @@ RunService:BindToRenderStep("PickAShroomForcedRun", Enum.RenderPriority.Characte
 	if not humanoid then return end
 	humanoid.Jump = false -- bez skakania na szynach
 	local phase = player:GetAttribute("ExpeditionPhase") or "out"
-	local forward = phase == "out" and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
+	local forward
+	if phase == "out" then
+		-- biegniesz TAM, GDZIE PATRZYSZ (1. osoba, swobodne rozglądanie),
+		-- ale zawsze W GŁĄB: składowa +Z nie spada poniżej 0,35
+		local look = camera.CFrame.LookVector
+		local flat = Vector3.new(look.X, 0, look.Z)
+		flat = flat.Magnitude > 0.05 and flat.Unit or Vector3.new(0, 0, 1)
+		forward = Vector3.new(flat.X, 0, math.max(flat.Z, 0.35)).Unit
+	else
+		forward = Vector3.new(0, 0, -1) -- powrót: prosto do bazy
+	end
 	local strafe = 0
 	if controlsOk and controls then
 		strafe = controls:GetMoveVector().X
@@ -1719,9 +1729,26 @@ local function setAiming(on: boolean)
 	end
 end
 
+-- kamera biegu: faza "out" = PRAWDZIWA 1. osoba Roblox (LockFirstPerson —
+-- można się swobodnie rozglądać myszką), faza "return" = widok z góry
+local function updateRunCamera()
+	local state = player:GetAttribute("ExpeditionState")
+	local phase = player:GetAttribute("ExpeditionPhase") or "out"
+	if state == "run" and phase == "out" then
+		player.CameraMode = Enum.CameraMode.LockFirstPerson
+		if not wolfScene then
+			camera.CameraType = Enum.CameraType.Custom
+		end
+	else
+		player.CameraMode = Enum.CameraMode.Classic
+	end
+end
+player:GetAttributeChangedSignal("ExpeditionPhase"):Connect(updateRunCamera)
+
 player:GetAttributeChangedSignal("ExpeditionState"):Connect(function()
 	local state = player:GetAttribute("ExpeditionState")
 	setAiming(state == "aiming")
+	updateRunCamera()
 	-- HUD wg stanu: baza = pełny HUD; minigra/cutscenka = nic;
 	-- bieg = tylko mini-HUD (kondycja + koszyk + ZAWRÓĆ)
 	gui.Enabled = state == nil or state == "base"
@@ -1863,28 +1890,19 @@ RunService.RenderStepped:Connect(function()
 		local position = Config.launchPosition(startTime, workspace:GetServerTimeNow())
 		launchIndicator.Position = UDim2.new(0.5, 0, 1 - position, 0)
 	elseif player:GetAttribute("ExpeditionState") == "run" and root then
-		-- BIEG NA SZYNACH: kamera zablokowana przez grę
-		if camera.CameraType ~= Enum.CameraType.Scriptable then
-			camera.CameraType = Enum.CameraType.Scriptable
-		end
-		local now = os.clock()
 		local phase = player:GetAttribute("ExpeditionPhase") or "out"
-		if phase == "out" then
-			-- 1. osoba: oczy biegacza, patrzą prosto w głąb lasu, bob biegu
-			local bob = math.sin(now * 11) * 0.16
-			local eye = root.Position + Vector3.new(0, 1.6 + bob, 0)
-			if now < launchShakeUntil then
-				eye += Vector3.new(math.sin(now * 29), math.abs(math.sin(now * 33)), 0)
-					* 0.12 * launchShakeMag
-			end
-			camera.CFrame = CFrame.lookAt(eye, eye + Vector3.new(0, -0.6, 20))
-		else
+		if phase == "return" then
 			-- powrót: kamera wysoko z góry (zablokowana) — widzisz siebie,
 			-- drogę do bazy i WILKA za plecami
+			if camera.CameraType ~= Enum.CameraType.Scriptable then
+				camera.CameraType = Enum.CameraType.Scriptable
+			end
 			camera.CFrame = CFrame.lookAt(
 				root.Position + Vector3.new(0, 34, -16),
 				root.Position + Vector3.new(0, 0, 8))
 		end
+		-- faza "out": natywna 1. osoba Roblox (LockFirstPerson) —
+		-- swobodne rozglądanie; kamerą zarządza silnik, nie my
 	end
 
 	if not humanoid then
