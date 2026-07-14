@@ -40,6 +40,16 @@ znaczenie.
 - **Drobiazgi techniczne za Ciebie**: kotwiczenie (Anchored), wyłączenie
   kolizji, `*Glow` → Material Neon (gdybyś zapomniał ustawić), dobór skali
   petów do ~2 studów.
+- **„Tekstury" też automatycznie**: klasycznych tekstur-obrazków ten styl
+  nie potrzebuje — kolory FBX przenosi sam, a fakturę powierzchni dają
+  wbudowane materiały Roblox, które gra przypisuje **po nazwach części**
+  (reguły w `GameConfig.materialFor`): `Pien/Galazki/Kloda…` → deski,
+  `Kamien/Glaz/Podest…` → łupek, `Krysztal/Ametyst/Klejnot…` → szkło,
+  `Lod/Szron/Sopel` → lód, `Mech/Trawa/Korona/Listek…` → trawa,
+  `Futro/Piora/Pusz` → tkanina, `Zloto/Metal` → folia metaliczna,
+  `Blot/Kaluza` → grunt. Reszta zostaje gładka (SmoothPlastic — typowe
+  dla stylu). Czyli: wgrywasz FBX i tyle — drewno wygląda jak drewno,
+  kryształ błyszczy, futro ma splot.
 
 Czego gra NIE podmienia (celowo): grzybów zasadzonych na grządkach — tam
 kapelusz w kolorze rzadkości to ważny sygnał (od razu widać, komu wyrósł

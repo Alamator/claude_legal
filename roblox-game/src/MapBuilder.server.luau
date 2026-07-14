@@ -530,6 +530,12 @@ for worldIdx, worldConfig in Config.Worlds do
 				part.CanQuery = false
 				if string.find(part.Name, "Glow", 1, true) then
 					part.Material = Enum.Material.Neon
+				else
+					-- "tekstura" po nazwie: podest→kamień, gałązki→drewno itd.
+					local material = Config.materialFor(part.Name)
+					if material then
+						part.Material = material
+					end
 				end
 				-- akcenty gachy w kolorze świata (README modeli: Cetki/Krag/Drobiny/Kule)
 				for _, accentKey in { "Cetki", "Krag", "Drobiny", "Kule" } do

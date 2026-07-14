@@ -64,6 +64,12 @@ local function prepareClone(template: Model, scale: number?): Model
 			part.CanQuery = false
 			if string.find(part.Name, "Glow", 1, true) then
 				part.Material = Enum.Material.Neon
+			else
+				-- "tekstura" po nazwie: drewno/kamień/szkło/lód/trawa...
+				local material = Config.materialFor(part.Name)
+				if material then
+					part.Material = material
+				end
 			end
 			local volume = part.Size.X * part.Size.Y * part.Size.Z
 			if volume > biggestVolume then

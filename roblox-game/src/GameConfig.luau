@@ -66,6 +66,46 @@ function Config.fmtNumber(n: number): string
 	return string.format("%.2f%s", value, NUMBER_SUFFIXES[index])
 end
 
+-- ===========================================================================
+-- "TEKSTURY" MODELI Z BLENDERA — materiały Roblox po nazwach części.
+-- FBX przenosi kolory, a wbudowane materiały silnika (drewno, kamień,
+-- szkło, lód, trawa...) dają teksturę powierzchni bez UV-mapowania.
+-- Auto-podpięcie (GameServer/ClientMain/MapBuilder) woła Config.materialFor
+-- dla każdej części klonowanego modelu. Kolejność ma znaczenie:
+-- pierwsza pasująca reguła wygrywa ("Glow" sprawdzane jest wcześniej,
+-- osobno — świecące części zawsze dostają Neon).
+-- ===========================================================================
+
+local MATERIAL_RULES: { { keys: { string }, material: Enum.Material } } = {
+	{ keys = { "Lod", "Szron", "Mroz", "Sopel", "Snieg" }, material = Enum.Material.Ice },
+	{ keys = { "Krysztal", "Ametyst", "Rubin", "Szmaragd", "Diament", "Kwarc",
+		"Pryzmat", "Gem", "Klejnot", "Geoda", "Obsydian", "Lazur" }, material = Enum.Material.Glass },
+	-- "Cesarz" przed regułą traw: złota korona Muchomora Cesarskiego to metal,
+	-- reszta "Koron" w modelach to korony drzew (liście)
+	{ keys = { "Zloto", "Metal", "Medalion", "Cesarz" }, material = Enum.Material.Foil },
+	{ keys = { "Pien", "Drewno", "Galazk", "Konar", "Slup", "Kloda", "Deska",
+		"Pniak", "Stragan" }, material = Enum.Material.WoodPlanks },
+	{ keys = { "Kamien", "Glaz", "Skal", "Stalagmit", "Monolit", "Meteoryt",
+		"Krater", "Podest" }, material = Enum.Material.Slate },
+	{ keys = { "Mech", "Traw", "Lisc", "Igliwie", "Korona", "Wyscielenie",
+		"Listek", "Paproc" }, material = Enum.Material.Grass },
+	{ keys = { "Futro", "Piora", "Pusz", "Welna" }, material = Enum.Material.Fabric },
+	{ keys = { "Blot", "Ziemia", "Kaluza", "Bagno" }, material = Enum.Material.Ground },
+}
+
+-- Materiał dla części o danej nazwie; nil = zostaw jak w imporcie
+-- (SmoothPlastic). Części "*Glow" obsługuje auto-podpięcie osobno (Neon).
+function Config.materialFor(partName: string): Enum.Material?
+	for _, rule in MATERIAL_RULES do
+		for _, key in rule.keys do
+			if string.find(partName, key, 1, true) then
+				return rule.material
+			end
+		end
+	end
+	return nil
+end
+
 -- Prędkości poruszania (używane przez serwer — klient ich nie ustawia!)
 Config.Movement = {
 	walkSpeed = 16,
