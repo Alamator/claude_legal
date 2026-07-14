@@ -126,6 +126,7 @@ local autoDeleteRemote = makeRemote("SetAutoDelete")  -- klient → serwer: (św
 local launchRemote = makeRemote("LaunchStop")   -- klient → serwer: zatrzymaj wskaźnik startu wyprawy
 local escapeRemote = makeRemote("Escaped")      -- serwer → klient: (etykieta łupu) uciekłeś wilkowi
 local wolfSceneRemote = makeRemote("WolfScene") -- serwer → klient: (pozycja, nazwa, sekundy) cutscenka wilka
+local abortRemote = makeRemote("AbortRun")      -- klient → serwer: przerwij bieg (zawróć do bazy)
 
 -- eventy globalne dla całego serwera; Deszcz meteorów (onlyWorld) czeka
 -- na porządną implementację wspólnych spawnów w fazie MVP
@@ -193,6 +194,8 @@ local sessions: { [Player]: {
 	autoHatch: boolean,   -- włączone auto-otwieranie jaj (wymaga passa)
 	nextAutoHatchAt: number,
 	expedition: string,   -- "base" | "aiming" (minigra startu) | "run" (wyprawa)
+	runPhase: string,     -- podczas "run": "out" (w głąb, auto-bieg) | "return" (powrót)
+	fullToastAt: number,  -- os.clock() ostatniego toastu "koszyk pełny" (anty-spam)
 	lastZ: number,        -- poprzednia pozycja Z (kondycja spala się TYLKO w głąb)
 	launchStart: number,  -- GetServerTimeNow() startu oscylatora minigry
 	launchMult: number,   -- aktywny mnożnik head startu
@@ -1164,7 +1167,10 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 
 	-- koszyk pełny = NIE ścinasz (grzyb zostaje w lesie) — zmykaj do bazy!
 	if #s.carried >= carryCapacity(s) then
-		notifyRemote:FireClient(player, "🧺 Koszyk pełny! Uciekaj z łupem do bazy!")
+		if os.clock() - s.fullToastAt > 1.5 then -- anty-spam przy wbieganiu
+			s.fullToastAt = os.clock()
+			notifyRemote:FireClient(player, "🧺 Koszyk pełny! Uciekaj z łupem do bazy!")
+		end
 		return
 	end
 
@@ -1212,6 +1218,11 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 	-- do koszyka (miejsce sprawdzone na wejściu — bez wypychania)
 	table.insert(s.carried, item)
 	notifyRemote:FireClient(player, ("🍄 %s  (koszyk %d/%d)"):format(itemLabel(item), #s.carried, carryCapacity(s)))
+
+	-- łup w koszyku = bieg przechodzi w fazę POWROTU (kamera z góry,
+	-- gra zawraca gracza do bazy)
+	s.runPhase = "return"
+	player:SetAttribute("ExpeditionPhase", "return")
 
 	-- ŁUP ŚCIĄGA DRAPIEŻNIKA: od pierwszego ścięcia goni cię wilk świata
 	-- (im głębszy pierścień, tym szybszy — patrz Config.Wolves)
@@ -1381,19 +1392,40 @@ spawnNode = function(player: Player)
 		light.Parent = cap
 	end
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Zetnij"
-	prompt.ObjectText = world.species[speciesIdx].name .. " (pierścień " .. ringIndex .. ")"
-	prompt.HoldDuration = 0.6
-	prompt.MaxActivationDistance = 8
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = cap
-
-	prompt.Triggered:Connect(function(who)
-		if who == player then -- skrót prototypowy: tylko właściciel ścina swoje
-			cutNode(player, node, worldIdx, ringIndex)
+	-- ZBIÓR PRZEZ WBIEGNIĘCIE (nowoczesny standard — zero przytrzymywania E):
+	-- dotknięcie dowolnej części grzyba przez właściciela = ścięcie
+	local cutDone = false
+	local function onTouch(hit: BasePart)
+		if cutDone then return end
+		local who = hit.Parent and Players:GetPlayerFromCharacter(hit.Parent)
+		if who ~= player then return end -- skrót prototypowy: swoje grzyby
+		cutDone = true
+		cutNode(player, node, worldIdx, ringIndex)
+		if node.Parent then
+			cutDone = false -- koszyk był pełny — grzyb został w lesie
 		end
-	end)
+	end
+	for _, part in node:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Touched:Connect(onTouch)
+		end
+	end
+
+	-- podpis nad grzybem (dawniej pokazywał go prompt)
+	local nameTag = Instance.new("BillboardGui")
+	nameTag.Size = UDim2.new(0, 130, 0, 26)
+	nameTag.StudsOffset = Vector3.new(0, 2.6 * scale, 0)
+	nameTag.MaxDistance = 60
+	nameTag.Parent = cap
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.fromScale(1, 1)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = Enum.Font.FredokaOne
+	nameLabel.TextScaled = true
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeTransparency = 0.35
+	nameLabel.Text = world.species[speciesIdx].name
+	nameLabel.Parent = nameTag
 
 	node.Parent = playerFolder(player)
 end
@@ -1979,6 +2011,15 @@ end
 -- pościg: wilk płynie do gracza co klatkę; dogonienie = strata łupu
 RunService.Heartbeat:Connect(function(dt: number)
 	for player, s in sessions do
+		-- domknięcie biegu w bazie co KLATKĘ (pętla 1 s dawałaby poślizg)
+		if s.expedition == "run" then
+			local runCharacter = player.Character
+			local runRoot = runCharacter and runCharacter:FindFirstChild("HumanoidRootPart")
+			if runRoot and runRoot.Position.Z <= 2 then
+				endExpedition(player, true)
+			end
+		end
+
 		local wolf = s.wolf
 		if not wolf or not wolf.model then continue end
 		if wolf.frozenUntil and os.clock() < wolf.frozenUntil then
@@ -2060,8 +2101,10 @@ launchRemote.OnServerEvent:Connect(function(player)
 	s.launchMult = tier.mult
 	s.launchUntil = os.clock() + tier.seconds
 	s.expedition = "run"
+	s.runPhase = "out"
 	s.lastZ = 0
 	player:SetAttribute("LaunchTier", tierIdx)
+	player:SetAttribute("ExpeditionPhase", "out")
 	player:SetAttribute("ExpeditionState", "run")
 	notifyRemote:FireClient(player, tier.label)
 
@@ -2084,6 +2127,15 @@ launchRemote.OnServerEvent:Connect(function(player)
 		Debris:AddItem(emitter, tier.seconds)
 	end
 	applySpeed(player)
+end)
+
+-- przycisk ZAWRÓĆ: przerywa fazę "out" — gra zawraca gracza do bazy
+abortRemote.OnServerEvent:Connect(function(player)
+	local s = sessions[player]
+	if not s or s.expedition ~= "run" or s.runPhase ~= "out" then return end
+	s.runPhase = "return"
+	player:SetAttribute("ExpeditionPhase", "return")
+	notifyRemote:FireClient(player, "↩️ Zawracasz do bazy!")
 end)
 
 for _, worldFolder in worldsFolder:GetChildren() do
@@ -2117,18 +2169,16 @@ task.spawn(function()
 			local inBase = root and root.Position.Z <= 2 -- strefy baz leżą przy z < 0
 
 			if s.expedition == "run" and root then
-				if root.Position.Z > s.lastZ + 0.5 and s.stamina > 0 then
+				-- auto-bieg: faza "out" pali kondycję; wyzerowanie = gra
+				-- SAMA zawraca (faza "return" nie kosztuje nic)
+				if s.runPhase == "out" and s.stamina > 0 then
 					s.stamina = math.max(0, s.stamina - Config.Stats.Stamina.sprintDrainPerSec)
 					if s.stamina <= 0 then
-						if #s.carried == 0 then
-							notifyRemote:FireClient(player, "😮‍💨 Kondycja wyczerpana — wracasz do bazy z pustymi rękami.")
-							s.expedition = "base"
-							s.launchCooldownUntil = os.clock() + 4
-							player:SetAttribute("ExpeditionState", "base")
-							teleportToBase(player, data.currentWorld)
-						else
-							notifyRemote:FireClient(player, "😮‍💨 Koniec kondycji! Teraz już tylko UCIECZKA do bazy!")
-						end
+						s.runPhase = "return"
+						player:SetAttribute("ExpeditionPhase", "return")
+						notifyRemote:FireClient(player, #s.carried > 0
+							and "😮‍💨 Koniec kondycji! UCIECZKA do bazy!"
+							or "😮‍💨 Kondycja wyczerpana — zawracasz z pustymi rękami.")
 					end
 				end
 				if inBase then
@@ -2259,6 +2309,8 @@ Players.PlayerAdded:Connect(function(player)
 		autoHatch = false,
 		nextAutoHatchAt = 0,
 		expedition = "base",
+		runPhase = "out",
+		fullToastAt = 0,
 		lastZ = 0,
 		launchStart = 0,
 		launchMult = 1,

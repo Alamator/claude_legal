@@ -26,6 +26,7 @@ local autoDeleteRemote = remotes:WaitForChild("SetAutoDelete")
 local launchRemote = remotes:WaitForChild("LaunchStop")
 local escapeRemote = remotes:WaitForChild("Escaped")
 local wolfSceneRemote = remotes:WaitForChild("WolfScene")
+local abortRemote = remotes:WaitForChild("AbortRun")
 
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
@@ -1078,7 +1079,7 @@ task.spawn(function()
 	while true do
 		local step = player:GetAttribute("TutorialStep") or 0
 		if step == 1 then
-			tutorialBanner.Text = "🍄 KROK 1/3: Stań na 🚀 STREFIE STARTU, wystartuj i zetnij grzybka (przytrzymaj E)"
+			tutorialBanner.Text = "🍄 KROK 1/3: Stań na 🚀 STREFIE STARTU, traf w pasek i WBIEGNIJ w grzybka!"
 			local target = nearestOwnMushroomPart()
 			marker.Parent = target
 			marker.Enabled = target ~= nil
@@ -1613,6 +1614,27 @@ runStaminaText.ZIndex = 3
 runStaminaText.Text = "🏃 100/100"
 runStaminaText.Parent = runStaminaBack
 
+-- przycisk ZAWRÓĆ — przerywa bieg w głąb (gra zawraca do bazy)
+local abortButton = Instance.new("TextButton")
+abortButton.AnchorPoint = Vector2.new(0.5, 1)
+abortButton.Position = UDim2.new(0.5, 0, 1, -112)
+abortButton.Size = UDim2.new(0, 190, 0, 42)
+abortButton.BackgroundColor3 = Color3.fromRGB(235, 80, 70)
+abortButton.Font = FONT
+abortButton.TextScaled = true
+abortButton.TextColor3 = Color3.new(1, 1, 1)
+abortButton.TextStrokeTransparency = 0.5
+abortButton.Text = "↩️ ZAWRÓĆ"
+abortButton.Parent = runGui
+addCorner(abortButton, 14)
+local abortStroke = Instance.new("UIStroke")
+abortStroke.Thickness = 3
+abortStroke.Color = Color3.fromRGB(120, 30, 25)
+abortStroke.Parent = abortButton
+abortButton.Activated:Connect(function()
+	abortRemote:FireServer()
+end)
+
 local function refreshRunHud()
 	local stamina = player:GetAttribute("Stamina") or 0
 	local staminaMax = math.max(player:GetAttribute("StaminaMax") or 100, 1)
@@ -1625,11 +1647,39 @@ local function refreshRunHud()
 	runBasket.Text = ("🧺 %d/%d"):format(
 		player:GetAttribute("CarriedCount") or 0,
 		player:GetAttribute("CarrySlots") or 1)
+	abortButton.Visible = (player:GetAttribute("ExpeditionPhase") or "out") == "out"
 end
-for _, attribute in { "Stamina", "StaminaMax", "CarriedCount", "CarrySlots" } do
+for _, attribute in { "Stamina", "StaminaMax", "CarriedCount", "CarrySlots", "ExpeditionPhase" } do
 	player:GetAttributeChangedSignal(attribute):Connect(refreshRunHud)
 end
 refreshRunHud()
+
+-- ============================================================================
+-- AUTO-BIEG „na szynach": podczas wyprawy porusza się GRA, nie gracz —
+-- w głąb (+Z) w fazie "out", do bazy (-Z) w fazie "return". Gracz może
+-- tylko sterować bokami (A/D, drążek); zatrzymać się NIE można.
+-- ============================================================================
+
+local controlsOk, controls = pcall(function()
+	return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")):GetControls()
+end)
+
+RunService:BindToRenderStep("PickAShroomForcedRun", Enum.RenderPriority.Character.Value + 1, function()
+	if player:GetAttribute("ExpeditionState") ~= "run" then return end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	humanoid.Jump = false -- bez skakania na szynach
+	local phase = player:GetAttribute("ExpeditionPhase") or "out"
+	local forward = phase == "out" and Vector3.new(0, 0, 1) or Vector3.new(0, 0, -1)
+	local strafe = 0
+	if controlsOk and controls then
+		strafe = controls:GetMoveVector().X
+	end
+	local sideways = camera.CFrame.RightVector
+	local direction = forward + Vector3.new(sideways.X, 0, sideways.Z) * strafe * 0.9
+	humanoid:Move(direction.Unit, false)
+end)
 
 local function setAiming(on: boolean)
 	aiming = on
@@ -1646,7 +1696,7 @@ player:GetAttributeChangedSignal("ExpeditionState"):Connect(function()
 	local state = player:GetAttribute("ExpeditionState")
 	setAiming(state == "aiming")
 	-- HUD wg stanu: baza = pełny HUD; minigra/cutscenka = nic;
-	-- bieg = tylko mini-HUD (kondycja + koszyk)
+	-- bieg = tylko mini-HUD (kondycja + koszyk + ZAWRÓĆ)
 	gui.Enabled = state == nil or state == "base"
 	runGui.Enabled = state == "run"
 	if state == "run" then
@@ -1654,6 +1704,9 @@ player:GetAttributeChangedSignal("ExpeditionState"):Connect(function()
 		local tier = player:GetAttribute("LaunchTier") or 4
 		launchShakeMag = (4 - tier) * 0.9
 		launchShakeUntil = os.clock() + 0.7 + (4 - tier) * 0.3
+		refreshRunHud()
+	elseif (state == nil or state == "base") and not wolfScene then
+		camera.CameraType = Enum.CameraType.Custom
 	end
 end)
 
@@ -1782,6 +1835,29 @@ RunService.RenderStepped:Connect(function()
 		local startTime = player:GetAttribute("LaunchStart") or 0
 		local position = Config.launchPosition(startTime, workspace:GetServerTimeNow())
 		launchIndicator.Position = UDim2.new(0.5, 0, 1 - position, 0)
+	elseif player:GetAttribute("ExpeditionState") == "run" and root then
+		-- BIEG NA SZYNACH: kamera zablokowana przez grę
+		if camera.CameraType ~= Enum.CameraType.Scriptable then
+			camera.CameraType = Enum.CameraType.Scriptable
+		end
+		local now = os.clock()
+		local phase = player:GetAttribute("ExpeditionPhase") or "out"
+		if phase == "out" then
+			-- 1. osoba: oczy biegacza, patrzą prosto w głąb lasu, bob biegu
+			local bob = math.sin(now * 11) * 0.16
+			local eye = root.Position + Vector3.new(0, 1.6 + bob, 0)
+			if now < launchShakeUntil then
+				eye += Vector3.new(math.sin(now * 29), math.abs(math.sin(now * 33)), 0)
+					* 0.12 * launchShakeMag
+			end
+			camera.CFrame = CFrame.lookAt(eye, eye + Vector3.new(0, -0.6, 20))
+		else
+			-- powrót: kamera wysoko z góry (zablokowana) — widzisz siebie,
+			-- drogę do bazy i WILKA za plecami
+			camera.CFrame = CFrame.lookAt(
+				root.Position + Vector3.new(0, 34, -16),
+				root.Position + Vector3.new(0, 0, 8))
+		end
 	end
 
 	if not humanoid then
