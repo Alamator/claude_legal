@@ -671,6 +671,27 @@ end
 -- zbiera kasę (dźwięk + particlesy). Odbudowywana przy każdej zmianie.
 local COLLECT_DEBOUNCE = 0.35
 
+-- pozycja (x, z) grządki o danym numerze na WŁASNYM decku gracza
+local function plotCell(s, slot: number): (number, number)
+	local pad = basePads[s.data.currentWorld]
+	local deckCenter = Config.Base.deckCenters[s.plotIndex + 1] or 0
+	local column = (slot - 1) % 5
+	local row = (slot - 1) // 5
+	return pad.Position.X + deckCenter - 13 + column * 6.5,
+		pad.Position.Z - 9 - row * 7.5
+end
+
+-- grzyb zasadzony w grządce o danym numerze (shelf to gęsta lista,
+-- każdy wpis pamięta swój slot — wybór grządki należy do gracza)
+local function shelfAt(data, slot: number)
+	for _, item in data.shelf do
+		if item.slot == slot then
+			return item
+		end
+	end
+	return nil
+end
+
 local buyPlot -- (deklaracja: stanowisko kupna grządki woła to przy E)
 
 local function refreshShelfDisplay(player: Player)
@@ -684,16 +705,12 @@ local function refreshShelfDisplay(player: Player)
 
 	local pad = basePads[s.data.currentWorld]
 	if not pad then return end
-	-- siatka 5 kolumn × do 5 rzędów, rzędy rosną w głąb bazy (-z);
-	-- WIĘKSZY rozstaw = grzyby robią wrażenie (4 działki na deck bazy,
-	-- marginesy po bokach zajmuje stragan/ognisko/gniazdo)
-	local origin = pad.Position + Vector3.new(-46 + s.plotIndex * 23, 0, -8)
-	local COLUMN_PITCH = 4.6
-	local ROW_PITCH = 6.2
+	-- KAŻDY GRACZ MA WŁASNY DECK (Config.Base.deckCenters); siatka 5 kolumn
+	-- × do 5 rzędów z DUŻYMI odstępami — grzyby mają oddychać
+	local deckCenter = Config.Base.deckCenters[s.plotIndex + 1] or 0
+	local origin = pad.Position + Vector3.new(deckCenter - 13, 0, -9)
 	local function cellXZ(index: number): (number, number)
-		local column = (index - 1) % 5
-		local row = (index - 1) // 5
-		return origin.X + column * COLUMN_PITCH, origin.Z - row * ROW_PITCH
+		return plotCell(s, index)
 	end
 
 	local area = Instance.new("Model")
@@ -706,7 +723,7 @@ local function refreshShelfDisplay(player: Player)
 	markerAnchor.CanQuery = false
 	markerAnchor.Anchored = true
 	markerAnchor.Size = Vector3.new(1, 1, 1)
-	markerAnchor.CFrame = CFrame.new(origin + Vector3.new(9, 13, -6))
+	markerAnchor.CFrame = CFrame.new(origin + Vector3.new(13, 15, -10))
 	markerAnchor.Parent = area
 	local marker = Instance.new("BillboardGui")
 	marker.Size = UDim2.new(0, 210, 0, 74)
@@ -748,11 +765,11 @@ local function refreshShelfDisplay(player: Player)
 	s.baseIncomeLabel = markerIncome
 
 	-- najlepszy okaz sypie złotymi iskrami (flex)
-	local bestIdx, bestIncome = 0, -1
-	for index, item in s.data.shelf do
+	local bestItem, bestIncome = nil, -1
+	for _, item in s.data.shelf do
 		local income = itemIncome(item, s.data)
 		if income > bestIncome then
-			bestIdx, bestIncome = index, income
+			bestItem, bestIncome = item, income
 		end
 	end
 
@@ -760,7 +777,7 @@ local function refreshShelfDisplay(player: Player)
 		local soilX, soilZ = cellXZ(index)
 		local groundY = pad.Position.Y
 
-		local item = s.data.shelf[index]
+		local item = shelfAt(s.data, index)
 
 		-- DONICA-stanowisko (jak podesty w topowych simach): stalowa rama
 		-- + ziemia w środku; pusta = jaśniejsza, zachęca do zasadzenia
@@ -782,10 +799,28 @@ local function refreshShelfDisplay(player: Player)
 		soil.CanCollide = false
 		soil.Parent = area
 
+		if not item then
+			-- pusta grządka: podpowiedź, że tu można zasadzić z plecaka
+			local hint = Instance.new("BillboardGui")
+			hint.Size = UDim2.new(0, 130, 0, 26)
+			hint.StudsOffset = Vector3.new(0, 2, 0)
+			hint.MaxDistance = 26
+			hint.Parent = soil
+			local hintLabel = Instance.new("TextLabel")
+			hintLabel.Size = UDim2.fromScale(1, 1)
+			hintLabel.BackgroundTransparency = 1
+			hintLabel.Font = Enum.Font.FredokaOne
+			hintLabel.TextScaled = true
+			hintLabel.TextColor3 = Color3.fromRGB(200, 245, 200)
+			hintLabel.TextStrokeTransparency = 0.5
+			hintLabel.Text = "🌱 wolna grządka"
+			hintLabel.Parent = hint
+		end
+
 		if item then
 			-- zasadzony grzyb: DUŻY (robi wrażenie już od lvl 1), kapelusz
 			-- w kolorze rzadkości, rośnie z poziomem (lvl 100 = KOLOS)
-			local isBest = index == bestIdx
+			local isBest = item == bestItem
 			local lvl = item.lvl or 1
 			local lvlScale = 1 + (lvl - 1) * Config.MushroomLevels.sizePerLevel
 			local scale = (isBest and 2.3 or 1.9) * lvlScale
@@ -924,7 +959,7 @@ local function refreshShelfDisplay(player: Player)
 				clicker.Parent = tablet
 				clicker.MouseClick:Connect(function(who)
 					if who ~= player then return end
-					local planted = s.data.shelf[index]
+					local planted = shelfAt(s.data, index)
 					if not planted or (planted.lvl or 1) >= Config.MushroomLevels.maxLevel then
 						return
 					end
@@ -995,7 +1030,7 @@ local function refreshShelfDisplay(player: Player)
 				if who ~= player then return end -- zbiera tylko właściciel
 				if os.clock() - lastCollect < COLLECT_DEBOUNCE then return end
 				lastCollect = os.clock()
-				local planted = s.data.shelf[index]
+				local planted = shelfAt(s.data, index)
 				if not planted then return end
 				local earned = math.floor(planted.earned or 0)
 				if earned < 1 then return end
@@ -1441,54 +1476,149 @@ end
 -- Dostawa do bazy (BasePady wszystkich światów)
 -- ============================================================================
 
+-- GRZYB JAKO PRZEDMIOT: Tool w plecaku (hotbar 1, 2, 3...) — gracz sam
+-- wybiera, w KTÓREJ grządce go zasadzi (wyjmij grzyba i kliknij przy niej)
+local plantEquipped -- (deklaracja — Tool.Activated woła to niżej)
+
+local function giveMushroomTool(player: Player, item)
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not backpack then return end
+	local rarity = Config.Rarities[item.rarityIdx]
+	local species = Config.Worlds[item.worldIdx].species[item.speciesIdx]
+
+	local tool = Instance.new("Tool")
+	tool.Name = ("🍄 %s [%s]"):format(species.name, rarity.name)
+	tool.ToolTip = "Kliknij przy WOLNEJ grządce, żeby zasadzić"
+	tool.CanBeDropped = false
+	tool:SetAttribute("Uid", item.uid)
+
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Shape = Enum.PartType.Ball
+	handle.Size = Vector3.new(1.3, 1.0, 1.3)
+	handle.Color = rarity.color
+	handle.Material = (item.mutationIdx > 0 or (item.mutationIdx2 or 0) > 0)
+		and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	handle.CanCollide = false
+	handle.Parent = tool
+
+	tool.Activated:Connect(function()
+		plantEquipped(player, tool)
+	end)
+	tool.Parent = backpack
+end
+
+-- odtwarza Toole z zapisanego plecaka (wejście do gry / respawn)
+local function rebuildTools(player: Player)
+	local s = sessions[player]
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not s or not backpack then return end
+	for _, tool in backpack:GetChildren() do
+		if tool:GetAttribute("Uid") then
+			tool:Destroy()
+		end
+	end
+	for _, item in s.data.inventory do
+		giveMushroomTool(player, item)
+	end
+end
+
+-- powrót z lasu: łup przechodzi do PLECAKA (nie od razu na grządki!)
 local function deliver(player: Player)
 	local s = sessions[player]
 	if not s or #s.carried == 0 then return end
 
-	local shelved, sold, soldValue = 0, 0, 0
+	local moved = 0
 	for _, item in s.carried do
-		if #s.data.shelf < plotCapacity(s) then
-			item.earned = 0 -- świeżość zamrożona; urobek zbiera się na polu
-			table.insert(s.data.shelf, item)
-			shelved += 1
-		else
-			-- brak miejsca: natychmiastowa sprzedaż (= 60 s dochodu, GDD §6)
-			local value = itemIncome(item, s.data) * Config.Base.sellFromShelfMult
-			s.data.cash += value
-			sold += 1
-			soldValue += value
-		end
+		item.earned = 0 -- świeżość zamrożona w plecaku
+		s.data.nextUid = (s.data.nextUid or 1)
+		item.uid = s.data.nextUid
+		s.data.nextUid += 1
+		table.insert(s.data.inventory, item)
+		giveMushroomTool(player, item)
+		moved += 1
 	end
 	s.carried = {}
 
-	local message = ("🌱 Zasadzono %d na grządkach"):format(shelved)
-	if sold > 0 then
-		message ..= (", sprzedano %d za %s 💰 (brak grządek!)"):format(sold, Config.fmtNumber(soldValue))
-	end
-	notifyRemote:FireClient(player, message)
-
-	-- wyskakująca nagroda nad graczem
+	notifyRemote:FireClient(player, ("🎒 +%d 🍄 w plecaku! Wciśnij [1], podejdź do WOLNEJ grządki i kliknij."):format(moved))
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root then
-		local rewardText = sold > 0
-			and ("+%d 🍄  +%s 💰"):format(shelved, Config.fmtNumber(soldValue))
-			or ("+%d 🍄"):format(shelved)
-		floatingText(root.Position + Vector3.new(0, 2, 0), rewardText, Color3.fromRGB(140, 235, 140))
+		floatingText(root.Position + Vector3.new(0, 2, 0), ("+%d 🍄"):format(moved), Color3.fromRGB(140, 235, 140))
 	end
 
-	questProgress(player, "delivered", shelved + sold, false)
-	questProgress(player, "shelfCount", #s.data.shelf, true)
+	questProgress(player, "delivered", moved, false)
 	if s.tutorialStep == 2 then
 		s.tutorialStep = 3
-		notifyRemote:FireClient(player, "🎯 Świetnie! Kup teraz pierwsze ulepszenie (panel po lewej).")
+		notifyRemote:FireClient(player, "🎯 Świetnie! Wciśnij [1] i zasadź grzyba w wybranej grządce, a ulepszenia kupisz u sprzedawcy 🍄.")
 	end
+	syncAttributes(player)
+end
+
+-- sadzenie WYCIĄGNIĘTEGO grzyba w najbliższej WOLNEJ grządce (max 8 studów)
+plantEquipped = function(player: Player, tool: Tool)
+	local s = sessions[player]
+	if not s then return end
+	local uid = tool:GetAttribute("Uid")
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local itemIdx, item = nil, nil
+	for index, candidate in s.data.inventory do
+		if candidate.uid == uid then
+			itemIdx, item = index, candidate
+			break
+		end
+	end
+	if not item then
+		tool:Destroy()
+		return
+	end
+
+	-- najbliższa wolna grządka NA WŁASNYM decku
+	local bestSlot, bestDistance = nil, 8
+	for slot = 1, plotCapacity(s) do
+		if not shelfAt(s.data, slot) then
+			local x, z = plotCell(s, slot)
+			local distance = (Vector2.new(root.Position.X - x, root.Position.Z - z)).Magnitude
+			if distance < bestDistance then
+				bestSlot, bestDistance = slot, distance
+			end
+		end
+	end
+	if not bestSlot then
+		notifyRemote:FireClient(player, "🌱 Podejdź do WOLNEJ grządki na swoim decku!")
+		return
+	end
+
+	table.remove(s.data.inventory, itemIdx)
+	item.slot = bestSlot
+	item.earned = 0
+	table.insert(s.data.shelf, item)
+	tool:Destroy()
+
+	local x, z = plotCell(s, bestSlot)
+	burstAt(Vector3.new(x, 3, z), Config.Rarities[item.rarityIdx].color)
+	floatingText(Vector3.new(x, 4, z), "🌱 Zasadzono!", Color3.fromRGB(140, 235, 140))
+	questProgress(player, "shelfCount", #s.data.shelf, true)
 	refreshShelfDisplay(player)
 	syncAttributes(player)
 end
 
+-- oddawanie grzybów przez WBIEGNIĘCIE na pas dostawy (bez prompta —
+-- na szynach powrotu i tak przez niego przebiegasz)
 for _, pad in basePads do
-	pad:FindFirstChildOfClass("ProximityPrompt").Triggered:Connect(deliver)
+	local oldPrompt = pad:FindFirstChildOfClass("ProximityPrompt")
+	if oldPrompt then
+		oldPrompt:Destroy()
+	end
+	pad.Touched:Connect(function(hit)
+		local who = hit.Parent and Players:GetPlayerFromCharacter(hit.Parent)
+		if who then
+			deliver(who)
+		end
+	end)
 end
 
 -- ============================================================================
@@ -1499,7 +1629,10 @@ local function teleportToBase(player: Player, worldIdx: number)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root then
-		root.CFrame = baseReturnCFrames[worldIdx]
+		-- ląduj przed WŁASNYM deckiem
+		local s = sessions[player]
+		local deckOffset = s and (Config.Base.deckCenters[s.plotIndex + 1] or 0) or 0
+		root.CFrame = baseReturnCFrames[worldIdx] * CFrame.new(deckOffset, 0, 0)
 	end
 	-- niska grawitacja Grzyboksiężyca: wyższy skok
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -1798,11 +1931,13 @@ rebirthRemote.OnServerEvent:Connect(function(player)
 	data.thermosLevel = 0
 	data.plotsOwned = Config.Base.basePlots
 	data.shelf = {}
+	data.inventory = {}
 	data.shortcuts = {}
 	data.currentWorld = 1
 	data.worldsUnlocked = { ["1"] = true }
 	data.pity = 0
 	s.carried = {}
+	rebuildTools(player) -- czyści grzybowe Toole z hotbara
 	s.stamina = staminaMax(data)
 	s.exhausted = false
 	s.exhaustedUntil = 0
@@ -2289,6 +2424,24 @@ Players.PlayerAdded:Connect(function(player)
 
 	ensureDaily(data)
 
+	-- migracja starych zapisów: grzyby z półki dostają numery grządek
+	local usedSlots = {}
+	for _, item in data.shelf do
+		if item.slot then
+			usedSlots[item.slot] = true
+		end
+	end
+	local nextFreeSlot = 1
+	for _, item in data.shelf do
+		if not item.slot then
+			while usedSlots[nextFreeSlot] do
+				nextFreeSlot += 1
+			end
+			item.slot = nextFreeSlot
+			usedSlots[nextFreeSlot] = true
+		end
+	end
+
 	plotCounter += 1
 	sessions[player] = {
 		data = data,
@@ -2300,7 +2453,7 @@ Players.PlayerAdded:Connect(function(player)
 		carried = {},
 		tutorialStep = data.tutorialDone and 0 or 1,
 		nextChestAt = os.time() + Config.Chest.intervalSeconds,
-		plotIndex = (plotCounter - 1) % 4, -- szerokie działki = 4 graczy na deck bazy
+		plotIndex = (plotCounter - 1) % 5, -- 5 osobnych baz-decków na serwer
 		plotLabels = {},
 		pendingOfflineBonus = offlineBonus,
 		comboCount = 0,
@@ -2342,6 +2495,7 @@ Players.PlayerAdded:Connect(function(player)
 			teleportToBase(player, sessions[player].data.currentWorld)
 		end
 		applySpeed(player)
+		rebuildTools(player) -- grzyby z plecaka wracają do hotbara
 	end)
 
 	syncAttributes(player)

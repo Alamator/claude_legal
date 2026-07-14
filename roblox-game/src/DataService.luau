@@ -22,9 +22,13 @@ function DataService.defaultData()
 		staminaLevel = 0,
 		thermosLevel = 0,
 		plotsOwned = Config.Base.basePlots,
-		-- grzyby zasadzone na grządkach:
-		-- { {worldIdx, speciesIdx, rarityIdx, mutationIdx, freshness, earned}, ... }
+		-- grzyby zasadzone na grządkach (slot = numer wybranej grządki):
+		-- { {worldIdx, speciesIdx, rarityIdx, mutationIdx, freshness, earned, slot}, ... }
 		shelf = {},
+		-- grzyby w PLECAKU (przyniesione, jeszcze nie zasadzone) — gracz
+		-- wyciąga je z hotbara (1, 2...) i sadzi w WYBRANEJ grządce
+		inventory = {},
+		nextUid = 1, -- licznik id przedmiotów w plecaku (dopasowanie Tool→dane)
 		-- kupione skróty powrotne: { ["2"] = true, ... } (klucze-stringi dla DataStore)
 		shortcuts = {},
 		-- dziennik: { ["gatunekIdx:rzadkoscIdx"] = true }, mutacje osobno

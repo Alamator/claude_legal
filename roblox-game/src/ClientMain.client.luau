@@ -337,6 +337,10 @@ local BUTTONS = {
 	{ id = "Thermos", top = Color3.fromRGB(110, 190, 255), bottom = Color3.fromRGB(45, 110, 210) },
 }
 
+-- SKLEP U SPRZEDAWCY: przyciski ulepszeń i sprzedaży pokazują się
+-- dopiero, gdy stoisz przy straganie (NPC = sklep, nie HUD na stałe)
+local shopButtons: { GuiObject } = {}
+
 for index, def in BUTTONS do
 	upgradeButtons[def.id] = makeButton(gui,
 		UDim2.new(0, 240, 0, 48),
@@ -346,16 +350,39 @@ for index, def in BUTTONS do
 		function()
 			buyRemote:FireServer(def.id)
 		end)
+	upgradeButtons[def.id].Visible = false
+	table.insert(shopButtons, upgradeButtons[def.id])
 end
 
-makeButton(gui,
+local sellButton = makeButton(gui,
 	UDim2.new(0, 240, 0, 48),
 	UDim2.new(0, 14, 0.5, -110 + #BUTTONS * 58),
 	Vector2.new(0, 0),
 	Color3.fromRGB(250, 205, 90), Color3.fromRGB(205, 150, 40), 15,
 	function()
 		sellRemote:FireServer()
-	end).Text = "💸 Sprzedaj najsłabszy"
+	end)
+sellButton.Text = "💸 Sprzedaj najsłabszy"
+sellButton.Visible = false
+table.insert(shopButtons, sellButton)
+
+-- pokaż sklep tylko przy straganie sprzedawcy (bieżący świat)
+task.spawn(function()
+	while true do
+		task.wait(0.4)
+		local worldIdx = player:GetAttribute("CurrentWorld") or 1
+		local worldsFolder = workspace:FindFirstChild("Worlds")
+		local worldFolder = worldsFolder and worldsFolder:FindFirstChild("World" .. worldIdx)
+		local counter = worldFolder and worldFolder:FindFirstChild("StallCounter")
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local near = counter ~= nil and root ~= nil
+			and (counter.Position - root.Position).Magnitude < 15
+		for _, button in shopButtons do
+			button.Visible = near == true
+		end
+	end
+end)
 
 -- ============================================================================
 -- Prawa strona: kosz; lewy dół: dzienne zadania
@@ -1084,14 +1111,14 @@ task.spawn(function()
 			marker.Parent = target
 			marker.Enabled = target ~= nil
 		elseif step == 2 then
-			tutorialBanner.Text = "📦 KROK 2/3: Wróć do bazy i przytrzymaj E na drewnianym polu"
+			tutorialBanner.Text = "📦 KROK 2/3: Uciekaj do bazy! Grzyb wpadnie do plecaka — wciśnij [1] i zasadź w wybranej grządce"
 			local worldIdx = player:GetAttribute("CurrentWorld") or 1
 			local worlds = workspace:FindFirstChild("Worlds")
 			local worldFolder = worlds and worlds:FindFirstChild("World" .. worldIdx)
 			marker.Parent = worldFolder and worldFolder:FindFirstChild("BasePad")
 			marker.Enabled = marker.Parent ~= nil
 		elseif step == 3 then
-			tutorialBanner.Text = "⬆️ KROK 3/3: Kup pierwsze ulepszenie w panelu po lewej"
+			tutorialBanner.Text = "⬆️ KROK 3/3: Kup pierwsze ulepszenie u sprzedawcy 🍄 (stragan przy bazie)"
 			marker.Enabled = false
 			marker.Parent = nil
 		else

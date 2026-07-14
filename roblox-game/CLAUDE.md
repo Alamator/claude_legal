@@ -43,6 +43,10 @@ Blendera) i pracuje po polsku — odpowiadaj po polsku, tłumacz kroki
    regeneruje się TYLKO w bazie i spala TYLKO biegnąc w głąb; powrót
    za darmo. Koszyk: 1 miejsce (+2 pass), BEZ wypychania. Ścięcie budzi
    WILKA (Config.Wolves; głębiej = szybszy); dogonienie = utrata łupu.
+   Po powrocie łup trafia do PLECAKA (Tool w hotbarze, uid→data.inventory);
+   gracz sam wybiera grządkę (Tool.Activated przy wolnej grządce, wpisy
+   shelf mają pole slot). Stragan NPC = sklep (przyciski ulepszeń widoczne
+   tylko przy StallCounter). 5 osobnych decków/serwer (Config.Base.deckCenters).
 6. **Retention przede wszystkim**: combo (sekundy) → XP (minuty) → eventy
    → skrzynka → dzienne → streak → rebirth → levele grzybów. Coś musi
    „dziać się" co chwilę.
