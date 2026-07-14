@@ -22,7 +22,7 @@ local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local MAP_SCALE = 0.5     -- prototyp jest 2× krótszy niż docelowe dystanse
 local MAP_WIDTH = 140     -- szerokość korytarza LASU (oś X)
 local BASE_WIDTH = 300    -- strefa baz jest szersza: 5 osobnych decków
-local BASE_LENGTH = 50
+local BASE_LENGTH = 86    -- głęboka: rzędy grządek chodzą parami z alejkami
 local WORLD_SPACING = 400 -- odstęp między światami w osi X
 
 -- kolor podłoża świata (pierścienie ciemnieją w głąb przez Lerp do czerni)
@@ -404,28 +404,28 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 	local STEEL_DARK = Color3.fromRGB(36, 42, 54)
 	for _, deckCenter in Config.Base.deckCenters do
 		local deckX = offsetX + deckCenter
-		local deckFloor = makePart("DeckFloor", Vector3.new(46, 0.32, 36),
-			CFrame.new(deckX, 1.0, -27.5), Color3.fromRGB(206, 220, 234), worldFolder)
+		local deckFloor = makePart("DeckFloor", Vector3.new(46, 0.32, 74),
+			CFrame.new(deckX, 1.0, -47), Color3.fromRGB(206, 220, 234), worldFolder)
 		deckFloor.Material = Enum.Material.SmoothPlastic
 		for _, columnX in { -21, 21 } do
-			for _, columnZ in { -11, -44 } do
+			for _, columnZ in { -11, -47, -83 } do
 				local column = makePart("DeckColumn", Vector3.new(1.5, 22, 1.5),
 					CFrame.new(deckX + columnX, 12, columnZ), STEEL, worldFolder)
 				column.Material = Enum.Material.Metal
 			end
 		end
-		local canopy = makePart("DeckRoof", Vector3.new(46, 1, 37),
-			CFrame.new(deckX, 23.5, -27.5), STEEL_DARK, worldFolder)
+		local canopy = makePart("DeckRoof", Vector3.new(46, 1, 75),
+			CFrame.new(deckX, 23.5, -47), STEEL_DARK, worldFolder)
 		canopy.Material = Enum.Material.SmoothPlastic
-		local lightOn = true
+		local panelIndex = 0
 		for _, panelX in { -11, 11 } do
-			for _, panelZ in { -18, -37 } do
+			for _, panelZ in { -18, -40, -62, -80 } do
 				local panel = makePart("DeckLightPanel", Vector3.new(5, 0.3, 5),
 					CFrame.new(deckX + panelX, 22.8, panelZ), Color3.fromRGB(255, 250, 235), worldFolder)
 				panel.Material = Enum.Material.Neon
 				panel.CanCollide = false
-				if lightOn then
-					lightOn = false
+				panelIndex += 1
+				if panelIndex % 4 == 1 then
 					local light = Instance.new("PointLight")
 					light.Color = Color3.fromRGB(255, 245, 220)
 					light.Range = 30
@@ -434,7 +434,7 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 				end
 			end
 		end
-		for _, trimZ in { -10, -45 } do
+		for _, trimZ in { -10.5, -83.5 } do
 			local trim = makePart("DeckTrim", Vector3.new(46, 0.5, 0.5),
 				CFrame.new(deckX, 22.7, trimZ), theme.accent, worldFolder)
 			trim.Material = Enum.Material.Neon

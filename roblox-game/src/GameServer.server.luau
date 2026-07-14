@@ -680,14 +680,29 @@ end
 -- zbiera kasę (dźwięk + particlesy). Odbudowywana przy każdej zmianie.
 local COLLECT_DEBOUNCE = 0.35
 
--- pozycja (x, z) grządki o danym numerze na WŁASNYM decku gracza
-local function plotCell(s, slot: number): (number, number)
+-- pozycja grządki o danym numerze na WŁASNYM decku gracza.
+-- Układ wg szkicu właściciela: rzędy po 5 z DUŻYMI przerwami (rozstaw 9),
+-- rzędy chodzą PARAMI zwróconymi do siebie — pady zbioru ($) obu rzędów
+-- wychodzą na wspólną alejkę między nimi.
+-- Zwraca: x, z grządki oraz z pada zbioru.
+local function plotCell(s, slot: number): (number, number, number)
 	local pad = basePads[s.data.currentWorld]
 	local deckCenter = Config.Base.deckCenters[s.plotIndex + 1] or 0
 	local column = (slot - 1) % 5
 	local row = (slot - 1) // 5
-	return pad.Position.X + deckCenter - 13 + column * 6.5,
-		pad.Position.Z - 9 - row * 7.5
+	local x = pad.Position.X + deckCenter - 18 + column * 9
+
+	local pairIdx = row // 2
+	local pairBase = pad.Position.Z - 13 - pairIdx * 28
+	local plantZ, padZ
+	if row % 2 == 0 then
+		plantZ = pairBase          -- przedni rząd pary: pad GŁĘBIEJ (do alejki)
+		padZ = pairBase - 5.5
+	else
+		plantZ = pairBase - 16     -- tylny rząd pary: pad PŁYCEJ (do alejki)
+		padZ = plantZ + 5.5
+	end
+	return x, plantZ, padZ
 end
 
 -- grzyb zasadzony w grządce o danym numerze (shelf to gęsta lista,
@@ -717,8 +732,8 @@ local function refreshShelfDisplay(player: Player)
 	-- KAŻDY GRACZ MA WŁASNY DECK (Config.Base.deckCenters); siatka 5 kolumn
 	-- × do 5 rzędów z DUŻYMI odstępami — grzyby mają oddychać
 	local deckCenter = Config.Base.deckCenters[s.plotIndex + 1] or 0
-	local origin = pad.Position + Vector3.new(deckCenter - 13, 0, -9)
-	local function cellXZ(index: number): (number, number)
+	local origin = pad.Position + Vector3.new(deckCenter - 18, 0, -9)
+	local function cellXZ(index: number): (number, number, number)
 		return plotCell(s, index)
 	end
 
@@ -783,7 +798,7 @@ local function refreshShelfDisplay(player: Player)
 	end
 
 	for index = 1, plotCapacity(s) do
-		local soilX, soilZ = cellXZ(index)
+		local soilX, soilZ, padZ = cellXZ(index)
 		local groundY = pad.Position.Y
 
 		local item = shelfAt(s.data, index)
@@ -995,15 +1010,14 @@ local function refreshShelfDisplay(player: Player)
 				addSparkle(miniCap, Color3.fromRGB(255, 235, 160), 4)
 			end
 
-			-- ZIELONE POLE ZBIORU przed grządką: licznik urobku + zbiór wejściem
-			-- (duży biały napis z obwódką jak w topowych simach)
+			-- ZIELONE POLE ZBIORU ($) od strony alejki: licznik urobku +
+			-- zbiór wejściem. Matowe (bez świecenia), napis WZDŁUŻ grządki.
 			local collect = Instance.new("Part")
 			collect.Name = "CollectPad"
-			collect.Size = Vector3.new(4.0, 0.24, 2.5)
-			collect.Position = Vector3.new(soilX, groundY - 0.05, soilZ + 3.0)
-			collect.Color = Color3.fromRGB(80, 225, 100)
-			collect.Material = Enum.Material.Neon
-			collect.Transparency = 0.1
+			collect.Size = Vector3.new(4.6, 0.24, 2.4)
+			collect.Position = Vector3.new(soilX, groundY - 0.05, padZ)
+			collect.Color = Color3.fromRGB(110, 235, 105)
+			collect.Material = Enum.Material.SmoothPlastic
 			collect.Anchored = true
 			collect.CanCollide = false
 			collect.Parent = area
@@ -1066,11 +1080,10 @@ local function refreshShelfDisplay(player: Player)
 
 		local buyPad = Instance.new("Part")
 		buyPad.Name = "BuyPlotPad"
-		buyPad.Size = Vector3.new(4.2, 0.3, 3.4)
+		buyPad.Size = Vector3.new(4.6, 0.3, 3.6)
 		buyPad.Position = Vector3.new(buyX, pad.Position.Y, buyZ)
-		buyPad.Color = Color3.fromRGB(70, 210, 95)
-		buyPad.Material = Enum.Material.Neon
-		buyPad.Transparency = 0.25
+		buyPad.Color = Color3.fromRGB(96, 210, 96)
+		buyPad.Material = Enum.Material.SmoothPlastic
 		buyPad.Anchored = true
 		buyPad.CanCollide = false
 		buyPad.Parent = area
