@@ -505,6 +505,28 @@ for worldIdx, worldConfig in Config.Worlds do
 	basePad:SetAttribute("WorldIndex", worldIdx)
 	makePrompt(basePad, "Odłóż grzyby", "Półki w bazie")
 
+	-- STREFA STARTU WYPRAWY: świecący pad na ścieżce przed lasem. Wejście
+	-- na niego zatrzymuje gracza i odpala minigrę paska (GameServer/klient).
+	local launchPad = makePart("LaunchPad", Vector3.new(12, 0.35, 6),
+		CFrame.new(offsetX, 1.15, 3), Color3.fromRGB(90, 235, 120), worldFolder)
+	launchPad.Material = Enum.Material.Neon
+	launchPad:SetAttribute("WorldIndex", worldIdx)
+	addSparkles(launchPad, Color3.fromRGB(160, 255, 180), 2)
+	local launchSign = Instance.new("BillboardGui")
+	launchSign.Size = UDim2.new(0, 190, 0, 40)
+	launchSign.StudsOffset = Vector3.new(0, 4, 0)
+	launchSign.MaxDistance = 90
+	launchSign.Parent = launchPad
+	local launchLabel = Instance.new("TextLabel")
+	launchLabel.Size = UDim2.fromScale(1, 1)
+	launchLabel.BackgroundTransparency = 1
+	launchLabel.Font = Enum.Font.FredokaOne
+	launchLabel.TextScaled = true
+	launchLabel.TextColor3 = Color3.fromRGB(190, 255, 205)
+	launchLabel.TextStrokeTransparency = 0.4
+	launchLabel.Text = "🚀 STREFA STARTU"
+	launchLabel.Parent = launchSign
+
 	buildBaseCamp(worldFolder, theme, offsetX)
 
 	-- sprzedawca za ladą straganu + motylki nad bazą + zieleń w bazie

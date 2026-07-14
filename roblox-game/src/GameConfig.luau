@@ -121,8 +121,57 @@ Config.Movement = {
 -- ===========================================================================
 
 Config.Carry = {
-	baseSlots = 2,     -- bazowa pojemność koszyka
-	scrapSeconds = 8,  -- „sprzedaż na miejscu" = tyle sekund dochodu grzyba
+	-- JEDEN grzyb na wyprawę (pass „Głęboki Koszyk" +2). Rdzeń pętli:
+	-- wbiegnij → zetnij → UCIEKNIJ przed wilkiem → zasadź → ulepsz → głębiej.
+	baseSlots = 1,
+}
+
+-- ===========================================================================
+-- MINIGRA STARTU WYPRAWY — strefa przed lasem: pionowy pasek (zielony dół →
+-- czerwony góra), wskaźnik lata góra-dół (im wyżej, tym szybciej), klik
+-- zatrzymuje. Trafienie wyżej = mocniejszy „head start" (bonus prędkości
+-- na kilka sekund). Serwer liczy pozycję z tej samej krzywej co klient
+-- (wspólny zegar GetServerTimeNow), więc nie da się oszukać.
+-- ===========================================================================
+
+Config.Launch = {
+	periodSeconds = 1.7,  -- pełny cykl wskaźnika dół→góra→dół
+	curveExponent = 1.6,  -- >1 = przy czerwonym wskaźnik lata najszybciej
+	tiers = {             -- od najlepszego; min = pozycja wskaźnika [0..1]
+		{ min = 0.92, mult = 1.45, seconds = 5, label = "🔥🔥 IDEALNY START!!!", shake = 3 },
+		{ min = 0.72, mult = 1.30, seconds = 4, label = "🔥 Świetny start!",     shake = 2 },
+		{ min = 0.45, mult = 1.16, seconds = 3, label = "👍 Niezły start!",      shake = 1 },
+		{ min = 0,    mult = 1.07, seconds = 2, label = "Start!",                shake = 0 },
+	},
+}
+
+-- Wspólna krzywa wskaźnika (serwer i klient liczą to samo z czasu serwera).
+function Config.launchPosition(startTime: number, now: number): number
+	local phase = ((now - startTime) / Config.Launch.periodSeconds) % 2
+	local tri = phase < 1 and phase or 2 - phase
+	return tri ^ Config.Launch.curveExponent
+end
+
+-- ===========================================================================
+-- WILK — po ścięciu grzyba budzi się drapieżnik świata i GONI do samej bazy.
+-- Prędkość = sprint gracza × (baza + bonus za pierścień ścięcia + świat):
+-- pierścień 1 ucieka się spacerkiem, 4–5 to wyścig o życie (skróty ratują!).
+-- Dogonienie = powrót do bazy BEZ łupu. Ucieczka = fanfara zdobyczy.
+-- ===========================================================================
+
+Config.Wolves = {
+	speedBase = 0.97,      -- × prędkość sprintu gracza
+	speedPerRing = 0.02,   -- + za pierścień, w którym ścięto
+	speedPerWorld = 0.005, -- + za świat
+	spawnGap = 40,         -- pojawia się tyle studów ZA graczem (w głębi)
+	catchDistance = 5,     -- bliżej = złapał
+	byWorld = {
+		{ name = "Wilk Szary",       body = Color3.fromRGB(105, 105, 118), accent = Color3.fromRGB(70, 70, 82),    eyes = Color3.fromRGB(255, 70, 40) },
+		{ name = "Wilk Śnieżny",     body = Color3.fromRGB(225, 232, 240), accent = Color3.fromRGB(170, 185, 205), eyes = Color3.fromRGB(80, 190, 255) },
+		{ name = "Bagienny Waran",   body = Color3.fromRGB(80, 110, 60),   accent = Color3.fromRGB(52, 76, 40),    eyes = Color3.fromRGB(255, 230, 60) },
+		{ name = "Kryształowy Wilk", body = Color3.fromRGB(140, 170, 220), accent = Color3.fromRGB(100, 120, 190), eyes = Color3.fromRGB(200, 240, 255) },
+		{ name = "Wilk Pustki",      body = Color3.fromRGB(40, 34, 60),    accent = Color3.fromRGB(24, 20, 40),    eyes = Color3.fromRGB(255, 90, 200) },
+	},
 }
 
 -- ===========================================================================

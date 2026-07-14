@@ -1,4 +1,4 @@
--- ClientMain: HUD i sterowanie sprintem. Cały interfejs budowany z kodu,
+-- ClientMain: HUD, minigra startu wyprawy i fanfary. Interfejs budowany z kodu,
 -- w nowoczesnym „bąbelkowym" stylu topowych symulatorów: font Fredoka One,
 -- gradienty, grube obwódki, animacje pop, responsywne skalowanie pod mobile.
 -- Wklej jako LocalScript do StarterPlayer → StarterPlayerScripts (nazwa: ClientMain).
@@ -8,9 +8,9 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ContextActionService = game:GetService("ContextActionService")
 local TweenService = game:GetService("TweenService")
 local MarketplaceService = game:GetService("MarketplaceService")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -23,6 +23,8 @@ local equipRemote = remotes:WaitForChild("EquipPet")
 local hatchRemote = remotes:WaitForChild("HatchResult")
 local autoHatchRemote = remotes:WaitForChild("ToggleAutoHatch")
 local autoDeleteRemote = remotes:WaitForChild("SetAutoDelete")
+local launchRemote = remotes:WaitForChild("LaunchStop")
+local escapeRemote = remotes:WaitForChild("Escaped")
 
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
@@ -58,25 +60,13 @@ local function markRainbow(label: TextLabel)
 end
 
 -- ============================================================================
--- Sprint: LeftShift na PC + automatyczny przycisk dotykowy na telefonie
+-- Sprint jest PRZYMUSOWY podczas wyprawy — nie ma przycisku BIEG.
+-- Wyprawa zaczyna się w STREFIE STARTU (minigra paska — sekcja niżej),
+-- a serwer sam ustawia prędkość wg stanu (ExpeditionState).
 -- ============================================================================
 
-local sprintingLocal = false
-
-local function onSprint(_actionName, inputState)
-	if inputState == Enum.UserInputState.Begin then
-		sprintingLocal = true
-		sprintRemote:FireServer(true)
-	elseif inputState == Enum.UserInputState.End then
-		sprintingLocal = false
-		sprintRemote:FireServer(false)
-	end
-	return Enum.ContextActionResult.Pass
-end
-
-ContextActionService:BindAction("Sprint", onSprint, true, Enum.KeyCode.LeftShift)
-ContextActionService:SetTitle("Sprint", "BIEG")
-ContextActionService:SetPosition("Sprint", UDim2.new(1, -90, 1, -140))
+local launchShakeMag = 0    -- siła trzęsienia po strzale w pasek (wg tieru)
+local launchShakeUntil = 0  -- os.clock() końca trzęsienia startowego
 
 -- ============================================================================
 -- Mini-biblioteka stylu (bąbelkowy wygląd współczesnych symulatorów)
@@ -395,6 +385,25 @@ journalScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 journalScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 journalScroll.Parent = journalPanel
 
+local journalListLayout = Instance.new("UIListLayout")
+journalListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+journalListLayout.Padding = UDim.new(0, 10)
+journalListLayout.Parent = journalScroll
+
+-- SIATKA SYLWETEK: podgląd 3D każdego gatunku bieżącego świata.
+-- Niezdobyty = CAŁY CZARNY (sama sylwetka + „???"), zdobyty = pełne kolory.
+local journalGrid = Instance.new("Frame")
+journalGrid.Size = UDim2.new(1, -8, 0, 0)
+journalGrid.AutomaticSize = Enum.AutomaticSize.Y
+journalGrid.BackgroundTransparency = 1
+journalGrid.LayoutOrder = 1
+journalGrid.Parent = journalScroll
+local journalGridLayout = Instance.new("UIGridLayout")
+journalGridLayout.CellSize = UDim2.new(0, 100, 0, 118)
+journalGridLayout.CellPadding = UDim2.new(0, 7, 0, 7)
+journalGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+journalGridLayout.Parent = journalGrid
+
 local journalBody = Instance.new("TextLabel")
 journalBody.Size = UDim2.new(1, -8, 0, 0)
 journalBody.AutomaticSize = Enum.AutomaticSize.Y
@@ -402,14 +411,113 @@ journalBody.BackgroundTransparency = 1
 journalBody.TextXAlignment = Enum.TextXAlignment.Left
 journalBody.TextYAlignment = Enum.TextYAlignment.Top
 journalBody.TextWrapped = true
+journalBody.LayoutOrder = 2
 journalBody.Parent = journalScroll
 styleText(journalBody, 15)
+
+local function buildJournalTiles()
+	for _, child in journalGrid:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	local worldIdx = player:GetAttribute("CurrentWorld") or 1
+	local world = Config.Worlds[worldIdx]
+	if not world then return end
+	local ok, owned = pcall(function()
+		return HttpService:JSONDecode(player:GetAttribute("JournalSpeciesJSON") or "{}")
+	end)
+	if not ok then
+		owned = {}
+	end
+
+	for speciesIdx, species in world.species do
+		local has = owned[("%d:%d"):format(worldIdx, speciesIdx)] == true
+
+		local tile = Instance.new("Frame")
+		tile.LayoutOrder = speciesIdx
+		tile.BackgroundColor3 = Color3.fromRGB(38, 42, 58)
+		tile.BackgroundTransparency = 0.2
+		addCorner(tile, 12)
+		tile.Parent = journalGrid
+
+		local viewport = Instance.new("ViewportFrame")
+		viewport.Size = UDim2.new(1, -8, 1, -32)
+		viewport.Position = UDim2.new(0.5, 0, 0, 4)
+		viewport.AnchorPoint = Vector2.new(0.5, 0)
+		viewport.BackgroundTransparency = 1
+		viewport.Ambient = Color3.fromRGB(210, 210, 225)
+		viewport.LightColor = Color3.fromRGB(255, 255, 255)
+		viewport.Parent = tile
+
+		-- model gatunku: import z Models/Grzyby, a bez niego mini-grzybek
+		local model: Model
+		local modelsRoot = ReplicatedStorage:FindFirstChild("Models")
+		local speciesFolder = modelsRoot and modelsRoot:FindFirstChild("Grzyby")
+		local template = speciesFolder and speciesFolder:FindFirstChild(species.name)
+		if template and template:IsA("Model") then
+			model = template:Clone()
+			for _, descendant in model:GetDescendants() do
+				if descendant:IsA("ParticleEmitter") or descendant:IsA("Light") then
+					descendant:Destroy()
+				end
+			end
+		else
+			model = Instance.new("Model")
+			local stem = Instance.new("Part")
+			stem.Shape = Enum.PartType.Cylinder
+			stem.Size = Vector3.new(1.2, 0.6, 0.6)
+			stem.Color = Color3.fromRGB(240, 232, 210)
+			stem.Anchored = true
+			stem.CFrame = CFrame.new(0, 0.6, 0) * CFrame.Angles(0, 0, math.rad(90))
+			stem.Parent = model
+			local cap = Instance.new("Part")
+			cap.Shape = Enum.PartType.Ball
+			cap.Size = Vector3.new(1.7, 1.15, 1.7)
+			cap.Color = world.theme.caps[(speciesIdx - 1) % #world.theme.caps + 1]
+			cap.Anchored = true
+			cap.CFrame = CFrame.new(0, 1.35, 0)
+			cap.Parent = model
+		end
+		if not has then
+			-- sylwetka: wszystko na czarno do czasu zdobycia
+			for _, descendant in model:GetDescendants() do
+				if descendant:IsA("BasePart") then
+					descendant.Color = Color3.fromRGB(10, 10, 14)
+					descendant.Material = Enum.Material.SmoothPlastic
+				end
+			end
+		end
+		model.Parent = viewport
+		local viewportCamera = Instance.new("Camera")
+		viewportCamera.Parent = viewport
+		viewport.CurrentCamera = viewportCamera
+		local boxCF, boxSize = model:GetBoundingBox()
+		local radius = math.max(boxSize.X, boxSize.Y, boxSize.Z, 1)
+		viewportCamera.CFrame = CFrame.lookAt(
+			boxCF.Position + Vector3.new(radius * 0.9, radius * 0.65, -radius * 1.25),
+			boxCF.Position)
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.AnchorPoint = Vector2.new(0.5, 1)
+		nameLabel.Position = UDim2.new(0.5, 0, 1, -4)
+		nameLabel.Size = UDim2.new(1, -8, 0, 24)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Font = FONT
+		nameLabel.TextScaled = true
+		nameLabel.TextColor3 = has and Color3.new(1, 1, 1) or Color3.fromRGB(130, 130, 145)
+		nameLabel.TextStrokeTransparency = 0.5
+		nameLabel.Text = has and species.name or "???"
+		nameLabel.Parent = tile
+	end
+end
 
 local journalScale = Instance.new("UIScale")
 journalScale.Parent = journalPanel
 
 local function setJournalOpen(open: boolean)
 	if open then
+		buildJournalTiles()
 		journalPanel.Visible = true
 		journalScale.Scale = 0.7
 		TweenService:Create(journalScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
@@ -417,6 +525,17 @@ local function setJournalOpen(open: boolean)
 		journalPanel.Visible = false
 	end
 end
+
+player:GetAttributeChangedSignal("JournalSpeciesJSON"):Connect(function()
+	if journalPanel.Visible then
+		buildJournalTiles()
+	end
+end)
+player:GetAttributeChangedSignal("CurrentWorld"):Connect(function()
+	if journalPanel.Visible then
+		buildJournalTiles()
+	end
+end)
 
 local journalButton = makeButton(gui,
 	UDim2.new(0, 170, 0, 42),
@@ -958,7 +1077,7 @@ task.spawn(function()
 	while true do
 		local step = player:GetAttribute("TutorialStep") or 0
 		if step == 1 then
-			tutorialBanner.Text = "🍄 KROK 1/3: Pobiegnij w las (Shift = bieg) i przytrzymaj E przy grzybku"
+			tutorialBanner.Text = "🍄 KROK 1/3: Stań na 🚀 STREFIE STARTU, wystartuj i zetnij grzybka (przytrzymaj E)"
 			local target = nearestOwnMushroomPart()
 			marker.Parent = target
 			marker.Enabled = target ~= nil
@@ -1381,21 +1500,163 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ============================================================================
--- Delikatne trzęsienie kamery podczas sprintu (realizm biegu)
--- Przez Humanoid.CameraOffset — bezpieczne, nie kłóci się z kamerą Roblox.
+-- STREFA STARTU (minigra): kamera zza pleców, HUD schowany, pionowy
+-- zaokrąglony pasek z gradientem zielony (dół) → czerwony (góra).
+-- Wskaźnik lata góra-dół po TEJ SAMEJ krzywej, którą liczy serwer
+-- (wspólny zegar GetServerTimeNow) — klik = LaunchStop, serwer ocenia.
+-- ============================================================================
+
+local launchGui = Instance.new("ScreenGui")
+launchGui.Name = "LaunchBar"
+launchGui.ResetOnSpawn = false
+launchGui.IgnoreGuiInset = true
+launchGui.Enabled = false
+launchGui.Parent = player:WaitForChild("PlayerGui")
+
+local launchBar = Instance.new("Frame")
+launchBar.AnchorPoint = Vector2.new(0, 0.5)
+launchBar.Position = UDim2.new(0, 36, 0.5, 0)
+launchBar.Size = UDim2.new(0, 46, 0.55, 0)
+launchBar.BackgroundColor3 = Color3.new(1, 1, 1)
+launchBar.BorderSizePixel = 0
+launchBar.Parent = launchGui
+addCorner(launchBar, 23)
+local launchBarStroke = Instance.new("UIStroke")
+launchBarStroke.Thickness = 3
+launchBarStroke.Color = Color3.fromRGB(28, 28, 44)
+launchBarStroke.Parent = launchBar
+local launchGradient = Instance.new("UIGradient")
+launchGradient.Rotation = 90 -- pion: pierwszy kolor u góry
+launchGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(240, 60, 50)),
+	ColorSequenceKeypoint.new(0.35, Color3.fromRGB(255, 160, 40)),
+	ColorSequenceKeypoint.new(0.65, Color3.fromRGB(255, 225, 70)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 220, 90)),
+})
+launchGradient.Parent = launchBar
+
+local launchIndicator = Instance.new("Frame")
+launchIndicator.AnchorPoint = Vector2.new(0.5, 0.5)
+launchIndicator.Position = UDim2.new(0.5, 0, 1, 0)
+launchIndicator.Size = UDim2.new(1, 14, 0, 9)
+launchIndicator.BackgroundColor3 = Color3.new(1, 1, 1)
+launchIndicator.BorderSizePixel = 0
+launchIndicator.ZIndex = 3
+launchIndicator.Parent = launchBar
+addCorner(launchIndicator, 5)
+local launchIndicatorStroke = Instance.new("UIStroke")
+launchIndicatorStroke.Thickness = 2.5
+launchIndicatorStroke.Color = Color3.fromRGB(24, 24, 40)
+launchIndicatorStroke.Parent = launchIndicator
+
+local launchHint = Instance.new("TextLabel")
+launchHint.AnchorPoint = Vector2.new(0.5, 1)
+launchHint.Position = UDim2.new(0.5, 0, 1, -44)
+launchHint.Size = UDim2.new(0, 520, 0, 42)
+launchHint.BackgroundTransparency = 1
+launchHint.Font = FONT
+launchHint.TextSize = 26
+launchHint.TextColor3 = Color3.new(1, 1, 1)
+launchHint.TextStrokeTransparency = 0.25
+launchHint.Text = "KLIKNIJ, by wystartować! Im wyżej trafisz, tym mocniejszy start 🔥"
+launchHint.Parent = launchGui
+
+local aiming = false
+local launchClicked = false
+
+local function setAiming(on: boolean)
+	aiming = on
+	launchGui.Enabled = on
+	gui.Enabled = not on -- w minigrze HUD znika
+	if on then
+		launchClicked = false
+		camera.CameraType = Enum.CameraType.Scriptable
+	else
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end
+
+player:GetAttributeChangedSignal("ExpeditionState"):Connect(function()
+	local state = player:GetAttribute("ExpeditionState")
+	setAiming(state == "aiming")
+	if state == "run" then
+		-- trzęsienie ekranu po strzale — tier 1 (idealny) trzęsie najmocniej
+		local tier = player:GetAttribute("LaunchTier") or 4
+		launchShakeMag = (4 - tier) * 0.9
+		launchShakeUntil = os.clock() + 0.7 + (4 - tier) * 0.3
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, _processed)
+	if not aiming or launchClicked then
+		return
+	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch
+		or input.KeyCode == Enum.KeyCode.Space then
+		launchClicked = true
+		launchRemote:FireServer()
+	end
+end)
+
+-- 🏆 fanfara ucieczki z łupem — wielki bąbelkowy napis jak przy level-upie
+escapeRemote.OnClientEvent:Connect(function(labelText)
+	levelUpLabel.TextColor3 = Color3.fromRGB(255, 215, 90)
+	levelUpLabel.Text = ("🏆 ZDOBYWASZ: %s!"):format(tostring(labelText))
+	levelUpLabel.Visible = true
+	levelUpLabel.TextTransparency = 0
+	levelUpScale.Scale = 0.3
+	TweenService:Create(levelUpScale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	for step = 0, 2 do
+		task.delay(step * 0.12, function()
+			ding.PlaybackSpeed = 1 + step * 0.25
+			ding:Play()
+		end)
+	end
+	task.delay(2.2, function()
+		TweenService:Create(levelUpLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+		task.delay(0.4, function()
+			levelUpLabel.Visible = false
+			levelUpLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+		end)
+	end)
+end)
+
+-- ============================================================================
+-- Pętla renderowania: kamera minigry + wskaźnik paska + trzęsienie ekranu
+-- (bieg podczas wyprawy i „kop" startu przez Humanoid.CameraOffset).
 -- ============================================================================
 
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+
+	if aiming and root then
+		-- kamera zza pleców, lekko przybliżona, patrzy w głąb lasu
+		local look = root.CFrame.LookVector
+		camera.CFrame = CFrame.lookAt(
+			root.Position - look * 9 + Vector3.new(0, 4, 0),
+			root.Position + look * 14 + Vector3.new(0, 2, 0))
+		-- wskaźnik: ta sama krzywa co na serwerze (0 = dół, 1 = góra)
+		local startTime = player:GetAttribute("LaunchStart") or 0
+		local position = Config.launchPosition(startTime, workspace:GetServerTimeNow())
+		launchIndicator.Position = UDim2.new(0.5, 0, 1 - position, 0)
+	end
+
 	if not humanoid then
 		return
 	end
-	local stamina = player:GetAttribute("Stamina") or 0
-	local active = sprintingLocal and stamina > 0 and humanoid.MoveDirection.Magnitude > 0.1
+	local state = player:GetAttribute("ExpeditionState")
+	local running = state == "run" and humanoid.MoveDirection.Magnitude > 0.1
 	local now = os.clock()
-	local target = active
-		and Vector3.new(math.sin(now * 13) * 0.1, math.abs(math.sin(now * 17)) * 0.16, 0)
+	local intensity = (running and 1 or 0)
+		+ (now < launchShakeUntil and launchShakeMag or 0)
+	local target = intensity > 0
+		and Vector3.new(
+			math.sin(now * 13) * 0.1 * intensity,
+			math.abs(math.sin(now * 17)) * 0.16 * intensity,
+			0)
 		or Vector3.zero
-	humanoid.CameraOffset = humanoid.CameraOffset:Lerp(target, active and 0.35 or 0.15)
+	humanoid.CameraOffset = humanoid.CameraOffset:Lerp(target, intensity > 0 and 0.35 or 0.15)
 end)

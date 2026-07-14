@@ -25,23 +25,31 @@ kolekcjonerskie (Steal a Brainrot).
 ### Pętla główna — „wyprawa" (60–150 sekund, celowo krótka)
 
 ```
-BAZA → sprint w głąb lasu (pasek kondycji topnieje; głębiej = lepsza pula)
-     → ścinasz grzyby (każde ścięcie = LOSOWANIE rzadkości + mutacji)
-     → KOSZYK MA TYLKO 2 MIEJSCA (4 z passem): trzyma najlepsze okazy —
-       słabszy roll sprzedaje się na miejscu za grosze, lepszy wypycha
-       najsłabszego z koszyka (ścinasz dalej, „łowisz" lepsze rolle)
-     → świeżość niesionych grzybów spada co sekundę
-     → DECYZJA: wracam z tymi dwoma perłami, czy łowię głębiej lepszy los?
-       (na powrót TEŻ trzeba kondycji — pusty pasek = wleczesz się!)
-     → powrót do bazy (skróty ratują życie)
-     → grzyby lądują na półkach i ZARABIAJĄ kasę co sekundę
+BAZA → 🚀 STREFA STARTU przed lasem (obowiązkowa!):
+       postać staje, kamera zza pleców, HUD znika, minigra paska —
+       pionowy gradient zielony(dół)→czerwony(góra), wskaźnik lata
+       góra-dół (przy czerwonym NAJSZYBCIEJ); klik = head start
+       (+7% / +16% / +30% / +45% prędkości na 2–5 s) + trzęsienie
+       ekranu i płomienie tym mocniejsze, im lepsze trafienie
+     → PRZYMUSOWY SPRINT w głąb lasu (kondycja topnieje TYLKO w głąb;
+       głębiej = lepsza pula)
+     → ścinasz grzyba (LOSOWANIE rzadkości + mutacji)
+     → KOSZYK MA 1 MIEJSCE (3 z passem) — bez wypychania: pełny koszyk
+       = nie ścinasz
+     → ścięcie BUDZI WILKA świata (głębszy pierścień = szybszy wilk!)
+       → UCIECZKA do bazy: powrót NIE zużywa kondycji (stała prędkość
+       sprintu); dogonił = tracisz łup i wracasz do bazy;
+       uciekłeś = wielka fanfara „🏆 ZDOBYWASZ: …!"
+     → kondycja 0 bez łupu = automatyczny powrót do bazy
+     → grzyb ląduje na grządce i ZARABIA kasę co sekundę
      → kasa → ulepszenia → głębiej/nowy świat → powtórz
 ```
 
-*Dlaczego mały koszyk:* pojedynczy grzyb ma znaczenie (przynosisz do bazy
-2 okazy, nie wór), półki (4→16) zapełniają się decyzjami zamiast jednym
-kursem, a ścinanie pozostaje nielimitowane — combo, XP i pity działają,
-bo każde ścięcie to nadal los na loterii.
+*Dlaczego koszyk na 1 grzyb:* nowy gracz ledwo wbiega do lasu, zbiera
+COŚ, wraca — jeden grzyb generuje kasę na ulepszenie, ulepszenie pozwala
+wbiec dalej po lepszy los. Każda wyprawa = jedna wyraźna zdobycz i jedna
+ucieczka z sercem w gardle; pass „Głęboki Koszyk" (+2) to ścinanie pod
+pościgiem — czyste ryzyko za nagrodę.
 
 ### Pętla wolna — „imperium" (minuty/godziny/offline)
 
@@ -51,9 +59,11 @@ było!", kupuje ulepszenie, robi 2–3 wyprawy, wychodzi. Sesja: 10–20 minut.
 
 ### Trzy zabezpieczenia projektowe pętli
 
-1. **Powrót ma stawkę bez AI wrogów**: świeżość spada co sekundę, a pusty
-   pasek kondycji oznacza powolny marsz. Za głęboka wyprawa = patrzenie,
-   jak legendarny grzyb więdnie w rękach. Tanie w budowie, emocjonujące.
+1. **Powrót ma stawkę — WILK**: ścięcie budzi drapieżnika świata (Wilk
+   Szary / Śnieżny / Bagienny Waran / Kryształowy Wilk / Wilk Pustki),
+   który goni do samej bazy; prędkość rośnie z pierścieniem ścięcia
+   i światem (pierścień 1 = spacerek, 4–5 = wyścig; skróty ratują życie).
+   Do tego świeżość niesionego grzyba dalej spada co sekundę.
 2. **Losowość ma „pity"**: co 15 ścięć gwarantowany Rzadki+; rosnący pasek
    szczęścia widoczny na ekranie.
 3. **Offline z limitem** (2 h), żeby istniał powód logowania; wyższy limit
@@ -71,7 +81,7 @@ opłaca się Termos.
 
 | Statystyka | Co daje | Liczby startowe (do strojenia w becie) |
 |------------|---------|----------------------------------------|
-| 🏃 **Kondycja** | dłuższy pasek sprintu = dalej w głąb lasu (i sprawny powrót) | pasek 100 pkt, sprint zużywa 10 pkt/s; +8 pkt za poziom; pierścień 5 wymaga ~90 s sprintu w jedną stronę. **Pasek odnawia się TYLKO w bazie** (w lesie zero regeneracji) — to twardy budżet wyprawy: wyzerowanie = 3 s zadyszki, potem tylko zwykły chód do bazy |
+| 🏃 **Kondycja** | dłuższy pasek sprintu = dalej W GŁĄB lasu | pasek 100 pkt, bieg w głąb zużywa 10 pkt/s; +8 pkt za poziom; pierścień 5 wymaga ~90 s sprintu. **Pasek odnawia się TYLKO w bazie i spala TYLKO w głąb** — powrót (ucieczka przed wilkiem) jest ze stałą prędkością sprintu za darmo; wyzerowanie bez łupu = auto-powrót do bazy |
 | ❄️ **Termos** | grzyby wolniej tracą świeżość | spadek świeżości ×0,975 za poziom (poz. 10 ≈ −22%, poz. 30 ≈ −53%); twarde dno: nigdy mniej niż 30% bazowego tempa świata |
 
 **Dwa warunki balansu, żeby ten duet nie zepsuł gry** (wpisane celowo,
@@ -203,6 +213,9 @@ aktualizacji po premierze.
   ogłaszane serwerowi. To główny zlew na kasę w late game.
 - **Dziennik Grzybiarza**: kolekcja wszystkich gatunków × rzadkości ×
   mutacji z nagrodami za skompletowanie stron (retencja długoterminowa).
+  Każdy gatunek ma podgląd 3D: niezdobyty to **czarna sylwetka z „???"**
+  — odsłania się dopiero po faktycznym przyniesieniu do bazy (ciekawość:
+  „co to za kształt?" napędza głębsze wyprawy).
 - Sprzedaż grzyba z półki możliwa zawsze (jednorazowa kasa zamiast dochodu) —
   decyzja ekonomiczna: renta czy gotówka na upgrade.
 

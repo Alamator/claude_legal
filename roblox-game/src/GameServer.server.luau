@@ -17,6 +17,7 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local MarketplaceService = game:GetService("MarketplaceService")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
@@ -119,6 +120,8 @@ local equipRemote = makeRemote("EquipPet")      -- klient → serwer: (indeks) z
 local hatchRemote = makeRemote("HatchResult")   -- serwer → klient: wynik wyklucia (do fanfary)
 local autoHatchRemote = makeRemote("ToggleAutoHatch") -- klient → serwer: włącz/wyłącz auto
 local autoDeleteRemote = makeRemote("SetAutoDelete")  -- klient → serwer: (świat, pet, bool)
+local launchRemote = makeRemote("LaunchStop")   -- klient → serwer: zatrzymaj wskaźnik startu wyprawy
+local escapeRemote = makeRemote("Escaped")      -- serwer → klient: (etykieta łupu) uciekłeś wilkowi
 
 -- eventy globalne dla całego serwera; Deszcz meteorów (onlyWorld) czeka
 -- na porządną implementację wspólnych spawnów w fazie MVP
@@ -185,6 +188,13 @@ local sessions: { [Player]: {
 	passes: { [string]: boolean }, -- posiadane Game Passy (cache)
 	autoHatch: boolean,   -- włączone auto-otwieranie jaj (wymaga passa)
 	nextAutoHatchAt: number,
+	expedition: string,   -- "base" | "aiming" (minigra startu) | "run" (wyprawa)
+	lastZ: number,        -- poprzednia pozycja Z (kondycja spala się TYLKO w głąb)
+	launchStart: number,  -- GetServerTimeNow() startu oscylatora minigry
+	launchMult: number,   -- aktywny mnożnik head startu
+	launchUntil: number,  -- os.clock() końca head startu
+	wolf: any,            -- aktywny pościg: { model, speed, name } albo nil
+	journalJSON: string?, -- cache JSON-a zdobytych gatunków (nil = przelicz)
 } } = {}
 
 -- właścicielstwo Game Passów: sprawdzane raz przy wejściu (i po zakupie)
@@ -516,6 +526,20 @@ local function syncAttributes(player: Player)
 	player:SetAttribute("JournalTotal", JOURNAL_TOTAL)
 	player:SetAttribute("JournalText", journalText(data))
 	player:SetAttribute("QuestsText", questsText(data))
+
+	-- zdobyte GATUNKI ("świat:gatunek") dla sylwetek w dzienniku; cache
+	-- unieważnia journalAdd przy nowym wpisie
+	if not s.journalJSON then
+		local owned = {}
+		for key in data.journal do
+			local worldPart, speciesPart = string.match(key, "^(%d+):(%d+):")
+			if worldPart then
+				owned[worldPart .. ":" .. speciesPart] = true
+			end
+		end
+		s.journalJSON = HttpService:JSONEncode(owned)
+	end
+	player:SetAttribute("JournalSpeciesJSON", s.journalJSON)
 end
 
 -- Dopisuje znalezisko do dziennika; wypłaca nagrody za kamienie milowe.
@@ -528,6 +552,7 @@ local function journalAdd(player: Player, item: Carried)
 	if not data.journal[journalKey(item)] then
 		data.journal[journalKey(item)] = true
 		newEntry = true
+		s.journalJSON = nil -- sylwetka gatunku w dzienniku się odsłoni
 	end
 	for _, mutationIdx in { item.mutationIdx, item.mutationIdx2 or 0 } do
 		if mutationIdx > 0 then
@@ -889,10 +914,17 @@ local function playerFolder(player: Player): Folder
 end
 
 local spawnNode -- (deklaracja, bo cutNode woła spawnNode i odwrotnie)
+local spawnWolf -- (deklaracja: cutNode budzi wilka; definicja w sekcji WYPRAWA)
 
 local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex: number)
 	local s = sessions[player]
 	if not s then return end
+
+	-- koszyk pełny = NIE ścinasz (grzyb zostaje w lesie) — zmykaj do bazy!
+	if #s.carried >= carryCapacity(s) then
+		notifyRemote:FireClient(player, "🧺 Koszyk pełny! Uciekaj z łupem do bazy!")
+		return
+	end
 
 	-- rozbryzg w kolorze kapelusza w miejscu ścięcia
 	local cap = node:FindFirstChild("Cap")
@@ -935,36 +967,13 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 		freshness = Config.Freshness.startPercent,
 	}
 
-	-- KOSZYK z limitem miejsc: trzymamy tylko najlepsze okazy (GDD §2)
-	local capacity = carryCapacity(s)
-	local newValue = itemIncome(item, s.data)
-	if #s.carried < capacity then
-		table.insert(s.carried, item)
-		notifyRemote:FireClient(player, ("🍄 %s  (koszyk %d/%d)"):format(itemLabel(item), #s.carried, capacity))
-	else
-		local worstIdx, worstValue = 1, math.huge
-		for index, carried in s.carried do
-			local value = itemIncome(carried, s.data)
-			if value < worstValue then
-				worstIdx, worstValue = index, value
-			end
-		end
-		if newValue > worstValue then
-			-- lepszy okaz wypycha najsłabszy; wypchnięty idzie na skup za grosze
-			local scrapped = s.carried[worstIdx]
-			local scrapValue = math.max(1, math.floor(worstValue * Config.Carry.scrapSeconds))
-			s.data.cash += scrapValue
-			s.carried[worstIdx] = item
-			notifyRemote:FireClient(player, ("🔁 %s wypycha z koszyka: %s (+%s 💰)")
-				:format(itemLabel(item), itemLabel(scrapped), Config.fmtNumber(scrapValue)))
-		else
-			-- słabszy niż wszystko w koszyku: sprzedaż na miejscu
-			local scrapValue = math.max(1, math.floor(newValue * Config.Carry.scrapSeconds))
-			s.data.cash += scrapValue
-			notifyRemote:FireClient(player, ("💸 %s za słaby na koszyk — sprzedany za %s 💰")
-				:format(itemLabel(item), Config.fmtNumber(scrapValue)))
-		end
-	end
+	-- do koszyka (miejsce sprawdzone na wejściu — bez wypychania)
+	table.insert(s.carried, item)
+	notifyRemote:FireClient(player, ("🍄 %s  (koszyk %d/%d)"):format(itemLabel(item), #s.carried, carryCapacity(s)))
+
+	-- ŁUP ŚCIĄGA DRAPIEŻNIKA: od pierwszego ścięcia goni cię wilk świata
+	-- (im głębszy pierścień, tym szybszy — patrz Config.Wolves)
+	spawnWolf(player, ringIndex)
 
 	-- COMBO: kolejne ścięcie w oknie czasu podbija serię i mnożnik XP
 	local now = os.clock()
@@ -1576,12 +1585,9 @@ end)
 -- Sprint i kondycja
 -- ============================================================================
 
-sprintRemote.OnServerEvent:Connect(function(player, wantsSprint)
-	local s = sessions[player]
-	if s then
-		s.sprinting = wantsSprint == true
-	end
-end)
+-- Sprint jest teraz PRZYMUSOWY podczas wyprawy (nie ma przełącznika).
+-- Stary klient mógł jeszcze słać Sprint — ignorujemy dla kompatybilności.
+sprintRemote.OnServerEvent:Connect(function() end)
 
 local function applySpeed(player: Player)
 	local s = sessions[player]
@@ -1589,12 +1595,222 @@ local function applySpeed(player: Player)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if not s or not humanoid then return end
 
-	if s.exhausted then
-		humanoid.WalkSpeed = Config.Movement.exhaustedSpeed
-	elseif s.sprinting and s.stamina > 0 then
-		humanoid.WalkSpeed = Config.Movement.sprintSpeed
+	if s.expedition == "aiming" then
+		humanoid.WalkSpeed = 0 -- stoisz w strefie startu, trwa minigra
+	elseif s.expedition == "run" then
+		local boost = os.clock() < s.launchUntil and s.launchMult or 1
+		humanoid.WalkSpeed = Config.Movement.sprintSpeed * boost
 	else
 		humanoid.WalkSpeed = Config.Movement.walkSpeed
+	end
+end
+
+-- ============================================================================
+-- WYPRAWA — nowa pętla rdzeniowa (redesign):
+--   baza → strefa startu (minigra paska = head start) → las: przymusowy
+--   sprint, kondycja spala się TYLKO w głąb → ścięcie budzi WILKA → ucieczka
+--   do bazy (powrót nie zużywa kondycji) → fanfara łupu albo strata.
+-- ============================================================================
+
+local function despawnWolf(s)
+	if s.wolf then
+		if s.wolf.model then
+			s.wolf.model:Destroy()
+		end
+		s.wolf = nil
+	end
+end
+
+-- koniec wyprawy w bazie; escaped=true → fanfara zdobyczy (jeśli niesie łup)
+local function endExpedition(player: Player, escaped: boolean)
+	local s = sessions[player]
+	if not s or s.expedition ~= "run" then return end
+	s.expedition = "base"
+	player:SetAttribute("ExpeditionState", "base")
+	if escaped and #s.carried > 0 then
+		local labels = {}
+		for _, item in s.carried do
+			table.insert(labels, itemLabel(item))
+		end
+		escapeRemote:FireClient(player, table.concat(labels, ", "))
+	end
+	despawnWolf(s)
+	applySpeed(player)
+end
+
+-- klockowy wilk (per świat: kolory i nazwa z Config.Wolves) — bez FX-kluczy
+-- w nazwach części, żeby FxClient go nie animował (rusza nim serwer)
+local function buildWolfModel(worldIdx: number): Model
+	local cfg = Config.Wolves.byWorld[worldIdx] or Config.Wolves.byWorld[1]
+	local model = Instance.new("Model")
+	model.Name = "Wolf"
+
+	local function wolfPart(name: string, size: Vector3, position: Vector3, color: Color3): Part
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Size = size
+		part.CFrame = CFrame.new(position)
+		part.Color = color
+		part.Material = Enum.Material.SmoothPlastic
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.Parent = model
+		return part
+	end
+
+	-- przód wilka = -Z (CFrame.lookAt patrzy w -Z)
+	local body = wolfPart("Cialo", Vector3.new(1.7, 1.4, 3.4), Vector3.new(0, 1.5, 0), cfg.body)
+	wolfPart("Glowa", Vector3.new(1.3, 1.2, 1.2), Vector3.new(0, 2.2, -2.1), cfg.body)
+	wolfPart("Pysk", Vector3.new(0.7, 0.55, 0.9), Vector3.new(0, 1.95, -2.9), cfg.accent)
+	wolfPart("Ucho1", Vector3.new(0.35, 0.6, 0.22), Vector3.new(-0.4, 2.95, -2.1), cfg.accent)
+	wolfPart("Ucho2", Vector3.new(0.35, 0.6, 0.22), Vector3.new(0.4, 2.95, -2.1), cfg.accent)
+	local tail = wolfPart("Ogon", Vector3.new(0.5, 0.5, 1.7), Vector3.new(0, 2.1, 2.3), cfg.accent)
+	tail.CFrame = tail.CFrame * CFrame.Angles(math.rad(-30), 0, 0)
+	for index, offset in {
+		Vector3.new(-0.55, 0.55, -1.2), Vector3.new(0.55, 0.55, -1.2),
+		Vector3.new(-0.55, 0.55, 1.2), Vector3.new(0.55, 0.55, 1.2),
+	} do
+		wolfPart("Lapa" .. index, Vector3.new(0.45, 1.1, 0.45), offset, cfg.accent)
+	end
+	for _, side in { -0.3, 0.3 } do
+		local eye = wolfPart("Slepie", Vector3.new(0.22, 0.22, 0.1),
+			Vector3.new(side, 2.35, -2.72), cfg.eyes)
+		eye.Material = Enum.Material.Neon
+	end
+
+	model.PrimaryPart = body
+	return model
+end
+
+spawnWolf = function(player: Player, ringIndex: number)
+	local s = sessions[player]
+	if not s or s.wolf then return end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local worldIdx = s.data.currentWorld
+	local cfg = Config.Wolves.byWorld[worldIdx] or Config.Wolves.byWorld[1]
+	local speed = Config.Movement.sprintSpeed * (Config.Wolves.speedBase
+		+ Config.Wolves.speedPerRing * (ringIndex - 1)
+		+ Config.Wolves.speedPerWorld * (worldIdx - 1))
+
+	local model = buildWolfModel(worldIdx)
+	-- pojawia się W GŁĘBI lasu, za plecami uciekającego
+	local spawnPosition = root.Position + Vector3.new(0, 0, Config.Wolves.spawnGap)
+	model:PivotTo(CFrame.lookAt(spawnPosition, Vector3.new(root.Position.X, spawnPosition.Y, root.Position.Z)))
+	model.Parent = workspace
+
+	s.wolf = { model = model, speed = speed, name = cfg.name }
+	notifyRemote:FireClient(player, ("🐺 %s wyczuł twój łup! UCIEKAJ DO BAZY!!!"):format(cfg.name))
+	burstAt(spawnPosition + Vector3.new(0, 2, 0), cfg.eyes)
+end
+
+-- pościg: wilk płynie do gracza co klatkę; dogonienie = strata łupu
+RunService.Heartbeat:Connect(function(dt: number)
+	for player, s in sessions do
+		local wolf = s.wolf
+		if not wolf or not wolf.model then continue end
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not root then
+			despawnWolf(s)
+			continue
+		end
+
+		local wolfPosition = wolf.model:GetPivot().Position
+		local flatWolf = Vector3.new(wolfPosition.X, 0, wolfPosition.Z)
+		local flatPlayer = Vector3.new(root.Position.X, 0, root.Position.Z)
+		local delta = flatPlayer - flatWolf
+		local distance = delta.Magnitude
+
+		if distance <= Config.Wolves.catchDistance then
+			s.carried = {}
+			notifyRemote:FireClient(player, ("🐺 %s cię dopadł! Łup przepadł..."):format(wolf.name))
+			despawnWolf(s)
+			s.expedition = "base"
+			player:SetAttribute("ExpeditionState", "base")
+			teleportToBase(player, s.data.currentWorld)
+			applySpeed(player)
+			syncAttributes(player)
+			continue
+		end
+
+		local step = math.min(wolf.speed * dt, distance)
+		local newFlat = flatWolf + delta.Unit * step
+		local gallop = math.abs(math.sin(os.clock() * 9)) * 0.4
+		wolf.model:PivotTo(CFrame.lookAt(
+			Vector3.new(newFlat.X, 1.8 + gallop, newFlat.Z),
+			Vector3.new(flatPlayer.X, 1.8, flatPlayer.Z)))
+	end
+end)
+
+-- minigra startu: gracz staje na LaunchPadzie → oscylator rusza; klient
+-- pokazuje TĘ SAMĄ krzywą (wspólny zegar serwera), klik = LaunchStop
+local function startAiming(player: Player, worldIdx: number)
+	local s = sessions[player]
+	if not s or s.expedition ~= "base" then return end
+	if worldIdx ~= s.data.currentWorld then return end
+	s.expedition = "aiming"
+	s.launchStart = workspace:GetServerTimeNow()
+	player:SetAttribute("LaunchStart", s.launchStart)
+	player:SetAttribute("ExpeditionState", "aiming")
+	applySpeed(player)
+end
+
+launchRemote.OnServerEvent:Connect(function(player)
+	local s = sessions[player]
+	if not s or s.expedition ~= "aiming" then return end
+
+	local position = Config.launchPosition(s.launchStart, workspace:GetServerTimeNow())
+	local tier, tierIdx = Config.Launch.tiers[#Config.Launch.tiers], #Config.Launch.tiers
+	for index, candidate in Config.Launch.tiers do
+		if position >= candidate.min then
+			tier, tierIdx = candidate, index
+			break
+		end
+	end
+
+	s.launchMult = tier.mult
+	s.launchUntil = os.clock() + tier.seconds
+	s.expedition = "run"
+	s.lastZ = 0
+	player:SetAttribute("LaunchTier", tierIdx)
+	player:SetAttribute("ExpeditionState", "run")
+	notifyRemote:FireClient(player, tier.label)
+
+	-- płomienie startu — im lepszy tier, tym mocniejsze
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Color = ColorSequence.new(Color3.fromRGB(255, 140, 40), Color3.fromRGB(255, 225, 90))
+		emitter.LightEmission = 1
+		emitter.Rate = 18 + (4 - tierIdx) * 30
+		emitter.Lifetime = NumberRange.new(0.3, 0.7)
+		emitter.Speed = NumberRange.new(2, 6)
+		emitter.SpreadAngle = Vector2.new(40, 40)
+		emitter.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.35 + (4 - tierIdx) * 0.15),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		emitter.Parent = root
+		Debris:AddItem(emitter, tier.seconds)
+	end
+	applySpeed(player)
+end)
+
+for _, worldFolder in worldsFolder:GetChildren() do
+	local pad = worldFolder:FindFirstChild("LaunchPad")
+	if pad then
+		local padWorld = pad:GetAttribute("WorldIndex")
+		pad.Touched:Connect(function(hit)
+			local who = Players:GetPlayerFromCharacter(hit.Parent)
+			if who then
+				startAiming(who, padWorld)
+			end
+		end)
 	end
 end
 
@@ -1608,27 +1824,46 @@ task.spawn(function()
 		for player, s in sessions do
 			local data = s.data
 
-			-- kondycja: pasek to BUDŻET wyprawy — odnawia się TYLKO w bazie.
-			-- Wyzerowanie = krótka zadyszka, potem zwykły chód; sprint wraca
-			-- dopiero po powrocie do bazy (albo po Energetyku).
+			-- WYPRAWA: kondycja spala się TYLKO biegnąc W GŁĄB lasu (rosnące z);
+			-- powrót jest „za darmo" ze stałą prędkością sprintu. Wyzerowanie
+			-- bez łupu = auto-powrót do bazy. Regeneracja: tylko stan "base".
 			local character = player.Character
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			local root = character and character:FindFirstChild("HumanoidRootPart")
-			local moving = humanoid and humanoid.MoveDirection.Magnitude > 0.1
 			local inBase = root and root.Position.Z <= 2 -- strefy baz leżą przy z < 0
 
-			if s.sprinting and moving and not s.exhausted and s.stamina > 0 then
-				s.stamina = math.max(0, s.stamina - Config.Stats.Stamina.sprintDrainPerSec)
-				if s.stamina <= 0 then
-					s.exhaustedUntil = os.clock() + Config.Stats.Stamina.exhaustedSeconds
-					notifyRemote:FireClient(player, "😮‍💨 Zadyszka! Kondycja odnowi się dopiero w bazie.")
+			if s.expedition == "run" and root then
+				if root.Position.Z > s.lastZ + 0.5 and s.stamina > 0 then
+					s.stamina = math.max(0, s.stamina - Config.Stats.Stamina.sprintDrainPerSec)
+					if s.stamina <= 0 then
+						if #s.carried == 0 then
+							notifyRemote:FireClient(player, "😮‍💨 Kondycja wyczerpana — wracasz do bazy z pustymi rękami.")
+							s.expedition = "base"
+							player:SetAttribute("ExpeditionState", "base")
+							teleportToBase(player, data.currentWorld)
+						else
+							notifyRemote:FireClient(player, "😮‍💨 Koniec kondycji! Teraz już tylko UCIECZKA do bazy!")
+						end
+					end
 				end
-			elseif inBase then
-				s.stamina = math.min(staminaMax(data), s.stamina + Config.Stats.Stamina.baseRegenPerSec)
-			elseif Config.Stats.Stamina.fieldRegenPerSec > 0 then
-				s.stamina = math.min(staminaMax(data), s.stamina + Config.Stats.Stamina.fieldRegenPerSec)
+				if inBase then
+					-- dobiegł do bazy = koniec wyprawy (fanfara, jeśli niesie łup)
+					endExpedition(player, true)
+				end
+			elseif s.expedition == "base" then
+				if inBase then
+					s.stamina = math.min(staminaMax(data), s.stamina + Config.Stats.Stamina.baseRegenPerSec)
+				elseif root and root.Position.Z > 6 then
+					-- do lasu wchodzi się WYŁĄCZNIE przez strefę startu
+					local worldFolder = worldsFolder:FindFirstChild("World" .. data.currentWorld)
+					local pad = worldFolder and worldFolder:FindFirstChild("LaunchPad")
+					if pad then
+						root.CFrame = CFrame.new(pad.Position + Vector3.new(0, 3, 0))
+					end
+				end
 			end
-			s.exhausted = os.clock() < s.exhaustedUntil
+			if root then
+				s.lastZ = root.Position.Z
+			end
 			applySpeed(player)
 
 			-- świeżość niesionych grzybów (event „Przymrozek" spowalnia psucie)
@@ -1728,6 +1963,11 @@ Players.PlayerAdded:Connect(function(player)
 		passes = {},
 		autoHatch = false,
 		nextAutoHatchAt = 0,
+		expedition = "base",
+		lastZ = 0,
+		launchStart = 0,
+		launchMult = 1,
+		launchUntil = 0,
 	}
 
 	loadPasses(player, sessions[player])

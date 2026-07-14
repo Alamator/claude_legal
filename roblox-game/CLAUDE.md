@@ -37,8 +37,12 @@ Blendera) i pracuje po polsku — odpowiadaj po polsku, tłumacz kroki
 4. **SEKRET-y petów**: twarde 0,1% szansy, passy szczęścia ich NIE
    podbijają (`luckSkipsLast`); nazwa zawsze tęczowym świecącym fontem
    (`markRainbow` w ClientMain).
-5. **Kondycja to twardy budżet wyprawy** — regeneruje się TYLKO w bazie;
-   nie wolno umożliwić biegania w nieskończoność.
+5. **Pętla wyprawy (redesign 2026-07)**: sprint PRZYMUSOWY; do lasu tylko
+   przez STREFĘ STARTU (minigra paska = head start; serwer liczy pozycję
+   z `Config.launchPosition`, klient tylko wysyła stop). Kondycja
+   regeneruje się TYLKO w bazie i spala TYLKO biegnąc w głąb; powrót
+   za darmo. Koszyk: 1 miejsce (+2 pass), BEZ wypychania. Ścięcie budzi
+   WILKA (Config.Wolves; głębiej = szybszy); dogonienie = utrata łupu.
 6. **Retention przede wszystkim**: combo (sekundy) → XP (minuty) → eventy
    → skrzynka → dzienne → streak → rebirth → levele grzybów. Coś musi
    „dziać się" co chwilę.
