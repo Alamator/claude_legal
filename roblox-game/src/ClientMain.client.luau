@@ -25,6 +25,7 @@ local autoHatchRemote = remotes:WaitForChild("ToggleAutoHatch")
 local autoDeleteRemote = remotes:WaitForChild("SetAutoDelete")
 local launchRemote = remotes:WaitForChild("LaunchStop")
 local escapeRemote = remotes:WaitForChild("Escaped")
+local wolfSceneRemote = remotes:WaitForChild("WolfScene")
 
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
@@ -329,10 +330,10 @@ notifyRemote.OnClientEvent:Connect(showToast)
 
 local upgradeButtons: { [string]: TextButton } = {}
 
+-- grządki kupuje się na FIZYCZNYM stanowisku przy działce (nie w menu)
 local BUTTONS = {
 	{ id = "Stamina", top = Color3.fromRGB(255, 150, 90),  bottom = Color3.fromRGB(215, 85, 40) },
 	{ id = "Thermos", top = Color3.fromRGB(110, 190, 255), bottom = Color3.fromRGB(45, 110, 210) },
-	{ id = "Shelf",   top = Color3.fromRGB(220, 160, 90),  bottom = Color3.fromRGB(160, 100, 45) },
 }
 
 for index, def in BUTTONS do
@@ -1146,11 +1147,7 @@ local function refresh()
 		:format(staminaLevel, fmt(Config.statCost(Config.Stats.Stamina, staminaLevel)))
 	upgradeButtons.Thermos.Text = ("❄️ Termos [%d] — %s 💰")
 		:format(thermosLevel, fmt(Config.statCost(Config.Stats.Thermos, thermosLevel)))
-	local plotsBought = player:GetAttribute("PlotsBought") or Config.Base.basePlots
-	local plotCost = Config.Base.plotBaseCost * Config.Base.plotCostGrowth ^ math.max(0, plotsBought - Config.Base.basePlots)
-	upgradeButtons.Shelf.Text = plotsBought >= Config.Base.maxPlotsBuyable
-		and "🌱 Grządki: MAX (pass daje +5)"
-		or ("🌱 Grządka [%d/%d] — %s 💰"):format(plotsBought, Config.Base.maxPlotsBuyable, fmt(plotCost))
+	-- (grządki: cena i zakup na zielonym stanowisku przy działce)
 
 	-- dzienne zadania + skrzynka czasowa
 	local chestIn = player:GetAttribute("ChestIn") or 0
@@ -1563,6 +1560,7 @@ launchHint.Parent = launchGui
 
 local aiming = false
 local launchClicked = false
+local wolfScene: { position: Vector3, startedAt: number, endsAt: number }? = nil
 
 local function setAiming(on: boolean)
 	aiming = on
@@ -1571,7 +1569,7 @@ local function setAiming(on: boolean)
 	if on then
 		launchClicked = false
 		camera.CameraType = Enum.CameraType.Scriptable
-	else
+	elseif not wolfScene then
 		camera.CameraType = Enum.CameraType.Custom
 	end
 end
@@ -1597,6 +1595,56 @@ UserInputService.InputBegan:Connect(function(input, _processed)
 		launchClicked = true
 		launchRemote:FireServer()
 	end
+end)
+
+-- ============================================================================
+-- CUTSCENKA WILKA: świat zamiera (serwer trzyma prędkości na 0), kamera
+-- powoli najeżdża na wilka wyłaniającego się z lasu, wielki baner z nazwą —
+-- dopiero po niej zaczyna się pościg.
+-- ============================================================================
+
+local wolfGui = Instance.new("ScreenGui")
+wolfGui.Name = "WolfScene"
+wolfGui.ResetOnSpawn = false
+wolfGui.IgnoreGuiInset = true
+wolfGui.Parent = player:WaitForChild("PlayerGui")
+
+local wolfBanner = Instance.new("TextLabel")
+wolfBanner.AnchorPoint = Vector2.new(0.5, 0)
+wolfBanner.Position = UDim2.new(0.5, 0, 0.12, 0)
+wolfBanner.Size = UDim2.new(0, 620, 0, 74)
+wolfBanner.BackgroundTransparency = 1
+wolfBanner.Font = FONT
+wolfBanner.TextScaled = true
+wolfBanner.TextColor3 = Color3.fromRGB(255, 70, 55)
+wolfBanner.TextStrokeColor3 = Color3.fromRGB(25, 8, 8)
+wolfBanner.TextStrokeTransparency = 0
+wolfBanner.Rotation = -3
+wolfBanner.Visible = false
+wolfBanner.Parent = wolfGui
+local wolfBannerScale = Instance.new("UIScale")
+wolfBannerScale.Parent = wolfBanner
+
+wolfSceneRemote.OnClientEvent:Connect(function(position, wolfName, seconds)
+	wolfScene = {
+		position = position,
+		startedAt = os.clock(),
+		endsAt = os.clock() + seconds,
+	}
+	camera.CameraType = Enum.CameraType.Scriptable
+	wolfBanner.Text = ("🐺 %s!"):format(tostring(wolfName))
+	wolfBanner.Visible = true
+	wolfBanner.TextTransparency = 0
+	wolfBannerScale.Scale = 0.2
+	TweenService:Create(wolfBannerScale,
+		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	task.delay(seconds, function()
+		wolfScene = nil
+		wolfBanner.Visible = false
+		if not aiming then
+			camera.CameraType = Enum.CameraType.Custom
+		end
+	end)
 end)
 
 -- 🏆 fanfara ucieczki z łupem — wielki bąbelkowy napis jak przy level-upie
@@ -1632,7 +1680,27 @@ RunService.RenderStepped:Connect(function()
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 
-	if aiming and root then
+	if wolfScene and root then
+		-- REVEAL WILKA: kamera sunie od gracza w stronę bestii (ease in-out),
+		-- pod koniec lekko drży — groza rośnie, aż baner zniknie i START
+		local now = os.clock()
+		local alpha = math.clamp((now - wolfScene.startedAt)
+			/ math.max(wolfScene.endsAt - wolfScene.startedAt, 0.05), 0, 1)
+		local eased = alpha * alpha * (3 - 2 * alpha)
+		local wolfPos = wolfScene.position + Vector3.new(0, 2.2, 0)
+		local side = root.CFrame.RightVector
+		local startPos = root.Position + Vector3.new(0, 3.2, 0) - side * 5
+		local toPlayer = (root.Position - wolfPos)
+		local endPos = wolfPos + toPlayer.Unit * 9 + side * 3 + Vector3.new(0, 1.2, 0)
+		local cameraPos = startPos:Lerp(endPos, eased)
+		local sceneCF = CFrame.lookAt(cameraPos, wolfPos)
+		if alpha > 0.65 then
+			local tremor = (alpha - 0.65) * 0.02
+			sceneCF = sceneCF * CFrame.Angles(
+				math.sin(now * 31) * tremor, math.sin(now * 27) * tremor, 0)
+		end
+		camera.CFrame = sceneCF
+	elseif aiming and root then
 		-- kamera zza pleców, lekko przybliżona, patrzy w głąb lasu
 		local look = root.CFrame.LookVector
 		camera.CFrame = CFrame.lookAt(

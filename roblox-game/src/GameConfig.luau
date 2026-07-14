@@ -160,6 +160,7 @@ end
 -- ===========================================================================
 
 Config.Wolves = {
+	cutsceneSeconds = 2.6, -- reveal wilka: kamera najeżdża, wszyscy stoją
 	speedBase = 0.97,      -- × prędkość sprintu gracza
 	speedPerRing = 0.02,   -- + za pierścień, w którym ścięto
 	speedPerWorld = 0.005, -- + za świat
@@ -421,8 +422,10 @@ Config.Worlds = {
 Config.Base = {
 	basePlots = 10,
 	maxPlotsBuyable = 20,   -- limit dokupowania za kasę
-	plotBaseCost = 500,
-	plotCostGrowth = 2.2,   -- cena = plotBaseCost * growth^(dokupione)
+	-- grządki są DROGIE (decyzja na godziny, nie minuty) i kupuje się je
+	-- na FIZYCZNYM stanowisku obok ostatniej grządki, nie w menu
+	plotBaseCost = 50_000,
+	plotCostGrowth = 2.6,   -- cena = plotBaseCost * growth^(dokupione)
 	sellFromShelfMult = 60, -- sprzedaż grzyba z grządki = 60 s jego dochodu
 	collectSoundId = "rbxasset://sounds/electronicpingshort.wav",
 }

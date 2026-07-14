@@ -346,39 +346,83 @@ end
 -- ============================================================================
 
 local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
-	-- stragan: 4 słupki + czerwono-biały daszek nad BasePadem
+	-- stragan mieszka na LEWYM marginesie bazy (środek zajmuje deck grządek)
+	local stallX = offsetX - 57
 	for _, corner in { { -4, -4 }, { 4, -4 }, { -4, 4 }, { 4, 4 } } do
 		local post = makePart("StallPost", Vector3.new(0.6, 7, 0.6),
-			CFrame.new(offsetX + corner[1], 4, -12 + corner[2]), Color3.fromRGB(150, 105, 65), worldFolder)
+			CFrame.new(stallX + corner[1], 4, -12 + corner[2]), Color3.fromRGB(150, 105, 65), worldFolder)
 		post.Material = Enum.Material.Wood
 	end
-	local roof = makePart("StallRoof", Vector3.new(11, 0.6, 11), CFrame.new(offsetX, 7.8, -12), Color3.fromRGB(210, 65, 60), worldFolder)
+	local roof = makePart("StallRoof", Vector3.new(11, 0.6, 11), CFrame.new(stallX, 7.8, -12), Color3.fromRGB(210, 65, 60), worldFolder)
 	roof.Material = Enum.Material.SmoothPlastic
-	local roofTrim = makePart("StallRoofTrim", Vector3.new(11.6, 0.5, 11.6), CFrame.new(offsetX, 7.4, -12), Color3.fromRGB(245, 240, 225), worldFolder)
+	local roofTrim = makePart("StallRoofTrim", Vector3.new(11.6, 0.5, 11.6), CFrame.new(stallX, 7.4, -12), Color3.fromRGB(245, 240, 225), worldFolder)
 	roofTrim.Material = Enum.Material.SmoothPlastic
 	-- białe pasy na daszku (klasyczny stragan)
 	for _, stripeZ in { -3.4, 0, 3.4 } do
 		local stripe = makePart("StallRoofStripe", Vector3.new(11.2, 0.2, 1.5),
-			CFrame.new(offsetX, 8.15, -12 + stripeZ), Color3.fromRGB(245, 240, 225), worldFolder)
+			CFrame.new(stallX, 8.15, -12 + stripeZ), Color3.fromRGB(245, 240, 225), worldFolder)
 		stripe.Material = Enum.Material.SmoothPlastic
 	end
 
 	-- lada od frontu i skrzynki z towarem
-	local counter = makePart("StallCounter", Vector3.new(9, 1, 1.2), CFrame.new(offsetX, 2.2, -7.4), Color3.fromRGB(150, 105, 65), worldFolder)
+	local counter = makePart("StallCounter", Vector3.new(9, 1, 1.2), CFrame.new(stallX, 2.2, -7.4), Color3.fromRGB(150, 105, 65), worldFolder)
 	counter.Material = Enum.Material.WoodPlanks
 	for _, crateX in { -6.5, 6.5 } do
-		local crate = makePart("Crate", Vector3.new(2.2, 2.2, 2.2), CFrame.new(offsetX + crateX, 2.1, -10), Color3.fromRGB(170, 125, 80), worldFolder)
+		local crate = makePart("Crate", Vector3.new(2.2, 2.2, 2.2), CFrame.new(stallX + crateX, 2.1, -10), Color3.fromRGB(170, 125, 80), worldFolder)
 		crate.Material = Enum.Material.WoodPlanks
 		-- mini-grzybek na skrzynce (towar na wystawie)
 		local displayCap = makePart("CrateShroom", Vector3.new(1.1, 0.8, 1.1),
-			CFrame.new(offsetX + crateX, 3.6, -10), theme.caps[math.random(#theme.caps)], worldFolder)
+			CFrame.new(stallX + crateX, 3.6, -10), theme.caps[math.random(#theme.caps)], worldFolder)
 		displayCap.Shape = Enum.PartType.Ball
 		displayCap.Material = Enum.Material.SmoothPlastic
 		displayCap.CanCollide = false
 	end
 
-	-- ognisko: skrzyżowane polana + ogień + ciepłe światło
-	local firePos = Vector3.new(offsetX - 22, 1, -20)
+	-- === DECK GRZĄDEK (środek bazy) — hala jak w topowych symulatorach:
+	-- stalowe filary, dwa ciemne zadaszenia, wpuszczane panele LED
+	-- i neonowa listwa w kolorze świata wzdłuż frontu ===
+	local STEEL = Color3.fromRGB(45, 52, 66)
+	local STEEL_DARK = Color3.fromRGB(36, 42, 54)
+	for _, columnX in { -50, 0, 50 } do
+		for _, columnZ in { -8, -40 } do
+			local column = makePart("DeckColumn", Vector3.new(1.6, 13, 1.6),
+				CFrame.new(offsetX + columnX, 7.5, columnZ), STEEL, worldFolder)
+			column.Material = Enum.Material.Metal
+		end
+	end
+	for _, roofSpec in { { -14.5, 15 }, { -33.5, 15 } } do
+		local canopy = makePart("DeckRoof", Vector3.new(106, 1, 17),
+			CFrame.new(offsetX, roofSpec[2], roofSpec[1]), STEEL_DARK, worldFolder)
+		canopy.Material = Enum.Material.SmoothPlastic
+	end
+	-- panele LED pod zadaszeniem (co któreś z prawdziwym światłem)
+	local panelCount = 0
+	for _, panelZ in { -12, -18, -30, -36 } do
+		for panelX = -44, 44, 16 do
+			local panel = makePart("DeckLightPanel", Vector3.new(4, 0.3, 4),
+				CFrame.new(offsetX + panelX, 14.3, panelZ), Color3.fromRGB(255, 250, 235), worldFolder)
+			panel.Material = Enum.Material.Neon
+			panel.CanCollide = false
+			panelCount += 1
+			if panelCount % 4 == 1 then
+				local light = Instance.new("PointLight")
+				light.Color = Color3.fromRGB(255, 245, 220)
+				light.Range = 22
+				light.Brightness = 0.8
+				light.Parent = panel
+			end
+		end
+	end
+	-- neonowa listwa akcentowa wzdłuż frontu i tyłu decku
+	for _, trimZ in { -7.4, -40.6 } do
+		local trim = makePart("DeckTrim", Vector3.new(106, 0.5, 0.5),
+			CFrame.new(offsetX, 14.2, trimZ), theme.accent, worldFolder)
+		trim.Material = Enum.Material.Neon
+		trim.CanCollide = false
+	end
+
+	-- ognisko: skrzyżowane polana + ogień + ciepłe światło (prawy margines)
+	local firePos = Vector3.new(offsetX + 54, 1, -20)
 	for angle = 0, 120, 60 do
 		local log = makePart("Log", Vector3.new(4, 0.9, 0.9),
 			CFrame.new(firePos) * CFrame.Angles(0, math.rad(angle), math.rad(8)), Color3.fromRGB(96, 66, 40), worldFolder)
@@ -426,10 +470,10 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 		light.Parent = bulb
 	end
 
-	-- flaga w kolorze świata
-	local flagPole = makePart("FlagPole", Vector3.new(0.4, 12, 0.4), CFrame.new(offsetX + 24, 6.5, -30), Color3.fromRGB(200, 200, 210), worldFolder)
+	-- flaga w kolorze świata (prawy margines, za ogniskiem)
+	local flagPole = makePart("FlagPole", Vector3.new(0.4, 12, 0.4), CFrame.new(offsetX + 60, 6.5, -30), Color3.fromRGB(200, 200, 210), worldFolder)
 	flagPole.Material = Enum.Material.Metal
-	local flag = makePart("Flag", Vector3.new(5, 3, 0.3), CFrame.new(offsetX + 26.9, 10.5, -30), theme.accent, worldFolder)
+	local flag = makePart("Flag", Vector3.new(5, 3, 0.3), CFrame.new(offsetX + 62.9, 10.5, -30), theme.accent, worldFolder)
 	flag.Material = Enum.Material.SmoothPlastic
 end
 
@@ -488,22 +532,24 @@ for worldIdx, worldConfig in Config.Worlds do
 	if worldIdx == 1 then
 		local spawnLocation = Instance.new("SpawnLocation")
 		spawnLocation.Size = Vector3.new(8, 1, 8)
-		spawnLocation.CFrame = CFrame.new(offsetX, 1.1, -BASE_LENGTH + 10)
+		-- spawn na lewym marginesie (środek bazy zajmuje deck z grządkami)
+		spawnLocation.CFrame = CFrame.new(offsetX - 57, 1.1, -30)
 		spawnLocation.Anchored = true
 		spawnLocation.Neutral = true
 		spawnLocation.Parent = worldFolder
 	end
 
+	-- pas dostawy tuż za wejściem: wbiegasz z lasu i od razu sadzisz
 	local basePad = makePart(
 		"BasePad",
-		Vector3.new(10, 1.2, 10),
-		CFrame.new(offsetX, 1.1, -12),
+		Vector3.new(14, 1.2, 5),
+		CFrame.new(offsetX, 1.1, -3),
 		Color3.fromRGB(140, 96, 60),
 		worldFolder
 	)
 	basePad.Material = Enum.Material.WoodPlanks
 	basePad:SetAttribute("WorldIndex", worldIdx)
-	makePrompt(basePad, "Odłóż grzyby", "Półki w bazie")
+	makePrompt(basePad, "Odłóż grzyby", "Grządki w bazie")
 
 	-- STREFA STARTU WYPRAWY: świecący pad na ścieżce przed lasem. Wejście
 	-- na niego zatrzymuje gracza i odpala minigrę paska (GameServer/klient).
@@ -530,7 +576,8 @@ for worldIdx, worldConfig in Config.Worlds do
 	buildBaseCamp(worldFolder, theme, offsetX)
 
 	-- sprzedawca za ladą straganu + motylki nad bazą + zieleń w bazie
-	makeVendor(worldFolder, theme, worldIdx, Vector3.new(offsetX, 1, -16.5))
+	-- (stragan mieszka na lewym marginesie — środek to deck z grządkami)
+	makeVendor(worldFolder, theme, worldIdx, Vector3.new(offsetX - 57, 1, -16.5))
 	makeFireflies(Color3.fromRGB(255, 215, 240), Vector3.new(offsetX - 30, 1, -25), worldFolder)
 	for _ = 1, 10 do
 		makeSmallDecor(theme, Vector3.new(
@@ -570,17 +617,17 @@ for worldIdx, worldConfig in Config.Worlds do
 		end
 		local box, size = station:GetBoundingBox()
 		local pivotToCenter = station:GetPivot():ToObjectSpace(box)
-		station:PivotTo(CFrame.new(offsetX + 22, 0.7 + size.Y / 2, -8) * pivotToCenter:Inverse())
+		station:PivotTo(CFrame.new(offsetX + 56, 0.7 + size.Y / 2, -12) * pivotToCenter:Inverse())
 		station.Parent = worldFolder
 		-- niewidzialne "WorldEgg" zostaje kotwicą prompta/logiki GameServera
 		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4),
-			CFrame.new(offsetX + 22, 3.2, -8), Color3.fromRGB(250, 245, 230), worldFolder)
+			CFrame.new(offsetX + 56, 3.2, -12), Color3.fromRGB(250, 245, 230), worldFolder)
 		egg.Transparency = 1
 		egg.CanCollide = false
 	else
-		local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 22, 1.2, -8), Color3.fromRGB(150, 110, 70), worldFolder)
+		local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 56, 1.2, -12), Color3.fromRGB(150, 110, 70), worldFolder)
 		nest.Material = Enum.Material.WoodPlanks
-		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4), CFrame.new(offsetX + 22, 3.2, -8), Color3.fromRGB(250, 245, 230), worldFolder)
+		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4), CFrame.new(offsetX + 56, 3.2, -12), Color3.fromRGB(250, 245, 230), worldFolder)
 		egg.Shape = Enum.PartType.Ball
 		egg.Material = Enum.Material.SmoothPlastic
 		addSparkles(egg, theme.accent, 2)
