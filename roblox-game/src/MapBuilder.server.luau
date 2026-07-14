@@ -659,6 +659,11 @@ for worldIdx, worldConfig in Config.Worlds do
 				end
 			end
 		end
+		-- normalizacja rozmiaru (FBX bywa ogromny/malutki): stanowisko ~8 studów
+		local _, preSize = station:GetBoundingBox()
+		if preSize.Y > 0.01 then
+			station:ScaleTo(station:GetScale() * 8 / preSize.Y)
+		end
 		local box, size = station:GetBoundingBox()
 		local pivotToCenter = station:GetPivot():ToObjectSpace(box)
 		station:PivotTo(CFrame.new(offsetX + 90, 0.7 + size.Y / 2, -25) * pivotToCenter:Inverse())

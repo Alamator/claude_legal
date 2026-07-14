@@ -89,8 +89,29 @@ Kolejność = rzadkość (1. Rzadki 55% → 5. SEKRET 0,1%).
 1. Wgraj JEDEN model (np. `Grzyby/Kurka`), kliknij ▶ Play.
 2. Biegnij do lasu — część miejscówek w Świecie 1 to teraz Twoja Kurka
    (miejscówki odrastają co kilka sekund, więc chwilę potrwa, aż się wylosuje).
-3. Jeśli model leży na boku / jest gigantyczny: w Blenderze przed eksportem
-   zaznacz wszystko → `Ctrl+A → All Transforms`, w opcjach FBX zostaw
-   „Apply Scalings: FBX All".
+3. **Rozmiar jest normalizowany automatycznie** — nawet jeśli FBX wyszedł
+   gigantyczny albo mikroskopijny, gra sama sprowadza grzyby, pety
+   i stanowisko jaja do właściwej wielkości. Jeśli model leży na BOKU:
+   w Blenderze zaznacz wszystko → `Ctrl+A → All Transforms` i eksportuj
+   ponownie.
 4. Pety sprawdzisz wykluwając jajo (albo tymczasowo ustaw w GameConfig
    `eggCostByWorld[1] = 1`).
+
+## „Wgrałem i NIC się nie pojawia" — checklista
+
+Po kolei (99% przypadków to punkt 2 albo 3):
+
+1. **Import 3D wstawia model do `workspace`** (mapa) — tam ma tylko leżeć
+   chwilowo. Gra NIE używa modeli z workspace!
+2. **Model musi trafić do `ReplicatedStorage → Models → Grzyby`**
+   (przeciągnij w Explorerze). Sprawdź strukturę: folder `Models`,
+   w nim folder `Grzyby` — wielkość liter się liczy.
+3. **Nazwa modelu = DOKŁADNIE nazwa gatunku** z tabeli wyżej, z polskimi
+   znakami i spacjami: `Kurka`, `Maślak Zwyczajny`, `Borowik Szlachetny`…
+   Import nazywa model tak jak plik (np. `grzyb1`) — ZMIEŃ nazwę (F2).
+4. Model w `ReplicatedStorage` jest NIEWIDOCZNY w świecie — to magazyn.
+   Gra go klonuje do lasu przy WYROŚNIĘCIU nowej miejscówki: wciśnij
+   Play i odczekaj kilkanaście sekund w lesie.
+5. Upewnij się, że wgrałeś aktualne pliki `GameServer`/`MapBuilder` —
+   auto-podpięcie modeli siedzi właśnie tam.
+6. Nadal nic? Otwórz Output (View → Output) i przyślij mi czerwone linie.

@@ -57,7 +57,9 @@ end
 
 -- Klon gotowy do wstawienia: zakotwiczony, bez kolizji, *Glow → Neon
 -- (gdyby ktoś zapomniał ustawić przy imporcie), opcjonalnie przeskalowany.
-local function prepareClone(template: Model, scale: number?): Model
+-- targetHeight NORMALIZUJE rozmiar (FBX-y potrafią wyjść ogromne albo
+-- malutkie — gra i tak sprowadza model do właściwej wielkości).
+local function prepareClone(template: Model, scale: number?, targetHeight: number?): Model
 	local clone = template:Clone()
 	local biggest: BasePart? = nil
 	local biggestVolume = 0
@@ -84,8 +86,15 @@ local function prepareClone(template: Model, scale: number?): Model
 	if not clone.PrimaryPart then
 		clone.PrimaryPart = biggest
 	end
-	if scale and scale ~= 1 then
-		clone:ScaleTo(clone:GetScale() * scale)
+	local factor = scale or 1
+	if targetHeight then
+		local _, size = clone:GetBoundingBox()
+		if size.Y > 0.01 then
+			factor *= targetHeight / size.Y
+		end
+	end
+	if factor ~= 1 then
+		clone:ScaleTo(clone:GetScale() * factor)
 	end
 	return clone
 end
@@ -1362,8 +1371,9 @@ spawnNode = function(player: Player)
 	local cap -- kotwica prompta/rozbryzgu (widoczny kapelusz albo niewidzialny box)
 	local template = findTemplate("Grzyby", world.species[speciesIdx].name)
 	if template then
-		-- MODEL GATUNKU z Blendera zamiast klocków
-		local model = prepareClone(template, scale)
+		-- MODEL GATUNKU z Blendera zamiast klocków (rozmiar normalizowany:
+		-- niezależnie od skali FBX grzyb w lesie ma ~3,4 studa × losowy scale)
+		local model = prepareClone(template, scale, 3.4)
 		local size = placeClone(model, x, y, z, math.random() * 2 * math.pi)
 		model.Parent = node
 		-- kolor rozbryzgu = kolor kapelusza modelu (część z "Kapelusz" w nazwie)
