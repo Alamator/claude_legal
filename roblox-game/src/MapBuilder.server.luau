@@ -400,6 +400,19 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 	-- i neonowa listwa w kolorze świata wzdłuż frontu ===
 	local STEEL = Color3.fromRGB(45, 52, 66)
 	local STEEL_DARK = Color3.fromRGB(36, 42, 54)
+
+	-- PODŁOGA DECKU: jasna tafla jak w topowych simach (nie trawa!) +
+	-- neonowe listwy podłogowe wzdłuż rzędów grządek
+	local deckFloor = makePart("DeckFloor", Vector3.new(108, 0.32, 37),
+		CFrame.new(offsetX, 1.0, -24), Color3.fromRGB(206, 220, 234), worldFolder)
+	deckFloor.Material = Enum.Material.SmoothPlastic
+	for _, stripZ in { -8.4, -20, -28, -39.6 } do
+		local strip = makePart("DeckFloorStrip", Vector3.new(106, 0.1, 0.6),
+			CFrame.new(offsetX, 1.22, stripZ), theme.accent, worldFolder)
+		strip.Material = Enum.Material.Neon
+		strip.CanCollide = false
+	end
+
 	for _, columnX in { -50, 0, 50 } do
 		for _, columnZ in { -8, -40 } do
 			local column = makePart("DeckColumn", Vector3.new(1.6, 13, 1.6),
@@ -568,9 +581,9 @@ for worldIdx, worldConfig in Config.Worlds do
 	basePad:SetAttribute("WorldIndex", worldIdx)
 	makePrompt(basePad, "Odłóż grzyby", "Grządki w bazie")
 
-	-- STREFA STARTU WYPRAWY: świecący pad na ścieżce przed lasem. Wejście
-	-- na niego zatrzymuje gracza i odpala minigrę paska (GameServer/klient).
-	local launchPad = makePart("LaunchPad", Vector3.new(12, 0.35, 6),
+	-- STREFA STARTU WYPRAWY: świecący pas na CAŁEJ szerokości wejścia do
+	-- lasu — nie da się go ominąć; wejście odpala minigrę (GameServer/klient).
+	local launchPad = makePart("LaunchPad", Vector3.new(MAP_WIDTH - 4, 0.35, 6),
 		CFrame.new(offsetX, 1.15, 3), Color3.fromRGB(90, 235, 120), worldFolder)
 	launchPad.Material = Enum.Material.Neon
 	launchPad:SetAttribute("WorldIndex", worldIdx)

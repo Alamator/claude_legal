@@ -23,8 +23,11 @@ local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataService = require(ServerScriptService:WaitForChild("DataService"))
 local EventService = require(ServerScriptService:WaitForChild("EventService"))
 
-local NODES_PER_PLAYER = 14    -- ile miejscówek grzybowych naraz ma gracz
-local NODE_RESPAWN_DELAY = 5   -- sekundy do wyrośnięcia nowej miejscówki
+local NODES_PER_PLAYER = 42    -- las ma być PEŁEN grzybów (głównie tanich)
+local NODE_RESPAWN_DELAY = 4   -- sekundy do wyrośnięcia nowej miejscówki
+-- rozkład miejscówek po pierścieniach: przy wejściu zatrzęsienie tanich —
+-- nawet zupełnie nowy gracz ZAWSZE coś utnie; w głębi rzadziej, ale lepiej
+local NODE_RING_WEIGHTS = { 40, 25, 17, 11, 7 }
 local AUTOSAVE_INTERVAL = 120
 
 -- ============================================================================
@@ -756,14 +759,24 @@ local function refreshShelfDisplay(player: Player)
 
 		local item = s.data.shelf[index]
 
-		-- grządka (kopczyk ziemi); pusta = jaśniejsza, zachęca do zasadzenia
+		-- DONICA-stanowisko (jak podesty w topowych simach): stalowa rama
+		-- + ziemia w środku; pusta = jaśniejsza, zachęca do zasadzenia
+		local planter = Instance.new("Part")
+		planter.Name = "Planter"
+		planter.Size = Vector3.new(4.6, 0.5, 3.8)
+		planter.Position = Vector3.new(soilX, groundY + 0.15, soilZ)
+		planter.Color = Color3.fromRGB(45, 52, 66)
+		planter.Material = Enum.Material.Metal
+		planter.Anchored = true
+		planter.Parent = area
 		local soil = Instance.new("Part")
 		soil.Name = "Soil"
-		soil.Size = Vector3.new(4.2, 0.6, 3.4)
-		soil.Position = Vector3.new(soilX, groundY, soilZ)
+		soil.Size = Vector3.new(3.6, 0.4, 2.8)
+		soil.Position = Vector3.new(soilX, groundY + 0.45, soilZ)
 		soil.Color = item and Color3.fromRGB(86, 60, 38) or Color3.fromRGB(120, 92, 62)
 		soil.Material = Enum.Material.Ground
 		soil.Anchored = true
+		soil.CanCollide = false
 		soil.Parent = area
 
 		if item then
@@ -849,63 +862,64 @@ local function refreshShelfDisplay(player: Player)
 			incomeLine.Text = ("$%s/s"):format(Config.fmtNumber(itemIncome(item, s.data)))
 			incomeLine.Parent = plate
 
-			-- ULEPSZANIE GRZYBA (lvl 1→100): przytrzymaj E na kapeluszu.
-			-- Pomarańczowa tablica z ceną i "Poziom X ➜ Y" (styl topowych simów)
+			-- TABLET ULEPSZENIA (lvl 1→100): STAŁA pomarańczowa tablica nad
+			-- grządką (SurfaceGui — NIE obraca się za graczem), interaktywna:
+			-- klik/tap (ClickDetector) kupuje poziom. Zero przytrzymywania E.
 			if lvl < Config.MushroomLevels.maxLevel then
-				local signAnchor = Instance.new("Part")
-				signAnchor.Transparency = 1
-				signAnchor.Anchored = true
-				signAnchor.CanCollide = false
-				signAnchor.CanQuery = false
-				signAnchor.Size = Vector3.new(1, 1, 1)
-				signAnchor.CFrame = CFrame.new(soilX, groundY + 1.4, soilZ - 2.5)
-				signAnchor.Parent = area
-				local upSign = Instance.new("BillboardGui")
-				upSign.Size = UDim2.new(0, 150, 0, 52)
-				upSign.MaxDistance = 60
-				upSign.Parent = signAnchor
-				local upPanel = Instance.new("Frame")
-				upPanel.Size = UDim2.fromScale(1, 1)
-				upPanel.BackgroundColor3 = Color3.fromRGB(250, 165, 35)
-				upPanel.Parent = upSign
-				local upCorner = Instance.new("UICorner")
-				upCorner.CornerRadius = UDim.new(0, 10)
-				upCorner.Parent = upPanel
-				local upStroke = Instance.new("UIStroke")
-				upStroke.Thickness = 3
-				upStroke.Color = Color3.fromRGB(50, 40, 25)
-				upStroke.Parent = upPanel
+				local tablet = Instance.new("Part")
+				tablet.Name = "UpgradeTablet"
+				tablet.Size = Vector3.new(4.4, 2.3, 0.35)
+				tablet.CFrame = CFrame.new(soilX, groundY + 1.9 * scale + 1.8, soilZ - 1.0)
+					* CFrame.Angles(math.rad(-14), 0, 0)
+				tablet.Color = Color3.fromRGB(58, 44, 22)
+				tablet.Material = Enum.Material.SmoothPlastic
+				tablet.Anchored = true
+				tablet.CanCollide = false
+				tablet.Parent = area
+
+				local face = Instance.new("SurfaceGui")
+				face.Face = Enum.NormalId.Back -- ścianka od strony przejścia (+Z)
+				face.Parent = tablet
+				local panel = Instance.new("Frame")
+				panel.Size = UDim2.fromScale(0.97, 0.94)
+				panel.Position = UDim2.fromScale(0.5, 0.5)
+				panel.AnchorPoint = Vector2.new(0.5, 0.5)
+				panel.BackgroundColor3 = Color3.fromRGB(250, 165, 35)
+				panel.Parent = face
+				local panelCorner = Instance.new("UICorner")
+				panelCorner.CornerRadius = UDim.new(0, 40)
+				panelCorner.Parent = panel
+				local panelStroke = Instance.new("UIStroke")
+				panelStroke.Thickness = 8
+				panelStroke.Color = Color3.fromRGB(50, 40, 25)
+				panelStroke.Parent = panel
 				local upCost = Instance.new("TextLabel")
-				upCost.Size = UDim2.new(1, -10, 0, 28)
-				upCost.Position = UDim2.new(0.5, 0, 0, 2)
+				upCost.Size = UDim2.fromScale(0.9, 0.52)
+				upCost.Position = UDim2.fromScale(0.5, 0.06)
 				upCost.AnchorPoint = Vector2.new(0.5, 0)
 				upCost.BackgroundTransparency = 1
 				upCost.Font = Enum.Font.FredokaOne
 				upCost.TextScaled = true
 				upCost.TextColor3 = Color3.fromRGB(120, 250, 130)
-				upCost.TextStrokeTransparency = 0.2
+				upCost.TextStrokeColor3 = Color3.fromRGB(25, 55, 25)
+				upCost.TextStrokeTransparency = 0.1
 				upCost.Text = ("⬆️ $%s"):format(Config.fmtNumber(mushroomUpgradeCost(item)))
-				upCost.Parent = upPanel
+				upCost.Parent = panel
 				local upLvl = Instance.new("TextLabel")
-				upLvl.Size = UDim2.new(1, -10, 0, 18)
-				upLvl.Position = UDim2.new(0.5, 0, 0, 30)
+				upLvl.Size = UDim2.fromScale(0.9, 0.3)
+				upLvl.Position = UDim2.fromScale(0.5, 0.62)
 				upLvl.AnchorPoint = Vector2.new(0.5, 0)
 				upLvl.BackgroundTransparency = 1
 				upLvl.Font = Enum.Font.FredokaOne
 				upLvl.TextScaled = true
-				upLvl.TextColor3 = Color3.fromRGB(60, 145, 60)
+				upLvl.TextColor3 = Color3.fromRGB(70, 150, 60)
 				upLvl.Text = ("Poziom %d ➜ %d"):format(lvl, lvl + 1)
-				upLvl.Parent = upPanel
+				upLvl.Parent = panel
 
-				local upPrompt = Instance.new("ProximityPrompt")
-				upPrompt.ActionText = "Ulepsz grzyba"
-				upPrompt.ObjectText = ("lvl %d/%d — %s 💰"):format(
-					lvl, Config.MushroomLevels.maxLevel, Config.fmtNumber(mushroomUpgradeCost(item)))
-				upPrompt.HoldDuration = 0.35
-				upPrompt.MaxActivationDistance = 9
-				upPrompt.RequiresLineOfSight = false
-				upPrompt.Parent = miniCap
-				upPrompt.Triggered:Connect(function(who)
+				local clicker = Instance.new("ClickDetector")
+				clicker.MaxActivationDistance = 30
+				clicker.Parent = tablet
+				clicker.MouseClick:Connect(function(who)
 					if who ~= player then return end
 					local planted = s.data.shelf[index]
 					if not planted or (planted.lvl or 1) >= Config.MushroomLevels.maxLevel then
@@ -926,7 +940,7 @@ local function refreshShelfDisplay(player: Player)
 						notifyRemote:FireAllClients(("🍄👑 %s wymaksował grzyba: %s (lvl 100)!")
 							:format(player.DisplayName, itemLabel(planted)))
 					end
-					refreshShelfDisplay(player) -- grzyb rośnie + świeży prompt/cena
+					refreshShelfDisplay(player) -- grzyb rośnie + świeża cena
 					syncAttributes(player)
 				end)
 			else
@@ -1267,7 +1281,20 @@ spawnNode = function(player: Player)
 	local worldIdx = s.data.currentWorld
 	local world = Config.Worlds[worldIdx]
 	local rings = ringPartsByWorld[worldIdx]
-	local ringIndex = math.random(1, #rings)
+	-- ważone losowanie pierścienia (blisko wejścia = najgęściej)
+	local totalWeight = 0
+	for index = 1, #rings do
+		totalWeight += NODE_RING_WEIGHTS[index] or 1
+	end
+	local roll = math.random() * totalWeight
+	local ringIndex = #rings
+	for index = 1, #rings do
+		roll -= NODE_RING_WEIGHTS[index] or 1
+		if roll <= 0 then
+			ringIndex = index
+			break
+		end
+	end
 	local ring = rings[ringIndex]
 
 	local node = Instance.new("Model")
@@ -2118,8 +2145,8 @@ task.spawn(function()
 					if root.Position.Z > 6 then
 						-- do lasu wchodzi się WYŁĄCZNIE przez strefę startu
 						root.CFrame = CFrame.new(pad.Position + Vector3.new(0, 3, 0))
-					elseif math.abs(root.Position.X - pad.Position.X) < 6.5
-						and math.abs(root.Position.Z - pad.Position.Z) < 3.5 then
+					elseif math.abs(root.Position.X - pad.Position.X) < pad.Size.X / 2 + 1
+						and math.abs(root.Position.Z - pad.Position.Z) < pad.Size.Z / 2 + 0.5 then
 						-- stoisz na padzie po cooldownie → minigra rusza sama
 						-- (Touched nie odpala się przy ciągłym kontakcie)
 						startAiming(player, data.currentWorld, pad)

@@ -1137,7 +1137,7 @@ local function refresh()
 	local plotCap = player:GetAttribute("PlotCapacity") or 10
 	basketBody.Text = ("🎒 Miejsca: %d/%d\n%s\n\n🌱 Grządki: %d/%d (zbieraj z zielonych pól!)")
 		:format(carriedCount, carrySlots,
-			carried == "" and "— pusto — (słabsze rolle sprzedają się same)" or carried,
+			carried == "" and "— pusto — (leć do lasu po łup!)" or carried,
 			shelfCount, plotCap)
 
 	-- przyciski ulepszeń z aktualnymi cenami (te same wzory co na serwerze)
@@ -1562,10 +1562,78 @@ local aiming = false
 local launchClicked = false
 local wolfScene: { position: Vector3, startedAt: number, endsAt: number }? = nil
 
+-- ============================================================================
+-- MINI-HUD BIEGU: podczas wyprawy CAŁY zwykły HUD znika — widać tylko
+-- to, co dotyczy biegu: pasek kondycji + koszyk.
+-- ============================================================================
+
+local runGui = Instance.new("ScreenGui")
+runGui.Name = "RunHUD"
+runGui.ResetOnSpawn = false
+runGui.Enabled = false
+runGui.Parent = player:WaitForChild("PlayerGui")
+
+local runBasket = Instance.new("TextLabel")
+runBasket.AnchorPoint = Vector2.new(0.5, 1)
+runBasket.Position = UDim2.new(0.5, 0, 1, -66)
+runBasket.Size = UDim2.new(0, 240, 0, 34)
+runBasket.BackgroundTransparency = 1
+runBasket.Font = FONT
+runBasket.TextScaled = true
+runBasket.TextColor3 = Color3.new(1, 1, 1)
+runBasket.TextStrokeTransparency = 0.25
+runBasket.Text = "🧺 0/1"
+runBasket.Parent = runGui
+
+local runStaminaBack = Instance.new("Frame")
+runStaminaBack.AnchorPoint = Vector2.new(0.5, 1)
+runStaminaBack.Position = UDim2.new(0.5, 0, 1, -28)
+runStaminaBack.Size = UDim2.new(0, 460, 0, 30)
+runStaminaBack.BackgroundColor3 = Color3.fromRGB(28, 32, 44)
+runStaminaBack.BackgroundTransparency = 0.25
+runStaminaBack.Parent = runGui
+addCorner(runStaminaBack, 15)
+local runStaminaFill = Instance.new("Frame")
+runStaminaFill.Position = UDim2.new(0, 3, 0.5, 0)
+runStaminaFill.AnchorPoint = Vector2.new(0, 0.5)
+runStaminaFill.Size = UDim2.new(1, -6, 1, -6)
+runStaminaFill.BackgroundColor3 = Color3.fromRGB(120, 230, 110)
+runStaminaFill.Parent = runStaminaBack
+addCorner(runStaminaFill, 12)
+local runStaminaText = Instance.new("TextLabel")
+runStaminaText.Size = UDim2.fromScale(1, 0.8)
+runStaminaText.Position = UDim2.fromScale(0.5, 0.5)
+runStaminaText.AnchorPoint = Vector2.new(0.5, 0.5)
+runStaminaText.BackgroundTransparency = 1
+runStaminaText.Font = FONT
+runStaminaText.TextScaled = true
+runStaminaText.TextColor3 = Color3.new(1, 1, 1)
+runStaminaText.TextStrokeTransparency = 0.35
+runStaminaText.ZIndex = 3
+runStaminaText.Text = "🏃 100/100"
+runStaminaText.Parent = runStaminaBack
+
+local function refreshRunHud()
+	local stamina = player:GetAttribute("Stamina") or 0
+	local staminaMax = math.max(player:GetAttribute("StaminaMax") or 100, 1)
+	local fraction = math.clamp(stamina / staminaMax, 0, 1)
+	runStaminaFill.Size = UDim2.new(fraction, -6, 1, -6)
+	runStaminaFill.BackgroundColor3 = fraction > 0.35
+		and Color3.fromRGB(120, 230, 110)
+		or Color3.fromRGB(240, 110, 80)
+	runStaminaText.Text = ("🏃 %d/%d"):format(stamina, staminaMax)
+	runBasket.Text = ("🧺 %d/%d"):format(
+		player:GetAttribute("CarriedCount") or 0,
+		player:GetAttribute("CarrySlots") or 1)
+end
+for _, attribute in { "Stamina", "StaminaMax", "CarriedCount", "CarrySlots" } do
+	player:GetAttributeChangedSignal(attribute):Connect(refreshRunHud)
+end
+refreshRunHud()
+
 local function setAiming(on: boolean)
 	aiming = on
 	launchGui.Enabled = on
-	gui.Enabled = not on -- w minigrze HUD znika
 	if on then
 		launchClicked = false
 		camera.CameraType = Enum.CameraType.Scriptable
@@ -1577,6 +1645,10 @@ end
 player:GetAttributeChangedSignal("ExpeditionState"):Connect(function()
 	local state = player:GetAttribute("ExpeditionState")
 	setAiming(state == "aiming")
+	-- HUD wg stanu: baza = pełny HUD; minigra/cutscenka = nic;
+	-- bieg = tylko mini-HUD (kondycja + koszyk)
+	gui.Enabled = state == nil or state == "base"
+	runGui.Enabled = state == "run"
 	if state == "run" then
 		-- trzęsienie ekranu po strzale — tier 1 (idealny) trzęsie najmocniej
 		local tier = player:GetAttribute("LaunchTier") or 4
