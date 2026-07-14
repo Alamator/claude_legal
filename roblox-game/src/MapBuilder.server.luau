@@ -117,6 +117,23 @@ local function makeSign(parent: Instance, text: string, cframe: CFrame)
 	label.TextColor3 = Color3.fromRGB(60, 40, 25)
 	label.Text = text
 	label.Parent = gui
+
+	-- WISZĄCA TABLICZKA wysoko nad znakiem — widoczna z daleka
+	local floatBoard = Instance.new("BillboardGui")
+	floatBoard.Size = UDim2.new(0, 280, 0, 52)
+	floatBoard.StudsOffset = Vector3.new(0, 10, 0)
+	floatBoard.MaxDistance = 240
+	floatBoard.Parent = board
+	local floatLabel = Instance.new("TextLabel")
+	floatLabel.Size = UDim2.fromScale(1, 1)
+	floatLabel.BackgroundTransparency = 1
+	floatLabel.Font = Enum.Font.FredokaOne
+	floatLabel.TextScaled = true
+	floatLabel.TextColor3 = Color3.new(1, 1, 1)
+	floatLabel.TextStrokeColor3 = Color3.fromRGB(30, 25, 20)
+	floatLabel.TextStrokeTransparency = 0.1
+	floatLabel.Text = text
+	floatLabel.Parent = floatBoard
 end
 
 local function addSparkles(parent: BasePart, color: Color3, rate: number)
@@ -559,9 +576,9 @@ for worldIdx, worldConfig in Config.Worlds do
 	launchPad:SetAttribute("WorldIndex", worldIdx)
 	addSparkles(launchPad, Color3.fromRGB(160, 255, 180), 2)
 	local launchSign = Instance.new("BillboardGui")
-	launchSign.Size = UDim2.new(0, 190, 0, 40)
-	launchSign.StudsOffset = Vector3.new(0, 4, 0)
-	launchSign.MaxDistance = 90
+	launchSign.Size = UDim2.new(0, 280, 0, 56)
+	launchSign.StudsOffset = Vector3.new(0, 11, 0)
+	launchSign.MaxDistance = 220
 	launchSign.Parent = launchPad
 	local launchLabel = Instance.new("TextLabel")
 	launchLabel.Size = UDim2.fromScale(1, 1)

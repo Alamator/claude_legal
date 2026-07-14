@@ -197,6 +197,7 @@ local sessions: { [Player]: {
 	wolf: any,            -- aktywny pościg: { model, speed, name } albo nil
 	journalJSON: string?, -- cache JSON-a zdobytych gatunków (nil = przelicz)
 	baseIncomeLabel: any, -- etykieta "$X/s" na czerwonym markerze działki
+	launchCooldownUntil: number, -- os.clock(): pad startu nie odpali przed tym czasem
 } } = {}
 
 -- właścicielstwo Game Passów: sprawdzane raz przy wejściu (i po zakupie)
@@ -1849,6 +1850,7 @@ local function endExpedition(player: Player, escaped: boolean)
 	local s = sessions[player]
 	if not s or s.expedition ~= "run" then return end
 	s.expedition = "base"
+	s.launchCooldownUntil = os.clock() + 4 -- pad startu chwilę odpoczywa
 	player:SetAttribute("ExpeditionState", "base")
 	if escaped and #s.carried > 0 then
 		local labels = {}
@@ -1973,6 +1975,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 			notifyRemote:FireClient(player, ("🐺 %s cię dopadł! Łup przepadł..."):format(wolf.name))
 			despawnWolf(s)
 			s.expedition = "base"
+			s.launchCooldownUntil = os.clock() + 4
 			player:SetAttribute("ExpeditionState", "base")
 			teleportToBase(player, s.data.currentWorld)
 			applySpeed(player)
@@ -1991,10 +1994,22 @@ end)
 
 -- minigra startu: gracz staje na LaunchPadzie → oscylator rusza; klient
 -- pokazuje TĘ SAMĄ krzywą (wspólny zegar serwera), klik = LaunchStop
-local function startAiming(player: Player, worldIdx: number)
+local function startAiming(player: Player, worldIdx: number, pad: BasePart)
 	local s = sessions[player]
 	if not s or s.expedition ~= "base" then return end
 	if worldIdx ~= s.data.currentWorld then return end
+	if os.clock() < s.launchCooldownUntil then return end -- świeżo po wyprawie
+
+	-- wyśrodkuj gracza na padzie, twarzą PROSTO w las (+Z) — kamera minigry
+	-- patrzy wzdłuż LookVectora, więc widok od razu jest na wprost
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local center = Vector3.new(pad.Position.X, pad.Position.Y + 3, pad.Position.Z)
+		root.CFrame = CFrame.lookAt(center, center + Vector3.new(0, 0, 30))
+		root.AssemblyLinearVelocity = Vector3.zero
+	end
+
 	s.expedition = "aiming"
 	s.launchStart = workspace:GetServerTimeNow()
 	player:SetAttribute("LaunchStart", s.launchStart)
@@ -2051,7 +2066,7 @@ for _, worldFolder in worldsFolder:GetChildren() do
 		pad.Touched:Connect(function(hit)
 			local who = Players:GetPlayerFromCharacter(hit.Parent)
 			if who then
-				startAiming(who, padWorld)
+				startAiming(who, padWorld, pad)
 			end
 		end)
 	end
@@ -2081,6 +2096,7 @@ task.spawn(function()
 						if #s.carried == 0 then
 							notifyRemote:FireClient(player, "😮‍💨 Kondycja wyczerpana — wracasz do bazy z pustymi rękami.")
 							s.expedition = "base"
+							s.launchCooldownUntil = os.clock() + 4
 							player:SetAttribute("ExpeditionState", "base")
 							teleportToBase(player, data.currentWorld)
 						else
@@ -2095,12 +2111,18 @@ task.spawn(function()
 			elseif s.expedition == "base" then
 				if inBase then
 					s.stamina = math.min(staminaMax(data), s.stamina + Config.Stats.Stamina.baseRegenPerSec)
-				elseif root and root.Position.Z > 6 then
-					-- do lasu wchodzi się WYŁĄCZNIE przez strefę startu
-					local worldFolder = worldsFolder:FindFirstChild("World" .. data.currentWorld)
-					local pad = worldFolder and worldFolder:FindFirstChild("LaunchPad")
-					if pad then
+				end
+				local worldFolder = worldsFolder:FindFirstChild("World" .. data.currentWorld)
+				local pad = worldFolder and worldFolder:FindFirstChild("LaunchPad")
+				if pad and root then
+					if root.Position.Z > 6 then
+						-- do lasu wchodzi się WYŁĄCZNIE przez strefę startu
 						root.CFrame = CFrame.new(pad.Position + Vector3.new(0, 3, 0))
+					elseif math.abs(root.Position.X - pad.Position.X) < 6.5
+						and math.abs(root.Position.Z - pad.Position.Z) < 3.5 then
+						-- stoisz na padzie po cooldownie → minigra rusza sama
+						-- (Touched nie odpala się przy ciągłym kontakcie)
+						startAiming(player, data.currentWorld, pad)
 					end
 				end
 			end
@@ -2214,6 +2236,7 @@ Players.PlayerAdded:Connect(function(player)
 		launchStart = 0,
 		launchMult = 1,
 		launchUntil = 0,
+		launchCooldownUntil = 0,
 	}
 
 	loadPasses(player, sessions[player])
