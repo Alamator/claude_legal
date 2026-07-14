@@ -666,6 +666,32 @@ for worldIdx, worldConfig in Config.Worlds do
 		Color3.fromRGB(196, 172, 128), worldFolder)
 	path.Material = Enum.Material.Sand
 	path.CanCollide = false
+
+	-- NIEWIDZIALNE ŚCIANY GRANICZNE: świat jest zamkniętym korytarzem —
+	-- do sąsiednich światów prowadzi WYŁĄCZNIE (opłacony) portal.
+	local wallHeight = 80
+	local stripLength = prevEndZ + BASE_LENGTH -- od tyłu bazy po koniec lasu
+	local wallSpecs = {
+		{ Vector3.new(2, wallHeight, stripLength + 4),
+			CFrame.new(offsetX - MAP_WIDTH / 2 - 1, wallHeight / 2, (prevEndZ - BASE_LENGTH) / 2) },
+		{ Vector3.new(2, wallHeight, stripLength + 4),
+			CFrame.new(offsetX + MAP_WIDTH / 2 + 1, wallHeight / 2, (prevEndZ - BASE_LENGTH) / 2) },
+		{ Vector3.new(MAP_WIDTH + 4, wallHeight, 2),
+			CFrame.new(offsetX, wallHeight / 2, -BASE_LENGTH - 1) },
+		{ Vector3.new(MAP_WIDTH + 4, wallHeight, 2),
+			CFrame.new(offsetX, wallHeight / 2, prevEndZ + 1) },
+	}
+	for _, spec in wallSpecs do
+		local wall = Instance.new("Part")
+		wall.Name = "WorldWall"
+		wall.Size = spec[1]
+		wall.CFrame = spec[2]
+		wall.Transparency = 1
+		wall.Anchored = true
+		wall.CanCollide = true
+		wall.CanQuery = false
+		wall.Parent = worldFolder
+	end
 end
 
 print(("[MapBuilder] Mapa gotowa: %d światów po %d pierścieni"):format(#Config.Worlds, #Config.Rings))

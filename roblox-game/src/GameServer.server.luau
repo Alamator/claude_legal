@@ -1347,6 +1347,14 @@ local function hatchOnce(player: Player, worldIdx: number, quiet: boolean): bool
 	local data = s.data
 	local cost = Config.Pets.eggCostByWorld[worldIdx]
 
+	-- jajo działa tylko w ODBLOKOWANYM świecie (gdyby ktoś ominął ściany)
+	if worldIdx ~= 1 and not data.worldsUnlocked[tostring(worldIdx)] then
+		if not quiet then
+			notifyRemote:FireClient(player, "🔒 Najpierw odblokuj ten świat portalem!")
+		end
+		return false
+	end
+
 	if #data.pets >= Config.Pets.maxOwned then
 		if not quiet then
 			notifyRemote:FireClient(player, "❌ Masz komplet petów! (max " .. Config.Pets.maxOwned .. ")")

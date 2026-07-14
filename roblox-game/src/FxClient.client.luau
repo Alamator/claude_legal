@@ -14,7 +14,9 @@
 
 local RunService = game:GetService("RunService")
 
-local SPIN_KEYS = { "Pierscien", "Halo", "Dysk", "Orbita", "Fala", "Ring" }
+-- UWAGA: bez klucza "Ring" — platformy pierścieni lasu nazywają się
+-- Ring1..Ring5 i NIE mogą wirować; modele używają "Pierscien"/"Halo" itd.
+local SPIN_KEYS = { "Pierscien", "Halo", "Dysk", "Orbita", "Fala" }
 local BOB_KEYS = { "TrzonSeg", "Skalki", "FloatingRock", "Drobiny", "Materia", "Ksiezyc", "Warkocz" }
 local PULSE_KEYS = { "PortalNext", "PortalPrev", "ShortcutPortal" }
 
