@@ -1692,23 +1692,20 @@ local controlsOk, controls = pcall(function()
 end)
 
 RunService:BindToRenderStep("PickAShroomForcedRun", Enum.RenderPriority.Character.Value + 1, function()
+	-- AUTO-BIEG działa TYLKO w głąb ("out"). W ucieczce ("return") gracz
+	-- sam biega (pełne sterowanie) — to jest emocjonujące, nie auto.
 	if player:GetAttribute("ExpeditionState") ~= "run" then return end
+	if (player:GetAttribute("ExpeditionPhase") or "out") ~= "out" then return end
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return end
 	humanoid.Jump = false -- bez skakania na szynach
-	local phase = player:GetAttribute("ExpeditionPhase") or "out"
-	local forward
-	if phase == "out" then
-		-- biegniesz TAM, GDZIE PATRZYSZ (1. osoba, swobodne rozglądanie),
-		-- ale zawsze W GŁĄB: składowa +Z nie spada poniżej 0,35
-		local look = camera.CFrame.LookVector
-		local flat = Vector3.new(look.X, 0, look.Z)
-		flat = flat.Magnitude > 0.05 and flat.Unit or Vector3.new(0, 0, 1)
-		forward = Vector3.new(flat.X, 0, math.max(flat.Z, 0.35)).Unit
-	else
-		forward = Vector3.new(0, 0, -1) -- powrót: prosto do bazy
-	end
+	-- biegniesz TAM, GDZIE PATRZYSZ (1. osoba, swobodne rozglądanie),
+	-- ale zawsze W GŁĄB: składowa +Z nie spada poniżej 0,35
+	local look = camera.CFrame.LookVector
+	local flat = Vector3.new(look.X, 0, look.Z)
+	flat = flat.Magnitude > 0.05 and flat.Unit or Vector3.new(0, 0, 1)
+	local forward = Vector3.new(flat.X, 0, math.max(flat.Z, 0.35)).Unit
 	local strafe = 0
 	if controlsOk and controls then
 		strafe = controls:GetMoveVector().X
@@ -1735,12 +1732,17 @@ local function updateRunCamera()
 	local state = player:GetAttribute("ExpeditionState")
 	local phase = player:GetAttribute("ExpeditionPhase") or "out"
 	if state == "run" and phase == "out" then
+		-- w głąb: 1. osoba (auto-bieg, rozglądanie myszką)
 		player.CameraMode = Enum.CameraMode.LockFirstPerson
 		if not wolfScene then
 			camera.CameraType = Enum.CameraType.Custom
 		end
 	else
+		-- ucieczka / baza: zwykła kamera 3. osoby, ODBLOKOWANA (sam sterujesz)
 		player.CameraMode = Enum.CameraMode.Classic
+		if not wolfScene then
+			camera.CameraType = Enum.CameraType.Custom
+		end
 	end
 end
 player:GetAttributeChangedSignal("ExpeditionPhase"):Connect(updateRunCamera)
@@ -1804,6 +1806,21 @@ wolfBanner.Parent = wolfGui
 local wolfBannerScale = Instance.new("UIScale")
 wolfBannerScale.Parent = wolfBanner
 
+-- podpowiedź „BIEGNIJ!" — od razu wiadomo, że teraz uciekasz SAM
+local wolfRunHint = Instance.new("TextLabel")
+wolfRunHint.AnchorPoint = Vector2.new(0.5, 0)
+wolfRunHint.Position = UDim2.new(0.5, 0, 0.12, 84)
+wolfRunHint.Size = UDim2.new(0, 520, 0, 52)
+wolfRunHint.BackgroundTransparency = 1
+wolfRunHint.Font = FONT
+wolfRunHint.TextScaled = true
+wolfRunHint.TextColor3 = Color3.fromRGB(255, 240, 120)
+wolfRunHint.TextStrokeColor3 = Color3.fromRGB(30, 20, 5)
+wolfRunHint.TextStrokeTransparency = 0
+wolfRunHint.Text = "😱 BIEGNIJ DO BAZY!"
+wolfRunHint.Visible = false
+wolfRunHint.Parent = wolfGui
+
 wolfSceneRemote.OnClientEvent:Connect(function(position, wolfName, seconds)
 	wolfScene = {
 		position = position,
@@ -1814,12 +1831,14 @@ wolfSceneRemote.OnClientEvent:Connect(function(position, wolfName, seconds)
 	wolfBanner.Text = ("🐺 %s!"):format(tostring(wolfName))
 	wolfBanner.Visible = true
 	wolfBanner.TextTransparency = 0
+	wolfRunHint.Visible = true
 	wolfBannerScale.Scale = 0.2
 	TweenService:Create(wolfBannerScale,
 		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	task.delay(seconds, function()
 		wolfScene = nil
 		wolfBanner.Visible = false
+		wolfRunHint.Visible = false
 		if not aiming then
 			camera.CameraType = Enum.CameraType.Custom
 		end
@@ -1892,20 +1911,9 @@ RunService.RenderStepped:Connect(function()
 	elseif player:GetAttribute("ExpeditionState") == "run" and root then
 		local phase = player:GetAttribute("ExpeditionPhase") or "out"
 		if phase == "return" then
-			-- powrót: kamera wysoko z góry (zablokowana) — widzisz siebie,
-			-- drogę do bazy i WILKA za plecami
-			if camera.CameraType ~= Enum.CameraType.Scriptable then
-				camera.CameraType = Enum.CameraType.Scriptable
-			end
-			-- kamera ZA plecami uciekiniera (strona lasu, +Z), lekko z góry:
-			-- biegniesz do bazy TYŁEM do kamery (naturalnie), wilk goni od
-			-- strony kamery, widać całą postać z głową
-			camera.CFrame = CFrame.lookAt(
-				root.Position + Vector3.new(0, 26, 20),
-				root.Position + Vector3.new(0, 3, -8))
-			-- 1. osoba ukryła ciało (LocalTransparencyModifier=1); przy kamerze
-			-- z góry MUSISZ widzieć postać — wymuszamy widoczność wszystkich
-			-- części (też głowy) i twarzy
+			-- ucieczka: zwykła kamera 3. osoby (silnik), pełne sterowanie.
+			-- 1. osoba mogła ukryć ciało — wymuszamy widoczność postaci,
+			-- dopóki kamera 3. osoby sama tego nie przywróci
 			for _, part in character:GetDescendants() do
 				if part:IsA("BasePart") or part:IsA("Decal") then
 					part.LocalTransparencyModifier = 0
