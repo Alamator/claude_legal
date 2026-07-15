@@ -1897,13 +1897,17 @@ RunService.RenderStepped:Connect(function()
 			if camera.CameraType ~= Enum.CameraType.Scriptable then
 				camera.CameraType = Enum.CameraType.Scriptable
 			end
+			-- kamera ZA plecami uciekiniera (strona lasu, +Z), lekko z góry:
+			-- biegniesz do bazy TYŁEM do kamery (naturalnie), wilk goni od
+			-- strony kamery, widać całą postać z głową
 			camera.CFrame = CFrame.lookAt(
-				root.Position + Vector3.new(0, 34, -16),
-				root.Position + Vector3.new(0, 0, 8))
+				root.Position + Vector3.new(0, 26, 20),
+				root.Position + Vector3.new(0, 3, -8))
 			-- 1. osoba ukryła ciało (LocalTransparencyModifier=1); przy kamerze
-			-- z góry MUSISZ widzieć postać — wymuszamy jej widoczność
-			for _, part in character:GetChildren() do
-				if part:IsA("BasePart") then
+			-- z góry MUSISZ widzieć postać — wymuszamy widoczność wszystkich
+			-- części (też głowy) i twarzy
+			for _, part in character:GetDescendants() do
+				if part:IsA("BasePart") or part:IsA("Decal") then
 					part.LocalTransparencyModifier = 0
 				end
 			end

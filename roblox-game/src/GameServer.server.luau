@@ -1249,6 +1249,12 @@ local function cutNode(player: Player, node: Model, worldIdx: number, ringIndex:
 	local s = sessions[player]
 	if not s then return end
 
+	-- ścinać można TYLKO biegnąc w głąb; w drodze powrotnej (koniec kondycji
+	-- albo już z łupem) grzyby są nieaktywne — tylko zmykasz do bazy
+	if s.expedition ~= "run" or s.runPhase ~= "out" then
+		return
+	end
+
 	-- koszyk pełny = NIE ścinasz (grzyb zostaje w lesie) — zmykaj do bazy!
 	if #s.carried >= carryCapacity(s) then
 		if os.clock() - s.fullToastAt > 1.5 then -- anty-spam przy wbieganiu
