@@ -540,19 +540,24 @@ for worldIdx, worldConfig in Config.Worlds do
 	worldFolder:SetAttribute("WorldIndex", worldIdx)
 	worldFolder.Parent = worldsFolder
 
-	-- === Strefa bazy (z = -BASE_LENGTH .. 0): LEGO-płyta z "guzikami" ===
+	-- === Strefa bazy (z = -ZONE_LENGTH .. 0): LEGO-płyta z "guzikami" ===
+	-- ZONE = obszar decków (BASE_WIDTH) + szeroki margines trawy dookoła,
+	-- żeby ściany stały DALEKO od baz (nie tuż przy grządkach)
+	local ZONE_MARGIN = 90
+	local ZONE_WIDTH = BASE_WIDTH + ZONE_MARGIN * 2
+	local ZONE_LENGTH = BASE_LENGTH + ZONE_MARGIN
 	makePart(
 		"BaseZone",
-		Vector3.new(BASE_WIDTH, 1, BASE_LENGTH),
-		CFrame.new(offsetX, 0.5, -BASE_LENGTH / 2),
+		Vector3.new(ZONE_WIDTH, 1, ZONE_LENGTH),
+		CFrame.new(offsetX, 0.5, -ZONE_LENGTH / 2),
 		Color3.fromRGB(108, 188, 78),
 		worldFolder
 	)
 	-- "guziki" klocka na terenie MIĘDZY deckami (modny lego-look);
 	-- pod deckami graczy nie stawiamy
 	local studColor = Color3.fromRGB(126, 205, 94)
-	for studX = -BASE_WIDTH / 2 + 10, BASE_WIDTH / 2 - 10, 10 do
-		for studZ = -BASE_LENGTH + 4, -4, 10 do
+	for studX = -ZONE_WIDTH / 2 + 10, ZONE_WIDTH / 2 - 10, 10 do
+		for studZ = -ZONE_LENGTH + 4, -4, 10 do
 			local onDeck = false
 			if studZ < -8 then
 				for _, center in Config.Base.deckCenters do
@@ -788,18 +793,19 @@ for worldIdx, worldConfig in Config.Worlds do
 	-- WIDOCZNE ŚCIANY GRANICZNE: zasłaniają widok dookoła (nie widać
 	-- pustki ani sąsiednich światów); do innych światów prowadzi
 	-- WYŁĄCZNIE (opłacony) portal. Kształt: szeroka baza + korytarz lasu.
-	local wallHeight = 45
+	local wallHeight = 55
 	local wallColor = ground:Lerp(Color3.new(0, 0, 0), 0.45)
-	local baseHalf = BASE_WIDTH / 2
+	-- ściany na krawędzi STREFY (z marginesem od baz), nie tuż przy grządkach
+	local baseHalf = ZONE_WIDTH / 2
 	local forestHalf = MAP_WIDTH / 2
 	local wallSpecs = {
-		-- baza: boki i tył
-		{ Vector3.new(2, wallHeight, BASE_LENGTH + 4),
-			CFrame.new(offsetX - baseHalf - 1, wallHeight / 2, -BASE_LENGTH / 2) },
-		{ Vector3.new(2, wallHeight, BASE_LENGTH + 4),
-			CFrame.new(offsetX + baseHalf + 1, wallHeight / 2, -BASE_LENGTH / 2) },
-		{ Vector3.new(BASE_WIDTH + 4, wallHeight, 2),
-			CFrame.new(offsetX, wallHeight / 2, -BASE_LENGTH - 1) },
+		-- baza: boki i tył (na obrysie szerokiej strefy)
+		{ Vector3.new(2, wallHeight, ZONE_LENGTH + 4),
+			CFrame.new(offsetX - baseHalf - 1, wallHeight / 2, -ZONE_LENGTH / 2) },
+		{ Vector3.new(2, wallHeight, ZONE_LENGTH + 4),
+			CFrame.new(offsetX + baseHalf + 1, wallHeight / 2, -ZONE_LENGTH / 2) },
+		{ Vector3.new(ZONE_WIDTH + 4, wallHeight, 2),
+			CFrame.new(offsetX, wallHeight / 2, -ZONE_LENGTH - 1) },
 		-- ramiona na linii wejścia do lasu (łączą szeroką bazę z korytarzem)
 		{ Vector3.new(baseHalf - forestHalf + 2, wallHeight, 2),
 			CFrame.new(offsetX - (forestHalf + baseHalf) / 2, wallHeight / 2, 1) },
