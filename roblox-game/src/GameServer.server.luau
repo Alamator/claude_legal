@@ -195,7 +195,7 @@ local sessions: { [Player]: {
 	tutorialStep: number, -- 1..3 = aktywny krok, 0 = ukończony
 	nextChestAt: number,  -- os.time() następnej skrzynki czasowej
 	plotIndex: number,    -- slot działki gracza w pasie bazy
-	plotLabels: any,      -- liczniki urobku na zielonych polach ([index] = TextLabel)
+	plotLabels: any,      -- liczniki urobku ([slot] = { napis_płaski, napis_unoszący })
 	pendingOfflineBonus: number, -- druga połowa zarobku offline (×2 za Robux)
 	comboCount: number,   -- aktualna seria ścięć
 	comboLastAt: number,  -- os.clock() ostatniego ścięcia
@@ -1043,7 +1043,27 @@ local function refreshShelfDisplay(player: Player)
 			labelStroke.Thickness = 3
 			labelStroke.Color = Color3.fromRGB(20, 60, 30)
 			labelStroke.Parent = label
-			s.plotLabels[index] = label
+
+			-- LICZNIK unoszący się nad polem — zawsze zwrócony do kamery,
+			-- czytelny pod każdym kątem (płaski napis ginie z perspektywy gracza)
+			local floatGui = Instance.new("BillboardGui")
+			floatGui.Size = UDim2.new(0, 150, 0, 44)
+			floatGui.StudsOffset = Vector3.new(0, 1.6, 0)
+			floatGui.MaxDistance = 90
+			floatGui.Parent = collect
+			local floatLabel = Instance.new("TextLabel")
+			floatLabel.Size = UDim2.fromScale(1, 1)
+			floatLabel.BackgroundTransparency = 1
+			floatLabel.Font = Enum.Font.FredokaOne
+			floatLabel.TextScaled = true
+			floatLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+			floatLabel.TextStrokeColor3 = Color3.fromRGB(15, 55, 25)
+			floatLabel.TextStrokeTransparency = 0
+			floatLabel.Text = "$" .. Config.fmtNumber(item.earned or 0)
+			floatLabel.Parent = floatGui
+
+			-- oba napisy odświeża pętla dochodu (klucz = numer grządki)
+			s.plotLabels[index] = { label, floatLabel }
 
 			local sound = Instance.new("Sound")
 			sound.SoundId = Config.Base.collectSoundId
@@ -1064,6 +1084,7 @@ local function refreshShelfDisplay(player: Player)
 				planted.earned = (planted.earned or 0) - earned
 				s.data.cash += earned
 				label.Text = "$0"
+				floatLabel.Text = "$0"
 				sound.PlaybackSpeed = 1 + math.random() * 0.25
 				sound:Play()
 				burstAt(collect.Position + Vector3.new(0, 1, 0), Color3.fromRGB(120, 235, 130))
@@ -2383,10 +2404,13 @@ task.spawn(function()
 			for index, item in data.shelf do
 				item.earned = (item.earned or 0) + itemIncome(item, data)
 				-- etykiety padów są kluczowane numerem GRZĄDKI (slot),
-				-- nie pozycją w tablicy!
-				local label = s.plotLabels[item.slot or index]
-				if label then
-					label.Text = "$" .. Config.fmtNumber(item.earned)
+				-- nie pozycją w tablicy; wpis to { napis_płaski, napis_unoszący }
+				local labels = s.plotLabels[item.slot or index]
+				if labels then
+					local text = "$" .. Config.fmtNumber(item.earned)
+					for _, lbl in labels do
+						lbl.Text = text
+					end
 				end
 			end
 			if s.baseIncomeLabel and s.baseIncomeLabel.Parent then
