@@ -1900,6 +1900,13 @@ RunService.RenderStepped:Connect(function()
 			camera.CFrame = CFrame.lookAt(
 				root.Position + Vector3.new(0, 34, -16),
 				root.Position + Vector3.new(0, 0, 8))
+			-- 1. osoba ukryła ciało (LocalTransparencyModifier=1); przy kamerze
+			-- z góry MUSISZ widzieć postać — wymuszamy jej widoczność
+			for _, part in character:GetChildren() do
+				if part:IsA("BasePart") then
+					part.LocalTransparencyModifier = 0
+				end
+			end
 		end
 		-- faza "out": natywna 1. osoba Roblox (LockFirstPerson) —
 		-- swobodne rozglądanie; kamerą zarządza silnik, nie my
