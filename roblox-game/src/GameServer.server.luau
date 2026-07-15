@@ -1632,8 +1632,8 @@ plantEquipped = function(player: Player, tool: Tool)
 		return
 	end
 
-	-- najbliższa wolna grządka NA WŁASNYM decku
-	local bestSlot, bestDistance = nil, 8
+	-- najbliższa wolna grządka NA WŁASNYM decku (spory promień = wygodnie)
+	local bestSlot, bestDistance = nil, 14
 	for slot = 1, plotCapacity(s) do
 		if not shelfAt(s.data, slot) then
 			local x, z = plotCell(s, slot)
@@ -2110,6 +2110,8 @@ local function endExpedition(player: Player, escaped: boolean)
 		escapeRemote:FireClient(player, table.concat(labels, ", "))
 	end
 	despawnWolf(s)
+	deliver(player) -- łup → plecak (grzyby jako przedmioty; puste = nic)
+	teleportToBase(player, s.data.currentWorld) -- ląduj na WŁASNYM decku, przy grządkach
 	applySpeed(player)
 end
 

@@ -423,8 +423,9 @@ Config.Base = {
 	basePlots = 10,
 	maxPlotsBuyable = 20,   -- limit dokupowania za kasę
 	-- 5 OSOBNYCH baz-decków na serwer (max 5 graczy); środki decków w osi X
-	-- względem środka świata — używa MapBuilder (budowa) i GameServer (grządki)
-	deckCenters = { -120, -60, 0, 60, 120 },
+	-- względem środka świata. DUŻE odstępy = przestrzeń, nie ścisk.
+	-- Kolejność od środka: pierwsi gracze dostają decki bliżej wejścia lasu.
+	deckCenters = { 0, -150, 150, -300, 300 },
 	-- grządki są DROGIE (decyzja na godziny, nie minuty) i kupuje się je
 	-- na FIZYCZNYM stanowisku obok ostatniej grządki, nie w menu
 	plotBaseCost = 50_000,

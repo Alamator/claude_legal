@@ -21,9 +21,9 @@ local Config = require(ReplicatedStorage:WaitForChild("GameConfig"))
 
 local MAP_SCALE = 0.5     -- prototyp jest 2× krótszy niż docelowe dystanse
 local MAP_WIDTH = 140     -- szerokość korytarza LASU (oś X)
-local BASE_WIDTH = 300    -- strefa baz jest szersza: 5 osobnych decków
-local BASE_LENGTH = 86    -- głęboka: rzędy grządek chodzą parami z alejkami
-local WORLD_SPACING = 400 -- odstęp między światami w osi X
+local BASE_WIDTH = 760    -- strefa baz: 5 osobnych decków z dużymi odstępami
+local BASE_LENGTH = 90    -- głęboka: rzędy grządek chodzą parami z alejkami
+local WORLD_SPACING = 1100 -- odstęp między światami (bazy są szerokie — bez nachodzenia)
 
 -- kolor podłoża świata (pierścienie ciemnieją w głąb przez Lerp do czerni)
 local WORLD_GROUND = {
@@ -366,7 +366,7 @@ end
 
 local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 	-- stragan-SKLEP w przerwie między deckami 1 i 2 (NPC za ladą)
-	local stallX = offsetX - 90
+	local stallX = offsetX - 225
 	local stallZ = -25
 	for _, corner in { { -4, -4 }, { 4, -4 }, { -4, 4 }, { 4, 4 } } do
 		local post = makePart("StallPost", Vector3.new(0.6, 7, 0.6),
@@ -443,7 +443,7 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 	end
 
 	-- ognisko: skrzyżowane polana + ogień + ciepłe światło (prawy przód)
-	local firePos = Vector3.new(offsetX + 100, 1, -6)
+	local firePos = Vector3.new(offsetX + 350, 1, -6)
 	for angle = 0, 120, 60 do
 		local log = makePart("Log", Vector3.new(4, 0.9, 0.9),
 			CFrame.new(firePos) * CFrame.Angles(0, math.rad(angle), math.rad(8)), Color3.fromRGB(96, 66, 40), worldFolder)
@@ -492,9 +492,9 @@ local function buildBaseCamp(worldFolder: Instance, theme, offsetX: number)
 	end
 
 	-- flaga w kolorze świata (prawy przód, za ogniskiem)
-	local flagPole = makePart("FlagPole", Vector3.new(0.4, 12, 0.4), CFrame.new(offsetX + 140, 6.5, -8), Color3.fromRGB(200, 200, 210), worldFolder)
+	local flagPole = makePart("FlagPole", Vector3.new(0.4, 12, 0.4), CFrame.new(offsetX + 365, 6.5, -8), Color3.fromRGB(200, 200, 210), worldFolder)
 	flagPole.Material = Enum.Material.Metal
-	local flag = makePart("Flag", Vector3.new(5, 3, 0.3), CFrame.new(offsetX + 142.9, 10.5, -8), theme.accent, worldFolder)
+	local flag = makePart("Flag", Vector3.new(5, 3, 0.3), CFrame.new(offsetX + 367.9, 10.5, -8), theme.accent, worldFolder)
 	flag.Material = Enum.Material.SmoothPlastic
 end
 
@@ -578,7 +578,7 @@ for worldIdx, worldConfig in Config.Worlds do
 		local spawnLocation = Instance.new("SpawnLocation")
 		spawnLocation.Size = Vector3.new(8, 1, 8)
 		-- spawn przy straganie (lewy przód bazy)
-		spawnLocation.CFrame = CFrame.new(offsetX - 90, 1.1, -14)
+		spawnLocation.CFrame = CFrame.new(offsetX - 225, 1.1, -14)
 		spawnLocation.Anchored = true
 		spawnLocation.Neutral = true
 		spawnLocation.Parent = worldFolder
@@ -621,7 +621,7 @@ for worldIdx, worldConfig in Config.Worlds do
 	buildBaseCamp(worldFolder, theme, offsetX)
 
 	-- sprzedawca ZA LADĄ straganu (stragan = SKLEP z ulepszeniami)
-	makeVendor(worldFolder, theme, worldIdx, Vector3.new(offsetX - 90, 1, -29))
+	makeVendor(worldFolder, theme, worldIdx, Vector3.new(offsetX - 225, 1, -29))
 	makeFireflies(Color3.fromRGB(255, 215, 240), Vector3.new(offsetX - 30, 1, -25), worldFolder)
 	for _ = 1, 10 do
 		makeSmallDecor(theme, Vector3.new(
@@ -666,17 +666,17 @@ for worldIdx, worldConfig in Config.Worlds do
 		end
 		local box, size = station:GetBoundingBox()
 		local pivotToCenter = station:GetPivot():ToObjectSpace(box)
-		station:PivotTo(CFrame.new(offsetX + 90, 0.7 + size.Y / 2, -25) * pivotToCenter:Inverse())
+		station:PivotTo(CFrame.new(offsetX + 225, 0.7 + size.Y / 2, -25) * pivotToCenter:Inverse())
 		station.Parent = worldFolder
 		-- niewidzialne "WorldEgg" zostaje kotwicą prompta/logiki GameServera
 		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4),
-			CFrame.new(offsetX + 90, 3.2, -25), Color3.fromRGB(250, 245, 230), worldFolder)
+			CFrame.new(offsetX + 225, 3.2, -25), Color3.fromRGB(250, 245, 230), worldFolder)
 		egg.Transparency = 1
 		egg.CanCollide = false
 	else
-		local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 90, 1.2, -25), Color3.fromRGB(150, 110, 70), worldFolder)
+		local nest = makePart("Nest", Vector3.new(4.5, 1, 4.5), CFrame.new(offsetX + 225, 1.2, -25), Color3.fromRGB(150, 110, 70), worldFolder)
 		nest.Material = Enum.Material.WoodPlanks
-		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4), CFrame.new(offsetX + 90, 3.2, -25), Color3.fromRGB(250, 245, 230), worldFolder)
+		egg = makePart("WorldEgg", Vector3.new(2.4, 3, 2.4), CFrame.new(offsetX + 225, 3.2, -25), Color3.fromRGB(250, 245, 230), worldFolder)
 		egg.Shape = Enum.PartType.Ball
 		egg.Material = Enum.Material.SmoothPlastic
 		addSparkles(egg, theme.accent, 2)
