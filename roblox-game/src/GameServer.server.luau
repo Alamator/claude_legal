@@ -2365,11 +2365,20 @@ task.spawn(function()
 				if s.runPhase == "out" and s.stamina > 0 then
 					s.stamina = math.max(0, s.stamina - Config.Stats.Stamina.sprintDrainPerSec)
 					if s.stamina <= 0 then
-						s.runPhase = "return"
-						player:SetAttribute("ExpeditionPhase", "return")
-						notifyRemote:FireClient(player, #s.carried > 0
-							and "😮‍💨 Koniec kondycji! UCIECZKA do bazy!"
-							or "😮‍💨 Kondycja wyczerpana — zawracasz z pustymi rękami.")
+						if #s.carried > 0 then
+							-- z łupem: musisz uciec wilkowi (faza powrotu)
+							s.runPhase = "return"
+							player:SetAttribute("ExpeditionPhase", "return")
+							notifyRemote:FireClient(player, "😮‍💨 Koniec kondycji! UCIECZKA do bazy!")
+						else
+							-- pustymi rękami: od razu teleport do bazy (nikt nie
+							-- chce biec z niczym) — bez fanfary
+							notifyRemote:FireClient(player, "😮‍💨 Kondycja wyczerpana — powrót do bazy.")
+							s.expedition = "base"
+							s.launchCooldownUntil = os.clock() + 4
+							player:SetAttribute("ExpeditionState", "base")
+							teleportToBase(player, data.currentWorld)
+						end
 					end
 				end
 				if inBase then
