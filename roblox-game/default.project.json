@@ -1,0 +1,25 @@
+{
+  "name": "pick-a-shroom",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "GameConfig": { "$path": "src/GameConfig.luau" }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "DataService": { "$path": "src/DataService.luau" },
+      "EventService": { "$path": "src/EventService.luau" },
+      "MapBuilder": { "$path": "src/MapBuilder.server.luau" },
+      "GameServer": { "$path": "src/GameServer.server.luau" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "ClientMain": { "$path": "src/ClientMain.client.luau" },
+        "FxClient": { "$path": "src/FxClient.client.luau" }
+      }
+    }
+  }
+}

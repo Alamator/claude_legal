@@ -1,0 +1,208 @@
+# Kod gry — montaż prototypu w Roblox Studio (~15 minut)
+
+Komplet skryptów **grywalnego prototypu** (faza 4 planu + pierwsza porcja
+fazy 5): mapa buduje się sama, więc niczego nie modelujesz ręcznie.
+Wklejasz 6 plików i grasz.
+
+Poza pętlą podstawową działa już: **eventy serwerowe** co 4–6 min (Złoty
+Deszcz, Wysyp, Tęcza nad lasem, Przymrozek — baner z odliczaniem w lewym
+górnym rogu), **skróty powrotne** (świecące portale na pierścieniach 2–5:
+pierwsze użycie kupuje, kolejne teleportują do bazy), **sprzedaż
+najsłabszego grzyba z półki** (przycisk pod ulepszeniami — zwalnia slot),
+**dziennik grzybiarza** (przycisk 📖 w prawym górnym rogu; nagrody za 10/25/
+50/70 wpisów), **3 dzienne zadania + skrzynka co 20 minut** (panel w lewym
+dolnym rogu), **samouczek 3 kroków** prowadzący nowego gracza strzałką
+(zetnij → odłóż → ulepsz, +150 💰 na koniec), **wszystkie 5 światów** (fioletowy
+portal w bazie odblokowuje następny świat za kasę, zielony wraca; każdy świat
+ma własną pulę 10 gatunków, mnożnik dochodu i szybsze psucie; Grzyboksiężyc ma
+wyższy skok), **wizualne półki** (stojak z twoim nickiem i dochodem stoi
+w bazie, grzyby na nim mają kolor rzadkości, a mutacje świecą) oraz **pakiet
+retencji**: poziomy gracza z paskiem XP i odznaką (nagroda co poziom, trwałe
++0,5% szczęścia za poziom, kamienie milowe co 5), combo za seryjne ścinanie
+(mnożnik XP do ×3, bonusy za ×10/×25/×50, rosnący pitch dźwięku, licznik
+z „punchem"), fanfara level-upu (błysk ekranu + wielki napis + dźwięki),
+seria logowań dzień 1–7, **rebirth** (fioletowy przycisk 🌀 pod
+dziennikiem otwiera minimalistyczny modal („×1.5 → ×2.0", co zeruje / co
+zostaje, cena; przycisk szarzeje, gdy Cię nie stać) — reset daje trwały
+mnożnik dochodu i szczęścia, z fioletową fanfarą i ogłoszeniem serwerowym)
+oraz **pety (gacha)**: jajo w gnieździe każdej bazy, pule 5 petów na świat
+(pozycja = rzadkość), wyklucie z fanfarą w kolorze rzadkości, panel 🐾
+z listą (klik = załóż/zdejmij, max 3), bonusy % do dochodu i szczęścia,
+a założone pety lewitują przy graczach. **Przy podejściu do jaja** wyskakuje
+panel dropów z szansami (uwzględnia passy szczęścia); klik w peta zaznacza
+🗑️ auto-usuwanie po wylosowaniu. Cztery passy jaj gotowe w kodzie: Otwórz
+×3 (199 R$), Auto-Otwieranie (99 R$ — przycisk AUTO przy jajku), Szczęście
+×3/×6 (199/499 R$) — wystarczy wpisać ID z Creator Hub w GameConfig.
+
+## Pliki i ich miejsca w Studio
+
+| Plik | Typ skryptu | Gdzie w Studio | Nazwa w Studio |
+|------|-------------|----------------|----------------|
+| `GameConfig.luau` | **ModuleScript** | `ReplicatedStorage` | `GameConfig` |
+| `DataService.luau` | **ModuleScript** | `ServerScriptService` | `DataService` |
+| `EventService.luau` | **ModuleScript** | `ServerScriptService` | `EventService` |
+| `MapBuilder.server.luau` | **Script** | `ServerScriptService` | `MapBuilder` |
+| `GameServer.server.luau` | **Script** | `ServerScriptService` | `GameServer` |
+| `ClientMain.client.luau` | **LocalScript** | `StarterPlayer → StarterPlayerScripts` | `ClientMain` |
+| `FxClient.client.luau` | **LocalScript** | `StarterPlayer → StarterPlayerScripts` | `FxClient` |
+
+(Końcówki `.server`/`.client` w nazwach plików mówią tylko, jakiego TYPU
+skrypt utworzyć — w Studio nazwa jest bez nich.)
+
+## Montaż krok po kroku
+
+1. Otwórz Roblox Studio → **New** → szablon **Baseplate**.
+2. Dla każdego pliku z tabeli: w oknie **Explorer** najedź na wskazany
+   kontener → kliknij „+" → wybierz właściwy typ (ModuleScript / Script /
+   LocalScript) → zmień nazwę → otwórz (2×klik) → usuń domyślną zawartość →
+   wklej treść pliku.
+3. **File → Publish to Roblox** (nadaj dowolną roboczą nazwę; gra może być
+   prywatna).
+4. **Game Settings → Security → włącz „Enable Studio Access to API
+   Services"** — bez tego zapis postępu (DataStore) nie działa w Studio.
+5. Wciśnij **Play** (F5).
+6. (Opcjonalnie, w dowolnym momencie) wgraj modele z Blendera do
+   `ReplicatedStorage/Models` — gra podmieni grzyby, pety i stanowisko jaja
+   automatycznie. Nazwy i szczegóły: `../blender/PODPIECIE-MODELI.md`.
+
+## Jak sprawdzić, że wszystko działa (kryteria fazy 4)
+
+- [ ] W konsoli Output: `[MapBuilder] Mapa gotowa…` i `[GameServer] …wystartował 🍄`.
+- [ ] Widzisz HUD: kasa u góry, pasek kondycji na dole, kosz po prawej,
+      3 przyciski ulepszeń po lewej.
+- [ ] **Shift** = sprint; pasek spada, a ekran delikatnie się trzęsie;
+      po wyzerowaniu 3 s zadyszki i zostaje tylko zwykły chód.
+- [ ] Kondycja NIE odnawia się w lesie — dopiero po powrocie do strefy
+      bazy pasek szybko rośnie (25 pkt/s).
+- [ ] W lesie stoją grzybki — przytrzymaj **E** przy grzybku, trafia do
+      koszyka (2 miejsca!), jego świeżość tyka w dół.
+- [ ] Przy pełnym koszyku: słabszy roll = „💸 sprzedany na miejscu",
+      lepszy = „🔁 wypycha najsłabszego"; panel kosza pokazuje 🎒 2/2.
+- [ ] Wróć na drewniany **BasePad** w bazie → przytrzymaj **E** → grzyby
+      SADZĄ SIĘ na Twojej działce (rzędy grządek za straganem).
+- [ ] Pod każdym zasadzonym grzybem zielone pole zlicza urobek („💰 N"
+      rośnie co sekundę); wejście na pole = zbiór z dźwiękiem, zielonymi
+      particlesami i „+X 💰"; licznik wraca do zera. Cudzych pól nie
+      da się zbierać.
+- [ ] Przycisk „🌱 Grządka [10/20]" dokupuje po jednej (cena ×2,2);
+      nowa grządka pojawia się na działce od razu.
+- [ ] Przytrzymanie **E** na zasadzonym grzybie ulepsza go (prompt pokazuje
+      lvl i cenę); grzyb wyraźnie ROŚNIE, wylatuje „⬆️ LVL N!", licznik
+      na polu tyka szybciej; przy braku kasy — odmowa.
+- [ ] Kupujesz ulepszenia; po **Stop i ponownym Play** kasa/poziomy wracają
+      (zapis działa).
+- [ ] Po 4–6 minutach gry pojawia się baner eventu (⚡) z odliczaniem.
+- [ ] Świecący portal na pierścieniu 2: pierwsze **E** kupuje skrót
+      (2000 💰), kolejne teleportuje do bazy.
+- [ ] Przycisk „💸 Sprzedaj najsłabszy" zdejmuje grzyb z półki i dodaje kasę.
+- [ ] Na świeżym koncie widać samouczek (KROK 1/3 + znacznik ⬇️ nad
+      najbliższym grzybkiem); po 3 krokach nagroda 150 💰.
+- [ ] W lewym dolnym rogu: 3 zadania dzienne z postępem i odliczanie do 🎁.
+- [ ] Przycisk „📖 Dziennik" otwiera kolekcję; nowy wpis po każdym nowym
+      gatunku×rzadkości.
+- [ ] Fioletowy portal w bazie: odblokowanie Boru Iglastego za 25k 💰,
+      podróż przenosi do nowej bazy, nazwa świata na HUD się zmienia.
+- [ ] Szybkie ścinanie kilku grzybów pod rząd: licznik „🔥 COMBO ×N"
+      z podskokiem i dźwięk o coraz wyższym tonie.
+- [ ] Pasek XP pod kasą rośnie po każdym ścięciu; wejście na poziom =
+      błysk ekranu + „⬆️ POZIOM N!" + nagroda w kasie.
+- [ ] Przy wejściu (raz dziennie) toast „🔥 Seria dzienna: dzień N".
+- [ ] Przycisk „🌀 ×1.0" otwiera modal rebirtha; przy 50k 💰 przycisk robi
+      się fioletowy, po potwierdzeniu: reset do Świata 1, fioletowy błysk
+      „🌀 REBIRTH ×1!", dochód liczony ×1.5.
+- [ ] Jajo przy bazie (5k 💰): wyklucie = błysk w kolorze rzadkości +
+      „🐾 Nazwa!"; pet lewituje obok postaci z podpisem; panel 🐾 pozwala
+      zakładać/zdejmować (max 3), a dochód/s rośnie o bonus peta.
+- [ ] Podejście do jaja pokazuje panel z 5 petami i szansami (60/25/10/4/1%);
+      klik w peta dodaje 🗑️ i przygasza wiersz; wylosowany zaznaczony pet
+      znika z komunikatem; klik w Legendarnego = odmowa.
+- [ ] Przycisk „🤖 AUTO" bez passa pokazuje cenę/ostrzeżenie o ID; z passem
+      (po wpisaniu ID i zakupie testowym) otwiera jajo co 3 s przy gnieździe.
+- [ ] Przy BasePadzie stoi stojak z twoim nickiem; po dostawie pojawiają się
+      na nim kulki w kolorach rzadkości (mutacje świecą).
+- [ ] Test mobilny: zakładka **Test → Device** — przycisk BIEG jest na
+      ekranie, prompty działają dotykiem.
+
+## Warstwa wizualna (pass „żeby nie wyglądało generycznie")
+
+- **Oświetlenie filmowe** ustawiane skryptem: ciepłe popołudnie, mgła
+  (Atmosphere), Bloom, korekcja kolorów (podbita saturacja — low-poly żyje
+  kolorem), promienie słońca.
+- **Każdy biom wygląda inaczej**: Las = drzewa-kule, Bór = świerki z dysków,
+  Mokradła = karłowate drzewa + świecące kałuże + świetliki, Grota = neonowe
+  kryształy (część ze światłem), Księżyc = kratery i lewitujące skały.
+  Środek mapy (pas biegu) jest zawsze wolny od dekoracji.
+- **Bazy jak obozowiska**: stragan z pasiastym daszkiem, ladą i skrzynkami
+  towaru nad BasePadem, **NPC-sprzedawca** w grzybowym kapeluszu machający
+  ręką (Grzybór, Szyszek, Bagno-Bill, Kryształt, Astrogrzyb — po jednym na
+  świat), ognisko z ławkami, lampy, flaga świata, motylki, przekrzywione
+  drewniane tabliczki.
+- **Piaskowa ścieżka** przez środek każdego świata prowadzi od bazy w głąb
+  lasu; pobocza wypełnia drobny detal: kępki trawy, świecące kwiatki
+  w kolorze świata i kamienie (wszystko bez kolizji — nie blokuje biegu).
+- **Portale z kamiennym łukiem**, poświatą, iskrami i światłem.
+- **Grzyby w lesie**: kolory kapeluszy z palety świata, losowy rozmiar,
+  białe kropki, iskierki; w pierścieniach 4-5 świecą własnym światłem.
+- **Efekty**: rozbryzg w kolorze kapelusza przy ścięciu, nazwa znaleziska
+  wylatuje w kolorze rzadkości, „+N 🍄" nad graczem przy dostawie.
+- **Działka z grządkami**: grzyby zasadzone w kopczykach ziemi (rzędy po 5),
+  kapelusze w kolorach rzadkości (mutacje świecą), najlepszy okaz sypie
+  złotymi iskrami; przed każdą grządką neonowe zielone pole z licznikiem
+  urobku do zbierania stopą.
+- **FxClient — animacje sterowane nazwą części** (zero konfiguracji):
+  `Pierscien/Halo/Dysk/Orbita/Fala` w nazwie = część się obraca;
+  `TrzonSeg/Skalki/FloatingRock/Drobiny/Materia/Ksiezyc/Warkocz` = lewituje;
+  portale pulsują; wszystko z `Glow` sypie iskrami (Rdzen = mocniej).
+  Działa od razu na mapie proceduralnej (lewitujące skały Księżyca,
+  pulsujące portale), a modele importowane z `blender/` ożyją automatycznie,
+  bo ich części nazwane są według tej konwencji. Animacje liczy klient
+  z LOD (tylko w pobliżu kamery) — zero kosztu sieci.
+
+## Najczęstsza usterka: „nic się nie pojawia"
+
+1. Mapa i gra powstają **dopiero po wciśnięciu Play (F5)** — w trybie edycji
+   widać tylko pustą płytę.
+2. Skrypty MUSZĄ siedzieć w kontenerach z tabeli powyżej. Wrzucone luzem
+   (np. do Workspace) nie zadziałają. W Explorerze można je przeciągnąć
+   myszką na właściwe miejsce.
+3. `GameConfig` i `DataService` muszą być **ModuleScriptami** — wstawione
+   jako Script powodują, że reszta wisi w nieskończoność (żółte ostrzeżenie
+   `Infinite yield possible…` w Output).
+4. Zawsze zaglądaj do **View → Output**: powinny być linijki
+   `[MapBuilder] Mapa gotowa…` i `[GameServer] …wystartował 🍄`; czerwone
+   błędy mówią, który skrypt jest nie tak.
+
+## Praca bez ręcznego wklejania (opcjonalnie, na później)
+
+- **Oficjalny Roblox Studio MCP** — Claude zainstalowany na Twoim
+  komputerze (Claude Desktop / Claude Code) może wstawiać skrypty do Studio
+  bezpośrednio: https://github.com/Roblox/studio-rust-mcp-server
+- **Rojo** — plik `../default.project.json` mapuje te pliki na właściwe
+  kontenery; po zainstalowaniu wtyczki Rojo w Studio i uruchomieniu
+  `rojo serve` w katalogu `roblox-game/` wszystko synchronizuje się samo:
+  https://rojo.space
+
+## Zasady
+
+- **Wszystkie liczby balansu żyją w `GameConfig.luau`** — skrypty logiki
+  `require`'ują config, nigdy nie mają liczb wpisanych na sztywno.
+- Serwer nie ufa klientowi: klient tylko wyświetla HUD i wysyła prośby
+  (sprint, zakup); losowania, kasa i zapis są wyłącznie po stronie serwera.
+- Pola `id = 0` w monetyzacji uzupełnimy po utworzeniu passów i produktów
+  w Creator Hub (faza 8). Pierwszy działający produkt: **Podwójny Zbiór
+  Nocny (19 R$)** — złoty przycisk „×2" w modalu powitalnym; serwer ma już
+  `ProcessReceipt`, wystarczy utworzyć produkt w Creator Hub i wpisać jego
+  ID w `Config.DevProducts.OfflineDouble.id`. Do czasu wpisania ID przycisk
+  pokazuje ostrzeżenie zamiast okna zakupu.
+
+## Świadome skróty prototypu (do zrobienia porządnie w fazie MVP)
+
+1. Grzyby innych graczy są *widoczne* dla wszystkich (ściąć może tylko
+   właściciel). Docelowo: rendering per-gracz po stronie klienta (GDD §4).
+2. Mapa ma skalę 0,5 (`MAP_SCALE` w MapBuilder) — testy bez zdzierania nóg.
+3. Brak jeszcze: serii dziennej (login streak), Deszczu meteorów (wymaga
+   wspólnych spawnów) i całej monetyzacji — dalsza część fazy 5 i faza 8.
+4. Światy stoją obok siebie na jednej mapie (przesunięte o 400 studów) —
+   docelowo osobne miejsca/teleporty, ale do testów to zaleta: widać wszystko.
+4. Zapis przez `SetAsync` co 120 s — przed premierą przejdziemy na
+   `UpdateAsync` + kolejkę (ochrona przed utratą danych przy awarii).
