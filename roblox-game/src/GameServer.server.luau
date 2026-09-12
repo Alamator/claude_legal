@@ -2478,7 +2478,7 @@ end)
 -- Wejście / wyjście gracza, offline, autozapis
 -- ============================================================================
 
-Players.PlayerAdded:Connect(function(player)
+local function onPlayerJoined(player: Player)
 	local data, loadedOk = DataService.load(player.UserId)
 
 	-- zarobek offline (GDD §8): 50% stawki, cap 2 h
@@ -2569,11 +2569,29 @@ Players.PlayerAdded:Connect(function(player)
 		applySpeed(player)
 		rebuildTools(player) -- grzyby z plecaka wracają do hotbara
 	end)
+	-- postać mogła powstać ZANIM podpięliśmy sygnał (żywy serwer)
+	if player.Character then
+		task.spawn(function()
+			task.wait(0.5)
+			applySpeed(player)
+			rebuildTools(player)
+		end)
+	end
 
 	syncAttributes(player)
 	respawnAllNodes(player)
 	refreshShelfDisplay(player)
-end)
+end
+
+Players.PlayerAdded:Connect(onPlayerJoined)
+
+-- KLUCZOWE na OPUBLIKOWANYM serwerze: gracz dołącza w chwili startu serwera,
+-- czyli ZANIM ten skrypt dobiegnie do tego miejsca (MapBuilder buduje mapę
+-- kilka sekund). Bez tej pętli PlayerAdded nigdy dla niego nie zadziała
+-- i gracz widzi pustkę: brak sesji, grzybów, działki i HUD-u.
+for _, existing in Players:GetPlayers() do
+	task.spawn(onPlayerJoined, existing)
+end
 
 Players.PlayerRemoving:Connect(function(player)
 	local s = sessions[player]
